@@ -2,7 +2,7 @@ extern crate rand;
 use self::rand::Rng;
 use std::vec::Vec;
 
-pub enum Tree<T: PartialOrd> {
+pub enum Tree<T: PartialOrd + Clone> {
     Prop(
         T,
         u32,
@@ -12,7 +12,7 @@ pub enum Tree<T: PartialOrd> {
     Empty,
 }
 
-impl<T: PartialOrd> Tree<T> {
+impl<T: PartialOrd + Clone> Tree<T> {
     pub fn new() -> Self { Tree::Empty }
 
     fn node_size(node: &Self) -> u32 {

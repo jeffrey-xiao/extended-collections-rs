@@ -14,14 +14,14 @@ fn combine_hash(x: u64, y: u64) -> u64 {
     x ^ y.wrapping_add(0x9e3779b9).wrapping_add(x << 6).wrapping_add(x >> 2)
 }
 
-#[derive(Debug)]
-struct Node<T: Hash> {
+#[derive(Debug, Clone)]
+struct Node<T: Hash + Clone> {
     id: T,
     index: u64,
     hash: u64,
 }
 
-impl<T: Hash> Node<T> {
+impl<T: Hash + Clone> Node<T> {
     pub fn new(id: T, index: u64) -> Self {
         Node {
             hash: combine_hash(generate_hash(&id), generate_hash(&index)),
@@ -31,19 +31,19 @@ impl<T: Hash> Node<T> {
     }
 }
 
-impl<T: Hash> PartialOrd for Node<T> {
+impl<T: Hash + Clone> PartialOrd for Node<T> {
     fn partial_cmp(&self, other: &Node<T>) -> Option<Ordering> {
         Some(self.hash.cmp(&other.hash))
     }
 }
 
-impl<T: Hash> PartialEq for Node<T> {
+impl<T: Hash + Clone> PartialEq for Node<T> {
     fn eq(&self, other: &Node<T>) -> bool {
         self.hash == other.hash
     }
 }
 
-struct Ring<T: Hash> {
+struct Ring<T: Hash + Clone> {
     nodes: treap::Tree<Node<T>>,
     replicas: u64,
 }
