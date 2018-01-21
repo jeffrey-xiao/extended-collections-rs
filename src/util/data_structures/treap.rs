@@ -1,91 +1,108 @@
 extern crate rand;
 use self::rand::Rng;
 use std::vec::Vec;
+use std::cmp::Ordering;
 
-pub enum Tree<T: PartialOrd + Clone> {
-    Prop(
-        T,
-        u32,
-        Box<Tree<T>>,
-        Box<Tree<T>>,
-    ),
+pub struct Prop <T: PartialOrd + Clone, U> {
+    key: T,
+    value: U,
+    priority: u32,
+    size: u32,
+    left: Box<Tree<T, U>>,
+    right: Box<Tree<T, U>>,
+
+}
+
+pub enum Tree<T: PartialOrd + Clone, U> {
+    Prop(Prop<T, U>),
     Empty,
 }
 
-impl<T: PartialOrd + Clone> Tree<T> {
+impl<T: PartialOrd + Clone, U> Tree<T, U> {
     pub fn new() -> Self { Tree::Empty }
 
     fn node_size(node: &Self) -> u32 {
         use self::Tree::*;
         return match *node {
             Empty => 0,
-            Prop(_, _, ref left, ref right) => 1 + Self::size(left) + Self::size(right),
+            Prop(ref prop) => 1 + Self::size(&prop.left) + Self::size(&prop.right),
         }
     }
 
-    fn node_traverse<'a>(node: &'a Self, v: &mut Vec<&'a T>)  {
+    fn node_traverse<'a>(node: &'a Self, v: &mut Vec<(&'a T, &'a U)>)  {
         use self::Tree::*;
         match *node {
-            Prop(ref key, _, ref left, ref right) => {
-                Self::node_traverse(&*left, v);
-                v.push(key);
-                Self::node_traverse(&*right, v);
+            Prop(ref prop) => {
+                Self::node_traverse(&*prop.left, v);
+                let entry = (&prop.key, &prop.value);
+                v.push(entry);
+                Self::node_traverse(&*prop.right, v);
             }
             _ => {}
         }
     }
 
     fn merge(left: Self, right: Self) -> Self {
-        use self::Tree::*;
         match (left, right) {
-            (Empty, Empty) => Empty,
-            (n, Empty) => n,
-            (Empty, n) => n,
-            (
-                Prop(lkey, lpriority, ll, lr),
-                Prop(rkey, rpriority, rl, rr),
-            ) => {
-                if lpriority > rpriority {
-                    let right = Prop(rkey, rpriority, rl, rr);
-                    Prop(lkey, lpriority, ll, Box::new(Self::merge(*lr, right)))
+            (Tree::Empty, Tree::Empty) => Tree::Empty,
+            (n, Tree::Empty) => n,
+            (Tree::Empty, n) => n,
+            (Tree::Prop(l), Tree::Prop(r)) => {
+                if l.priority > r.priority {
+                    let foo = Tree::Prop(Prop{ .. r });
+                    Tree::Prop(Prop {
+                        right: Box::new(Self::merge(*l.right, foo)),
+                        .. l
+                    })
                 } else {
-                    let left = Prop(lkey, rpriority, ll, lr);
-                    Prop(rkey, rpriority, Box::new(Self::merge(left, *rl)), rr)
+                    let foo = Tree::Prop(Prop{ .. l });
+                    Tree::Prop(Prop {
+                        left: Box::new(Self::merge(foo, *r.left)),
+                        .. r
+                    })
                 }
             }
         }
     }
 
     fn split(self, k: &T) -> (Self, Self) {
-        use self::Tree::*;
         match self {
-            Empty => (Empty, Empty),
-            Prop(key, priority, left, right) => {
-                if *k > key {
-                    let ret = right.split(k);
+            Tree::Empty => (Tree::Empty, Tree::Empty),
+            Tree::Prop(p) => {
+                if *k > p.key {
+                    let ret = p.right.split(k);
                     (
-                        Prop(key, priority, left, Box::new(ret.0)),
+                        Tree::Prop(Prop { right: Box::new(ret.0), .. p }),
                         ret.1,
                     )
-                } else if *k < key {
-                    let ret = left.split(k);
+                } else if *k < p.key {
+                    let ret = p.left.split(k);
                     (
                         ret.0,
-                        Prop(key, priority, Box::new(ret.1), right),
+                        Tree::Prop(Prop {
+                            left: Box::new(ret.1),
+                            .. p
+                        }),
                     )
                 } else {
-                    (*left, *right)
+                    (*p.left, *p.right)
                 }
             }
         }
     }
 
-    pub fn insert(mut self, key: T) -> Self {
-        use self::Tree::*;
+    pub fn insert(mut self, key: T, value: U) -> Self {
         let mut rng = rand::thread_rng();
 
         let (l, r) = self.split(&key);
-        let new_node = Prop(key, rng.gen::<u32>(), Box::new(Empty), Box::new(Empty));
+        let new_node = Tree::Prop(Prop {
+            key: key,
+            value: value,
+            priority: rng.gen::<u32>(),
+            size: 1,
+            left: Box::new(Tree::Empty),
+            right: Box::new(Tree::Empty),
+        });
         Tree::merge(Tree::merge(l, new_node), r)
     }
 
@@ -94,7 +111,7 @@ impl<T: PartialOrd + Clone> Tree<T> {
         Tree::merge(l, r)
     }
 
-    pub fn traverse(&self) -> Vec<&T> {
+    pub fn traverse(&self) -> Vec<(&T, &U)> {
         let mut ret = Vec::new();
         Tree::node_traverse(&self, &mut ret);
         ret
@@ -107,16 +124,32 @@ impl<T: PartialOrd + Clone> Tree<T> {
     pub fn contains(&self, k: &T) -> bool {
         match self {
             &Tree::Empty => false,
-            &Tree::Prop(ref key, _, ref left, ref right) => {
-                if *key == *k {
+            &Tree::Prop(ref p) => {
+                if p.key == *k {
                     true
-                } else if *key < *k {
-                    right.contains(k)
+                } else if p.key < *k {
+                    p.right.contains(k)
                 } else {
-                    left.contains(k)
+                    p.left.contains(k)
                 }
             }
         }
+    }
+
+    pub fn max(&self) -> Option<T> {
+        match self {
+            &Tree::Empty => None,
+            &Tree::Prop(ref p) => {
+                match &*p.right {
+                    &Tree::Empty => Some(p.key.clone()),
+                    &Tree::Prop(ref q) => p.right.max()
+                }
+            }
+        }
+    }
+
+    pub fn ceil(&self, k: &T) -> Option<T> {
+
     }
 }
 
@@ -129,19 +162,24 @@ macro_rules! sorted_tests {
                 let mut t = Tree::new();
                 let mut expected = Vec::new();
                 for i in 0..$size {
+                    let key = rng.gen::<u32>();
                     let val = rng.gen::<u32>();
-                    t = t.insert(val);
-                    expected.push(val);
+
+                    if !t.contains(&key) {
+                        t = t.insert(key, val);
+                        expected.push((key, val));
+                    }
                 }
 
                 let actual = t.traverse();
 
                 expected.sort();
-                expected.dedup();
+                expected.dedup_by_key(|pair| pair.0);
 
                 assert_eq!(expected.len(), actual.len());
                 for i in 0..expected.len() {
-                    assert_eq!(&expected[i], actual[i]);
+                    assert_eq!(&expected[i].0, actual[i].0);
+                    assert_eq!(&expected[i].1, actual[i].1);
                 }
             }
         )*
@@ -154,5 +192,4 @@ sorted_tests! {
     test_sorted_elements_1000: 1000,
     test_sorted_elements_10000: 10000,
     test_sorted_elements_100000: 100000,
-    test_sorted_elements_1000000: 1000000,
 }

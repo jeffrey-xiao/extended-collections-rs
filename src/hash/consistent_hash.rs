@@ -1,6 +1,5 @@
 use util::data_structures::treap;
 use std::hash::{Hash, Hasher};
-use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::vec::Vec;
 
@@ -18,33 +17,19 @@ fn combine_hash(x: u64, y: u64) -> u64 {
 struct Node<T: Hash + Clone> {
     id: T,
     index: u64,
-    hash: u64,
 }
 
 impl<T: Hash + Clone> Node<T> {
     pub fn new(id: T, index: u64) -> Self {
         Node {
-            hash: combine_hash(generate_hash(&id), generate_hash(&index)),
             id: id,
             index: index,
         }
     }
 }
 
-impl<T: Hash + Clone> PartialOrd for Node<T> {
-    fn partial_cmp(&self, other: &Node<T>) -> Option<Ordering> {
-        Some(self.hash.cmp(&other.hash))
-    }
-}
-
-impl<T: Hash + Clone> PartialEq for Node<T> {
-    fn eq(&self, other: &Node<T>) -> bool {
-        self.hash == other.hash
-    }
-}
-
 struct Ring<T: Hash + Clone> {
-    nodes: treap::Tree<Node<T>>,
+    nodes: treap::Tree<u64, Node<T>>,
     replicas: u64,
 }
 
@@ -59,7 +44,8 @@ impl<T: Hash + Clone> Ring<T> {
     pub fn insert_node(mut self, mut id: T) -> Self {
         for i in 0..self.replicas {
             let node = Node::new(id.clone(), i);
-            self.nodes = self.nodes.insert(node);
+            let hash = combine_hash(generate_hash(&id), generate_hash(&i));
+            self.nodes = self.nodes.insert(hash, node);
         }
         self
     }
@@ -71,14 +57,15 @@ impl<T: Hash + Clone> Ring<T> {
     pub fn delete_node(mut self, id: &T) -> Self {
         for i in 0..self.replicas {
             let node = Node::new(id.clone(), i);
-            self.nodes = self.nodes.delete(node);
+            let hash = combine_hash(generate_hash(&id), generate_hash(&i));
+            self.nodes = self.nodes.delete(hash);
         }
         self
     }
 
-    pub fn get_points(&self) -> Vec<(T, u64)> {
+    pub fn get_points(&self) -> Vec<(&T, &u64)> {
         let res = self.nodes.traverse();
-        res.iter().map(|node| (node.id.clone(), node.hash)).collect()
+        res.iter().map(|node| (&node.1.id, node.0)).collect()
     }
 }
 
