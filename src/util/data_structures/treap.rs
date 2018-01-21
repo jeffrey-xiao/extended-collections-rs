@@ -147,10 +147,6 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
             }
         }
     }
-
-    pub fn ceil(&self, k: &T) -> Option<T> {
-
-    }
 }
 
 macro_rules! sorted_tests {
