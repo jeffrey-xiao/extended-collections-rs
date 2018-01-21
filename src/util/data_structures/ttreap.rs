@@ -1,15 +1,13 @@
 extern crate rand;
-use self::rand::{Rng, SeedableRng, StdRng};
+use self::rand::Rng;
 use std::vec::Vec;
-use std::cmp::Ordering;
 use std::fmt::Debug;
 
 fn unbox<T>(value: Box<T>) -> T {
     *value
 }
 
-#[derive(Debug)]
-pub struct Node <T: PartialOrd + Clone + Debug, U: Debug> {
+pub struct Node <T: PartialOrd + Clone, U> {
     key: T,
     value: U,
     priority: u32,
@@ -19,83 +17,68 @@ pub struct Node <T: PartialOrd + Clone + Debug, U: Debug> {
 
 }
 
-pub struct Tree<T: PartialOrd + Clone + Debug, U: Debug>(Option<Box<Node<T, U>>>);
+pub struct Tree<T: PartialOrd + Clone, U>(Option<Box<Node<T, U>>>);
 
 impl<T: PartialOrd + Clone + Debug, U: Debug> Tree<T, U> {
     pub fn new() -> Self { Tree(None) }
 
-    fn merge(lTree: &mut Option<Box<Node<T, U>>>, mut rTree: Option<Box<Node<T, U>>>) {
-        let rNodeOpt = rTree.take();
+    fn merge(l_tree: &mut Option<Box<Node<T, U>>>, mut r_tree: Option<Box<Node<T, U>>>) {
+        let r_tree_opt = r_tree.take();
 
-        if let Some(rNode) = rNodeOpt {
-            let mut lNodeOpt = lTree.take();
-            if lNodeOpt.is_none() {
-                *lTree = Some(rNode);
+        if let Some(r_node) = r_tree_opt {
+            let mut l_tree_opt = l_tree.take();
+
+            if l_tree_opt.is_none() {
+                *l_tree = Some(r_node);
             } else {
-                let mut leftMerge = false;
+                let mut left_merge = false;
                 {
-                    let mut lNodeOptRef = lNodeOpt.as_ref();
-                    if lNodeOptRef.unwrap().priority > rNode.priority {
-                        leftMerge = true;
+                    let l_node_opt_ref = l_tree_opt.as_ref();
+                    if l_node_opt_ref.unwrap().priority > r_node.priority {
+                        left_merge = true;
                     }
                 }
-                if leftMerge {
-                    let mut lNode = lNodeOpt.unwrap();
-                    Tree::merge(&mut lNode.right, Some(rNode));
-                    *lTree = Some(lNode);
+                if left_merge {
+                    let mut l_node = l_tree_opt.unwrap();
+                    Tree::merge(&mut l_node.right, Some(r_node));
+                    *l_tree = Some(l_node);
                 } else {
-                    let Node { key, value, size, priority, left, right } = unbox(rNode);
-                    Tree::merge(&mut lNodeOpt, left);
-                    let mut lNode = lNodeOpt.unwrap();
-                    *lTree = Some(Box::new(Node {
-                        key: key,
-                        value: value,
-                        size: size,
-                        priority: priority,
-                        left: Some(lNode),
-                        right: right,
-                    }));
+                    let Node { key, value, size, priority, left, right } = unbox(r_node);
+                    Tree::merge(&mut l_tree_opt, left);
+                    let new_left = Some(l_tree_opt.unwrap());
+                    *l_tree = Some(Box::new(Node { key, value, size, priority, left: new_left, right }));
                 }
             }
         }
     }
 
-    fn split(n: &mut Option<Box<Node<T, U>>>, k: &T) -> Option<Box<Node<T, U>>> {
-        let nodeOpt = n.take();
-        if nodeOpt.is_none() {
-            None
-        } else {
-            let mut node = nodeOpt.unwrap();
+    fn split(tree: &mut Option<Box<Node<T, U>>>, k: &T) -> Option<Box<Node<T, U>>> {
+        let tree_opt = tree.take();
+        if let Some(mut node) = tree_opt {
             if node.key < *k {
                 let ret = Tree::split(&mut node.right, k);
-                *n = Some(node);
+                *tree = Some(node);
                 ret
             } else if node.key > *k {
-                let Node { key, value, priority, size, right, mut left } = unbox(node);
-                let leftChild = Tree::split(&mut left, k);
-                *n = left;
-                Some(Box::new(Node {
-                    key: key,
-                    value: value,
-                    priority: priority,
-                    size: size,
-                    right: right,
-                    left: leftChild,
-                }))
+                let Node { key, value, priority, size, right, left: mut new_tree } = unbox(node);
+                let left = Tree::split(&mut new_tree, k);
+                *tree = new_tree;
+                Some(Box::new(Node { key, value, priority, size, left, right }))
             } else {
-                let Node { left: left, right: right, .. } = unbox(node);
-                *n = left;
+                let Node { left, right, .. } = unbox(node);
+                *tree = left;
                 right
             }
+        } else {
+            None
         }
     }
 
     pub fn insert(&mut self, key: T, value: U) {
-        let seed: &[_] = &[1, 2, 3, 4];
-        let mut rng: StdRng = SeedableRng::from_seed(seed);
+        let mut rng = rand::thread_rng();
         let &mut Tree(ref mut n) = self;
 
-        let r = Tree::split(n, &key);
+        let r = Self::split(n, &key);
 
         let new_node = Some(Box::new(Node {
             key: key,
@@ -105,14 +88,14 @@ impl<T: PartialOrd + Clone + Debug, U: Debug> Tree<T, U> {
             left: None,
             right: None,
         }));
-        Tree::merge(n, new_node);
-        Tree::merge(n, r);
+        Self::merge(n, new_node);
+        Self::merge(n, r);
     }
 
     pub fn delete(&mut self, key: &T) {
         let &mut Tree(ref mut n) = self;
-        let r = Tree::split(n, &key);
-        Tree::merge(n, r);
+        let r = Self::split(n, &key);
+        Self::merge(n, r);
     }
 
     fn node_traverse<'a>(node: &'a Option<Box<Node<T, U>>>, v: &mut Vec<(&'a T, &'a U)>) {
@@ -134,38 +117,64 @@ impl<T: PartialOrd + Clone + Debug, U: Debug> Tree<T, U> {
         ret
     }
 
-    // pub fn node_contains()
-
-    // pub fn contains(&self, k: &T) -> bool {
-    //     let &mut Tree(ref mut n) = self;
-
-    // }
-}
-#[test]
-fn test_1000() {
-    let mut rng = rand::thread_rng();
-    let mut t = Tree::new();
-    let mut expected = Vec::new();
-    for i in 0..5 {
-        let key = rng.gen::<u32>();
-        let val = rng.gen::<u32>();
-
-        t.insert(key, val);
-        expected.push((key, val));
+    fn node_contains(node: &Option<Box<Node<T, U>>>, k: &T) -> bool {
+        if let &Some(ref n) = node {
+            if k == &n.key {
+                true
+            } else if k < &n.key {
+                Self::node_contains(&n.left, k)
+            } else {
+                Self::node_contains(&n.right, k)
+            }
+        } else {
+            false
+        }
     }
 
-    let actual = t.traverse();
-
-    for i in 0..actual.len() {
-        println!("{:?}", actual[i]);
+    pub fn contains(&self, k: &T) -> bool {
+         let &Tree(ref n) = self;
+         Self::node_contains(&n, k)
     }
-
-    // expected.sort();
-    // expected.dedup_by_key(|pair| pair.0);
-
-    // assert_eq!(expected.len(), actual.len());
-    // for i in 0..expected.len() {
-    //     assert_eq!(&expected[i].0, actual[i].0);
-    //     assert_eq!(&expected[i].1, actual[i].1);
-    // }
 }
+
+macro_rules! sorted_tests {
+    ( $($name: ident: $size:expr,)* ) => {
+        $(
+            #[test]
+            fn $name() {
+                let mut rng = rand::thread_rng();
+                let mut t = Tree::new();
+                let mut expected = Vec::new();
+                for i in 0..$size {
+                    let key = rng.gen::<u32>();
+                    let val = rng.gen::<u32>();
+
+                    if !t.contains(&key) {
+                        t.insert(key, val);
+                        expected.push((key, val));
+                    }
+                }
+
+                let actual = t.traverse();
+
+                expected.sort();
+                expected.dedup_by_key(|pair| pair.0);
+
+                assert_eq!(expected.len(), actual.len());
+                for i in 0..expected.len() {
+                    assert_eq!(&expected[i].0, actual[i].0);
+                    assert_eq!(&expected[i].1, actual[i].1);
+                }
+            }
+        )*
+    }
+}
+
+sorted_tests! {
+    test_sorted_elements_10: 10,
+    test_sorted_elements_100: 100,
+    test_sorted_elements_1000: 1000,
+    test_sorted_elements_10000: 10000,
+    test_sorted_elements_100000: 100000,
+}
+
