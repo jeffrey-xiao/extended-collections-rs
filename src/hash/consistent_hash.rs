@@ -44,14 +44,14 @@ impl<T: Hash + Clone, U: Hash> Ring<T, U> {
         }
     }
 
-    pub fn insert_node(&mut self, id: &T) {
+    pub fn insert_node(&mut self, id: T) {
         for i in 0..self.replicas {
             let mut new_node = Node {
                 id: id.clone(),
                 index: i,
                 points: vec![],
             };
-            let new_hash = combine_hash(gen_hash(id), gen_hash(&i));
+            let new_hash = combine_hash(gen_hash(&id), gen_hash(&i));
 
             // replaces another node
             if self.nodes.contains(&new_hash) {
@@ -122,19 +122,19 @@ impl<T: Hash + Clone, U: Hash> Ring<T, U> {
 #[test]
 fn wtf() {
     let mut ring = Ring::new(3);
-    ring.insert_node(&String::from("Client-1"));
-    ring.add_point(&1);
-    ring.insert_node(&String::from("Client-2"));
-    ring.add_point(&2);
-    ring.add_point(&3);
-    ring.add_point(&4);
-    ring.add_point(&5);
-    ring.add_point(&6);
-    ring.add_point(&7);
+    ring.insert_node(String::from("Client-1"));
+    ring.add_point(1);
+    ring.insert_node(String::from("Client-2"));
+    ring.add_point(2);
+    ring.add_point(3);
+    ring.add_point(4);
+    ring.add_point(5);
+    ring.add_point(6);
+    ring.add_point(7);
     for i in ring.get_points() {
         println!("{:?}", i);
     }
-    ring.insert_node(&String::from("Client-3"));
+    ring.insert_node(String::from("Client-3"));
     println!("ADDED");
     for i in ring.get_points() {
         println!("{:?}", i);
@@ -151,4 +151,28 @@ fn wtf() {
     for i in ring.get_points() {
         println!("{:?}", i);
     }
+}
+
+extern crate rand;
+use self::rand::Rng;
+#[test]
+fn edgy() {
+    use std::collections::HashMap;
+
+    let mut rng = rand::thread_rng();
+    let mut ring = Ring::new(10);
+    for i in 0..100 {
+        ring.insert_node(format!("Client-{}", i));
+    }
+    for i in 0..10000 {
+        ring.add_point(i);
+    }
+    let mut stats = HashMap::new();
+    for ref i in ring.get_points() {
+        let count = stats.entry(i.0).or_insert(0);
+        *count += i.2.len();
+    }
+    println!("min: {:?}", stats.iter().next());
+    println!("min: {:?}", stats.iter().next());
+    println!("min: {:?}", stats.iter().next());
 }
