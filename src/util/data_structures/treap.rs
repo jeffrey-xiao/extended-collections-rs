@@ -1,17 +1,16 @@
 extern crate rand;
 use self::rand::Rng;
 use std::vec::Vec;
-use std::fmt::Debug;
 
 fn unbox<T>(value: Box<T>) -> T {
     *value
 }
 
-pub struct Node <T: PartialOrd + Clone, U> {
+struct Node <T: PartialOrd + Clone, U> {
     key: T,
     value: U,
     priority: u32,
-    size: u32,
+    size: usize,
     left: Option<Box<Node<T, U>>>,
     right: Option<Box<Node<T, U>>>,
 
@@ -19,8 +18,23 @@ pub struct Node <T: PartialOrd + Clone, U> {
 
 pub struct Tree<T: PartialOrd + Clone, U>(Option<Box<Node<T, U>>>);
 
-impl<T: PartialOrd + Clone + Debug, U: Debug> Tree<T, U> {
+impl<T: PartialOrd + Clone, U> Tree<T, U> {
     pub fn new() -> Self { Tree(None) }
+
+    fn update(tree: &mut Option<Box<Node<T, U>>>) {
+        let tree_opt = tree.take();
+        if let Some(node) = tree_opt {
+            let Node {key, value, priority, mut size, left, right } = unbox(node);
+            size = 1;
+            if let &Some(ref l_node) = &left {
+                size += l_node.size;
+            }
+            if let &Some(ref r_node) = &right {
+                size += r_node.size;
+            }
+            *tree = Some(Box::new(Node { key, value, priority, size, left, right }));
+        }
+    }
 
     fn merge(l_tree: &mut Option<Box<Node<T, U>>>, mut r_tree: Option<Box<Node<T, U>>>) {
         let r_tree_opt = r_tree.take();
@@ -40,45 +54,61 @@ impl<T: PartialOrd + Clone + Debug, U: Debug> Tree<T, U> {
                 }
                 if left_merge {
                     let mut l_node = l_tree_opt.unwrap();
-                    Tree::merge(&mut l_node.right, Some(r_node));
+                    Self::merge(&mut l_node.right, Some(r_node));
                     *l_tree = Some(l_node);
+                    Self::update(l_tree);
                 } else {
                     let Node { key, value, size, priority, left, right } = unbox(r_node);
-                    Tree::merge(&mut l_tree_opt, left);
+                    Self::merge(&mut l_tree_opt, left);
                     let new_left = Some(l_tree_opt.unwrap());
                     *l_tree = Some(Box::new(Node { key, value, size, priority, left: new_left, right }));
+                    Self::update(l_tree);
                 }
             }
         }
     }
 
-    fn split(tree: &mut Option<Box<Node<T, U>>>, k: &T) -> Option<Box<Node<T, U>>> {
+    fn split(tree: &mut Option<Box<Node<T, U>>>, k: &T) -> (Option<Box<Node<T, U>>>, Option<Box<Node<T, U>>>) {
         let tree_opt = tree.take();
-        if let Some(mut node) = tree_opt {
-            if node.key < *k {
-                let ret = Tree::split(&mut node.right, k);
-                *tree = Some(node);
+        match tree_opt {
+            Some(mut node) => {
+                let mut ret = (None, None);
+                if node.key < *k {
+                    let res = Self::split(&mut node.right, k);
+                    if res.0.is_some() {
+                        ret.0 = res.0;
+                    }
+                    ret.1 = res.1;
+                    *tree = Some(node);
+                } else if node.key > *k {
+                    let Node { key, value, priority, size, right, left: mut new_tree } = unbox(node);
+                    let res = Self::split(&mut new_tree, k);
+                    if res.0.is_some() {
+                        ret.0 = res.0;
+                    }
+                    *tree = new_tree;
+                    ret.1 = Some(Box::new(Node { key, value, priority, size, left: res.1, right }))
+                } else {
+                    let Node { key, value, priority, size, left, right } = unbox(node);
+                    *tree = left;
+                    ret = (
+                        Some(Box::new(Node { key, value, priority, size: 1, left: None, right: None})),
+                        right,
+                    );
+                }
+                Self::update(tree);
+                Self::update(&mut ret.1);
                 ret
-            } else if node.key > *k {
-                let Node { key, value, priority, size, right, left: mut new_tree } = unbox(node);
-                let left = Tree::split(&mut new_tree, k);
-                *tree = new_tree;
-                Some(Box::new(Node { key, value, priority, size, left, right }))
-            } else {
-                let Node { left, right, .. } = unbox(node);
-                *tree = left;
-                right
-            }
-        } else {
-            None
+            },
+            None => (None, None),
         }
     }
 
-    pub fn insert(&mut self, key: T, value: U) {
+    pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
         let mut rng = rand::thread_rng();
-        let &mut Tree(ref mut n) = self;
+        let &mut Tree(ref mut tree) = self;
 
-        let r = Self::split(n, &key);
+        let (old_node_opt, r_tree) = Self::split(tree, &key);
 
         let new_node = Some(Box::new(Node {
             key: key,
@@ -88,52 +118,181 @@ impl<T: PartialOrd + Clone + Debug, U: Debug> Tree<T, U> {
             left: None,
             right: None,
         }));
-        Self::merge(n, new_node);
-        Self::merge(n, r);
-    }
-
-    pub fn delete(&mut self, key: &T) {
-        let &mut Tree(ref mut n) = self;
-        let r = Self::split(n, &key);
-        Self::merge(n, r);
-    }
-
-    fn node_traverse<'a>(node: &'a Option<Box<Node<T, U>>>, v: &mut Vec<(&'a T, &'a U)>) {
-        if let &Some(ref n) = node {
-            if n.left.is_some() {
-                Self::node_traverse(&n.left, v);
+        Self::merge(tree, new_node);
+        Self::merge(tree, r_tree);
+        match old_node_opt {
+            Some(old_node) => {
+                let Node {key, value, .. } = unbox(old_node);
+                Some((key, value))
             }
-            v.push((&n.key, &n.value));
-            if n.right.is_some() {
-                Self::node_traverse(&n.right, v);
+            None => None,
+        }
+    }
+
+    pub fn delete(&mut self, key: &T) -> Option<(T, U)> {
+        let &mut Tree(ref mut tree) = self;
+        let (old_node_opt, r_tree) = Self::split(tree, &key);
+        Self::merge(tree, r_tree);
+        match old_node_opt {
+            Some(old_node) => {
+                let Node {key, value, .. } = unbox(old_node);
+                Some((key, value))
+            }
+            None => None,
+        }
+    }
+
+    fn tree_traverse<'a>(tree: &'a Option<Box<Node<T, U>>>, v: &mut Vec<(&'a T, &'a U)>) {
+        if let &Some(ref node) = tree {
+            if node.left.is_some() {
+                Self::tree_traverse(&node.left, v);
+            }
+            v.push((&node.key, &node.value));
+            if node.right.is_some() {
+                Self::tree_traverse(&node.right, v);
             }
         }
     }
 
     pub fn traverse(&self) -> Vec<(&T, &U)> {
-        let &Tree(ref n) = self;
+        let &Tree(ref tree) = self;
         let mut ret = Vec::new();
-        Tree::node_traverse(n, &mut ret);
+        Self::tree_traverse(tree, &mut ret);
         ret
     }
 
-    fn node_contains(node: &Option<Box<Node<T, U>>>, k: &T) -> bool {
-        if let &Some(ref n) = node {
-            if k == &n.key {
-                true
-            } else if k < &n.key {
-                Self::node_contains(&n.left, k)
-            } else {
-                Self::node_contains(&n.right, k)
-            }
-        } else {
-            false
+    fn tree_contains(tree: &Option<Box<Node<T, U>>>, k: &T) -> bool {
+        match tree {
+            &Some(ref node) => {
+                if k == &node.key {
+                    true
+                } else if k < &node.key {
+                    Self::tree_contains(&node.left, k)
+                } else {
+                    Self::tree_contains(&node.right, k)
+                }
+            },
+            &None => false,
         }
     }
 
     pub fn contains(&self, k: &T) -> bool {
          let &Tree(ref n) = self;
-         Self::node_contains(&n, k)
+         Self::tree_contains(&n, k)
+    }
+
+    fn tree_get<'a>(tree: &'a mut Option<Box<Node<T, U>>>, k: &T) -> Option<&'a mut U> {
+        match tree {
+            &mut Some(ref mut node) => {
+                if k == &node.key {
+                    Some(&mut node.value)
+                } else if k < &node.key {
+                    Self::tree_get(&mut node.left, k)
+                } else {
+                    Self::tree_get(&mut node.right, k)
+                }
+            }
+            &mut None => None,
+        }
+    }
+
+    pub fn get(&mut self, k: &T) -> Option<&mut U> {
+        let &mut Tree(ref mut tree) = self;
+        Self::tree_get(tree, k)
+    }
+
+    pub fn size(&self) -> usize {
+        let &Tree(ref tree) = self;
+        match tree {
+            &Some(ref node) => node.size,
+            &None => 0,
+        }
+    }
+
+    fn tree_ceil<'a>(tree: &'a Option<Box<Node<T, U>>>, k: &T) -> Option<&'a T> {
+        match tree {
+            &Some(ref node) => {
+                if &node.key == k {
+                    Some(&node.key)
+                } else if &node.key < k {
+                    Self::tree_ceil(&node.right, k)
+                } else {
+                    let res = Self::tree_ceil(&node.left, k);
+                    if res.is_some() {
+                        res
+                    } else {
+                        Some(&node.key)
+                    }
+                }
+            },
+            &None => None,
+        }
+    }
+
+    pub fn ceil(&self, k: &T) -> Option<&T> {
+        let &Tree(ref tree) = self;
+        Self::tree_ceil(tree, k)
+    }
+
+    fn tree_floor<'a>(tree: &'a Option<Box<Node<T, U>>>, k: &T) -> Option<&'a T> {
+        match tree {
+            &Some(ref node) => {
+                if &node.key == k {
+                    Some(&node.key)
+                } else if &node.key > k {
+                    Self::tree_floor(&node.left, k)
+                } else {
+                    let res = Self::tree_floor(&node.right, k);
+                    if res.is_some() {
+                        res
+                    } else {
+                        Some(&node.key)
+                    }
+                }
+            },
+            &None => None,
+        }
+    }
+
+    pub fn floor(&self, k: &T) -> Option<&T> {
+        let &Tree(ref tree) = self;
+        Self::tree_floor(tree, k)
+    }
+
+    fn tree_min(tree: &Option<Box<Node<T, U>>>) -> Option<&T> {
+        match tree {
+            &Some(ref node) => {
+                if node.left.is_some() {
+                    Self::tree_min(&node.left)
+                } else {
+                    Some(&node.key)
+                }
+            },
+            &None => None,
+        }
+    }
+
+    pub fn min(&self) -> Option<&T> {
+        let &Tree(ref tree) = self;
+        Self::tree_min(tree)
+    }
+
+    fn tree_max(tree: &Option<Box<Node<T, U>>>) -> Option<&T> {
+        match tree {
+            &Some(ref node) => {
+                if node.right.is_some() {
+                    Self::tree_max(&node.right)
+                } else {
+                    Some(&node.key)
+                }
+            },
+            &None => None,
+        }
+    }
+
+    pub fn max(&self) -> Option<&T> {
+        let &Tree(ref tree) = self;
+        Self::tree_max(tree)
     }
 }
 
@@ -145,7 +304,7 @@ macro_rules! sorted_tests {
                 let mut rng = rand::thread_rng();
                 let mut t = Tree::new();
                 let mut expected = Vec::new();
-                for i in 0..$size {
+                for _ in 0..$size {
                     let key = rng.gen::<u32>();
                     let val = rng.gen::<u32>();
 
@@ -171,10 +330,9 @@ macro_rules! sorted_tests {
 }
 
 sorted_tests! {
-    test_sorted_elements_10: 10,
-    test_sorted_elements_100: 100,
-    test_sorted_elements_1000: 1000,
-    test_sorted_elements_10000: 10000,
-    test_sorted_elements_100000: 100000,
+    test_integration_10: 10,
+    test_integration_100: 100,
+    test_integration_1000: 1000,
+    test_integration_10000: 10000,
+    test_integration_100000: 100000,
 }
-
