@@ -2,6 +2,7 @@ use util::data_structures::treap;
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 use std::vec::Vec;
+use std::rc::Rc;
 use std::mem;
 
 fn gen_hash<T: Hash>(value: &T) -> u64 {
@@ -15,18 +16,18 @@ fn combine_hash(x: u64, y: u64) -> u64 {
 }
 
 #[derive(Debug)]
-struct Node<T: Hash + Clone, U: Hash> {
-    id: T,
+struct Node<T: Hash, U: Hash> {
+    id: Rc<T>,
     index: u64,
     points: Vec<(U, u64)>,
 }
 
-struct Ring<T: Hash + Clone, U: Hash> {
+struct Ring<T: Hash, U: Hash> {
     nodes: treap::Tree<u64, Node<T, U>>,
     replicas: u64,
 }
 
-impl<T: Hash + Clone, U: Hash> Ring<T, U> {
+impl<T: Hash, U: Hash> Ring<T, U> {
     pub fn new(replicas: u64) -> Self {
         Ring {
             nodes: treap::Tree::new(),
@@ -45,13 +46,14 @@ impl<T: Hash + Clone, U: Hash> Ring<T, U> {
     }
 
     pub fn insert_node(&mut self, id: T) {
+        let id_ref = Rc::new(id);
         for i in 0..self.replicas {
             let mut new_node = Node {
-                id: id.clone(),
+                id: Rc::clone(&id_ref),
                 index: i,
                 points: vec![],
             };
-            let new_hash = combine_hash(gen_hash(&id), gen_hash(&i));
+            let new_hash = combine_hash(gen_hash(&id_ref), gen_hash(&i));
 
             // replaces another node
             if self.nodes.contains(&new_hash) {
@@ -95,7 +97,7 @@ impl<T: Hash + Clone, U: Hash> Ring<T, U> {
 
     pub fn get_points(&self) -> Vec<(&T, &u64, &Vec<(U, u64)>)> {
         let res = self.nodes.traverse();
-        res.iter().map(|node| (&node.1.id, node.0, &node.1.points)).collect()
+        res.iter().map(|node| (&*node.1.id, node.0, &node.1.points)).collect()
     }
 
     pub fn get_point(&mut self, key: &U) -> &T {
