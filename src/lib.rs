@@ -1,2 +1,2 @@
-mod util;
-mod hash;
+pub mod util;
+pub mod hash;
