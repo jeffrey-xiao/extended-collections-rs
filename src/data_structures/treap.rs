@@ -13,7 +13,6 @@ struct Node <T: PartialOrd + Clone, U> {
     size: usize,
     left: Option<Box<Node<T, U>>>,
     right: Option<Box<Node<T, U>>>,
-
 }
 
 pub struct Tree<T: PartialOrd + Clone, U>(Option<Box<Node<T, U>>>);
@@ -24,12 +23,12 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     fn update(tree: &mut Option<Box<Node<T, U>>>) {
         let tree_opt = tree.take();
         if let Some(node) = tree_opt {
-            let Node {key, value, priority, mut size, left, right } = unbox(node);
-            size = 1;
-            if let &Some(ref l_node) = &left {
+            let Node {key, value, priority, left, right, .. } = unbox(node);
+            let mut size = 1;
+            if let Some(ref l_node) = left {
                 size += l_node.size;
             }
-            if let &Some(ref r_node) = &right {
+            if let Some(ref r_node) = right {
                 size += r_node.size;
             }
             *tree = Some(Box::new(Node { key, value, priority, size, left, right }));
@@ -89,7 +88,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
                     *tree = new_tree;
                     ret.1 = Some(Box::new(Node { key, value, priority, size, left: res.1, right }))
                 } else {
-                    let Node { key, value, priority, size, left, right } = unbox(node);
+                    let Node { key, value, priority, left, right, .. } = unbox(node);
                     *tree = left;
                     ret = (
                         Some(Box::new(Node { key, value, priority, size: 1, left: None, right: None})),
@@ -131,7 +130,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
 
     pub fn delete(&mut self, key: &T) -> Option<(T, U)> {
         let &mut Tree(ref mut tree) = self;
-        let (old_node_opt, r_tree) = Self::split(tree, &key);
+        let (old_node_opt, r_tree) = Self::split(tree, key);
         Self::merge(tree, r_tree);
         match old_node_opt {
             Some(old_node) => {
@@ -143,7 +142,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     fn tree_traverse<'a>(tree: &'a Option<Box<Node<T, U>>>, v: &mut Vec<(&'a T, &'a U)>) {
-        if let &Some(ref node) = tree {
+        if let Some(ref node) = *tree {
             if node.left.is_some() {
                 Self::tree_traverse(&node.left, v);
             }
@@ -162,8 +161,8 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     fn tree_contains(tree: &Option<Box<Node<T, U>>>, k: &T) -> bool {
-        match tree {
-            &Some(ref node) => {
+        match *tree {
+            Some(ref node) => {
                 if k == &node.key {
                     true
                 } else if k < &node.key {
@@ -172,18 +171,18 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
                     Self::tree_contains(&node.right, k)
                 }
             },
-            &None => false,
+            None => false,
         }
     }
 
     pub fn contains(&self, k: &T) -> bool {
          let &Tree(ref n) = self;
-         Self::tree_contains(&n, k)
+         Self::tree_contains(n, k)
     }
 
     fn tree_get<'a>(tree: &'a mut Option<Box<Node<T, U>>>, k: &T) -> Option<&'a mut U> {
-        match tree {
-            &mut Some(ref mut node) => {
+        match *tree {
+            Some(ref mut node) => {
                 if k == &node.key {
                     Some(&mut node.value)
                 } else if k < &node.key {
@@ -192,7 +191,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
                     Self::tree_get(&mut node.right, k)
                 }
             }
-            &mut None => None,
+            None => None,
         }
     }
 
@@ -203,15 +202,15 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
 
     pub fn size(&self) -> usize {
         let &Tree(ref tree) = self;
-        match tree {
-            &Some(ref node) => node.size,
-            &None => 0,
+        match *tree {
+            Some(ref node) => node.size,
+            None => 0,
         }
     }
 
     fn tree_ceil<'a>(tree: &'a Option<Box<Node<T, U>>>, k: &T) -> Option<&'a T> {
-        match tree {
-            &Some(ref node) => {
+        match *tree {
+            Some(ref node) => {
                 if &node.key == k {
                     Some(&node.key)
                 } else if &node.key < k {
@@ -225,7 +224,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
                     }
                 }
             },
-            &None => None,
+            None => None,
         }
     }
 
@@ -235,8 +234,8 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     fn tree_floor<'a>(tree: &'a Option<Box<Node<T, U>>>, k: &T) -> Option<&'a T> {
-        match tree {
-            &Some(ref node) => {
+        match *tree {
+            Some(ref node) => {
                 if &node.key == k {
                     Some(&node.key)
                 } else if &node.key > k {
@@ -250,7 +249,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
                     }
                 }
             },
-            &None => None,
+            None => None,
         }
     }
 
@@ -260,15 +259,15 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     fn tree_min(tree: &Option<Box<Node<T, U>>>) -> Option<&T> {
-        match tree {
-            &Some(ref node) => {
+        match *tree {
+            Some(ref node) => {
                 if node.left.is_some() {
                     Self::tree_min(&node.left)
                 } else {
                     Some(&node.key)
                 }
             },
-            &None => None,
+            None => None,
         }
     }
 
@@ -278,15 +277,15 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     fn tree_max(tree: &Option<Box<Node<T, U>>>) -> Option<&T> {
-        match tree {
-            &Some(ref node) => {
+        match *tree {
+            Some(ref node) => {
                 if node.right.is_some() {
                     Self::tree_max(&node.right)
                 } else {
                     Some(&node.key)
                 }
             },
-            &None => None,
+            None => None,
         }
     }
 
@@ -296,49 +295,50 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 }
 
-macro_rules! sorted_tests {
-    ( $($name: ident: $size:expr,)* ) => {
-        $(
-            #[test]
-            fn $name() {
-                let mut rng = rand::thread_rng();
-                let mut t = Tree::new();
-                let mut expected = Vec::new();
-                for _ in 0..$size {
-                    let key = rng.gen::<u32>();
-                    let val = rng.gen::<u32>();
-
-                    if !t.contains(&key) {
-                        t.insert(key, val);
-                        expected.push((key, val));
-                    }
-                }
-
-                let actual = t.traverse();
-
-                expected.sort();
-                expected.dedup_by_key(|pair| pair.0);
-
-                assert_eq!(expected.len(), actual.len());
-                for i in 0..expected.len() {
-                    assert_eq!(&expected[i].0, actual[i].0);
-                    assert_eq!(&expected[i].1, actual[i].1);
-                }
-            }
-        )*
-    }
-}
 
 #[cfg(test)]
 mod tests {
     use self::rand::Rng;
     use super::*;
 
+    macro_rules! sorted_tests {
+        ( $($name: ident: $size:expr,)* ) => {
+            $(
+                #[test]
+                fn $name() {
+                    let mut rng = rand::thread_rng();
+                    let mut t = Tree::new();
+                    let mut expected = Vec::new();
+                    for _ in 0..$size {
+                        let key = rng.gen::<u32>();
+                        let val = rng.gen::<u32>();
+
+                        if !t.contains(&key) {
+                            t.insert(key, val);
+                            expected.push((key, val));
+                        }
+                    }
+
+                    let actual = t.traverse();
+
+                    expected.sort();
+                    expected.dedup_by_key(|pair| pair.0);
+
+                    assert_eq!(expected.len(), actual.len());
+                    for i in 0..expected.len() {
+                        assert_eq!(&expected[i].0, actual[i].0);
+                        assert_eq!(&expected[i].1, actual[i].1);
+                    }
+                }
+            )*
+        }
+    }
+
     sorted_tests! {
         test_integration_10: 10,
         test_integration_100: 100,
         test_integration_1000: 1000,
-        test_integration_10000: 10000,
-        test_integration_100000: 100000,
+        test_integration_10000: 10_000,
+        test_integration_100000: 100_000,
     }
 }

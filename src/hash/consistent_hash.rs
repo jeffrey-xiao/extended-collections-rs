@@ -1,19 +1,9 @@
-use util::data_structures::treap;
-use std::hash::{Hash, Hasher};
-use std::collections::hash_map::DefaultHasher;
+use data_structures::treap;
+use std::hash::Hash;
 use std::vec::Vec;
 use std::rc::Rc;
 use std::mem;
-
-fn gen_hash<T: Hash>(value: &T) -> u64 {
-  let mut hasher = DefaultHasher::new();
-  value.hash(&mut hasher);
-  hasher.finish()
-}
-
-fn combine_hash(x: u64, y: u64) -> u64 {
-    x ^ y.wrapping_add(0x9e3779b9).wrapping_add(x << 6).wrapping_add(x >> 2)
-}
+use util;
 
 #[derive(Debug)]
 struct Node<T: Hash, U: Hash> {
@@ -53,7 +43,7 @@ impl<T: Hash, U: Hash> Ring<T, U> {
                 index: i,
                 points: vec![],
             };
-            let new_hash = combine_hash(gen_hash(&id_ref), gen_hash(&i));
+            let new_hash = util::combine_hash(util::gen_hash(&id_ref), util::gen_hash(&i));
 
             // replaces another node
             if self.nodes.contains(&new_hash) {
@@ -82,10 +72,10 @@ impl<T: Hash, U: Hash> Ring<T, U> {
 
     pub fn delete_node(&mut self, id: &T) {
         for i in 0..self.replicas {
-            let hash = combine_hash(gen_hash(id), gen_hash(&i));
+            let hash = util::combine_hash(util::gen_hash(id), util::gen_hash(&i));
             if let Some((_, Node { points, .. })) = self.nodes.delete(&hash) {
                 if let Some((_, &mut Node { points: ref mut next_point, .. })) = self.get_next_node(&hash) {
-                    for val in points.into_iter() {
+                    for val in points {
                         next_point.push(val);
                     }
                 } else {
@@ -101,16 +91,16 @@ impl<T: Hash, U: Hash> Ring<T, U> {
     }
 
     pub fn get_point(&mut self, key: &U) -> &T {
-        let hash = gen_hash(key);
+        let hash = util::gen_hash(key);
         if let Some((_, &mut Node { ref id, .. })) = self.get_next_node(&hash) {
-            &id
+            id
         } else {
             panic!("Error: empty ring");
         }
     }
 
     pub fn add_point(&mut self, key: U) {
-        let hash = gen_hash(&key);
+        let hash = util::gen_hash(&key);
         match self.nodes.ceil(&hash) {
             Some(&id) => self.nodes.get(&id).unwrap().points.push((key, hash)),
             None => match self.nodes.min() {
@@ -155,22 +145,20 @@ fn wtf() {
     }
 }
 
-extern crate rand;
-use self::rand::Rng;
 #[test]
 fn edgy() {
+    extern crate rand;
     use std::collections::HashMap;
 
-    let mut rng = rand::thread_rng();
     let mut ring = Ring::new(10);
     for i in 0..100 {
         ring.insert_node(format!("Client-{}", i));
     }
-    for i in 0..10000 {
+    for i in 0..10_000 {
         ring.add_point(i);
     }
     let mut stats = HashMap::new();
-    for ref i in ring.get_points() {
+    for i in ring.get_points() {
         let count = stats.entry(i.0).or_insert(0);
         *count += i.2.len();
     }

@@ -1,7 +1,7 @@
 extern crate code;
 extern crate rand;
 
-use code::util::data_structures::treap::Tree;
+use code::data_structures::treap::Tree;
 use std::vec::Vec;
 use self::rand::Rng;
 
