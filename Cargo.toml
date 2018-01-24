@@ -5,6 +5,5 @@ authors = ["Jeffrey Xiao <jeffrey.xiao1998@gmail.com>"]
 
 [dependencies]
 rand = "0.4"
+clippy = { version = "*", optional = true }
 
-[dev-dependencies]
-clippy = { version = "*" }

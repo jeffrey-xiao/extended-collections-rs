@@ -91,7 +91,7 @@ impl<T: Hash, U: Hash + Eq> Ring<T, U> {
         for i in 0..self.replicas {
             let hash = util::combine_hash(util::gen_hash(id), util::gen_hash(&i));
             if let Some(node) = self.nodes.get(&hash) {
-                for entry in node.points.iter() {
+                for entry in &node.points {
                     ret.push(entry.0);
                 }
             }
