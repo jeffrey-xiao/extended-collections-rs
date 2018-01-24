@@ -180,24 +180,44 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
          Self::tree_contains(n, k)
     }
 
-    fn tree_get<'a>(tree: &'a mut Option<Box<Node<T, U>>>, k: &T) -> Option<&'a mut U> {
+    fn tree_get<'a>(tree: &'a Option<Box<Node<T, U>>>, k: &T) -> Option<&'a U> {
         match *tree {
-            Some(ref mut node) => {
+            Some(ref node) => {
                 if k == &node.key {
-                    Some(&mut node.value)
+                    Some(&node.value)
                 } else if k < &node.key {
-                    Self::tree_get(&mut node.left, k)
+                    Self::tree_get(&node.left, k)
                 } else {
-                    Self::tree_get(&mut node.right, k)
+                    Self::tree_get(&node.right, k)
                 }
             }
             None => None,
         }
     }
 
-    pub fn get(&mut self, k: &T) -> Option<&mut U> {
-        let &mut Tree(ref mut tree) = self;
+    pub fn get(&self, k: &T) -> Option<&U> {
+        let &Tree(ref tree) = self;
         Self::tree_get(tree, k)
+    }
+
+    fn tree_get_mut<'a>(tree: &'a mut Option<Box<Node<T, U>>>, k: &T) -> Option<&'a mut U> {
+        match *tree {
+            Some(ref mut node) => {
+                if k == &node.key {
+                    Some(&mut node.value)
+                } else if k < &node.key {
+                    Self::tree_get_mut(&mut node.left, k)
+                } else {
+                    Self::tree_get_mut(&mut node.right, k)
+                }
+            }
+            None => None,
+        }
+    }
+
+    pub fn get_mut(&mut self, k: &T) -> Option<&mut U> {
+        let &mut Tree(ref mut tree) = self;
+        Self::tree_get_mut(tree, k)
     }
 
     pub fn size(&self) -> usize {
