@@ -7,22 +7,22 @@ use std::mem;
 use util;
 
 #[derive(Debug)]
-struct Node<T: Hash, U: Hash + Eq> {
+struct Node<T: Hash + Eq, U: Hash + Eq> {
     id: Rc<T>,
-    index: u32,
+    index: usize,
     points: HashMap<U, u64>,
 }
 
-struct Ring<T: Hash, U: Hash + Eq> {
+struct Ring<T: Hash + Eq, U: Hash + Eq> {
     nodes: Treap<u64, Node<T, U>>,
-    replicas: u32,
+    replicas: HashMap<Rc<T>, usize>,
 }
 
-impl<T: Hash, U: Hash + Eq> Ring<T, U> {
-    pub fn new(replicas: u32) -> Self {
+impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
+    pub fn new() -> Self {
         Ring {
             nodes: Treap::new(),
-            replicas: replicas,
+            replicas: HashMap::new(),
         }
     }
 
@@ -40,9 +40,10 @@ impl<T: Hash, U: Hash + Eq> Ring<T, U> {
         self.nodes.size()
     }
 
-    pub fn insert_node(&mut self, id: T) {
+    pub fn insert_node(&mut self, id: T, replicas: usize) {
         let id_ref = Rc::new(id);
-        for i in 0..self.replicas {
+        self.replicas.insert(Rc::clone(&id_ref), replicas);
+        for i in 0..replicas {
             let mut new_node: Node<T, U> = Node {
                 id: Rc::clone(&id_ref),
                 index: i,
@@ -52,7 +53,7 @@ impl<T: Hash, U: Hash + Eq> Ring<T, U> {
 
             // replaces another node
             if self.nodes.contains(&new_hash) {
-                new_node.points = self.nodes.delete(&new_hash).unwrap().1.points;
+                new_node.points = self.nodes.remove(&new_hash).unwrap().1.points;
             }
             // could take some of another node
             else if let Some((hash, &mut Node { ref mut points, .. })) = self.get_next_node(&new_hash) {
@@ -71,10 +72,10 @@ impl<T: Hash, U: Hash + Eq> Ring<T, U> {
         }
     }
 
-    pub fn delete_node(&mut self, id: &T) {
-        for i in 0..self.replicas {
+    pub fn remove_node(&mut self, id: &T) {
+        for i in 0..self.replicas[id] {
             let hash = util::combine_hash(util::gen_hash(id), util::gen_hash(&i));
-            if let Some((_, Node { points, .. })) = self.nodes.delete(&hash) {
+            if let Some((_, Node { points, .. })) = self.nodes.remove(&hash) {
                 if let Some((_, &mut Node { points: ref mut next_points, .. })) = self.get_next_node(&hash) {
                     for val in points {
                         next_points.insert(val.0, val.1);
@@ -87,8 +88,9 @@ impl<T: Hash, U: Hash + Eq> Ring<T, U> {
     }
 
     pub fn get_points(&mut self, id: &T) -> Vec<&U> {
+        let replicas = self.replicas[id];
         let mut ret: Vec<&U> = Vec::new();
-        for i in 0..self.replicas {
+        for i in 0..replicas {
             let hash = util::combine_hash(util::gen_hash(id), util::gen_hash(&i));
             if let Some(node) = self.nodes.get(&hash) {
                 for entry in &node.points {
@@ -99,10 +101,10 @@ impl<T: Hash, U: Hash + Eq> Ring<T, U> {
         ret
     }
 
-    pub fn get_node(&mut self, key: &U) -> &T {
+    pub fn get_node(&mut self, key: &U) -> Rc<T> {
         let hash = util::gen_hash(key);
         if let Some((_, &mut Node { ref id, .. })) = self.get_next_node(&hash) {
-            id
+            Rc::clone(id)
         } else {
             panic!("Error: empty ring");
         }
@@ -117,7 +119,7 @@ impl<T: Hash, U: Hash + Eq> Ring<T, U> {
         }
     }
 
-    pub fn delete_point(&mut self, key: &U) {
+    pub fn remove_point(&mut self, key: &U) {
         let hash = util::gen_hash(key);
         if let Some((_, &mut Node { ref mut points, .. })) = self.get_next_node(&hash) {
             points.remove(key);
@@ -133,11 +135,11 @@ impl<T: Hash, U: Hash + Eq> Ring<T, U> {
 }
 
 #[test]
-fn wtf() {
-    let mut ring = Ring::new(3);
-    ring.insert_node(String::from("Client-1"));
+fn int_test() {
+    let mut ring = Ring::new();
+    ring.insert_node(String::from("Client-1"), 3);
     ring.add_point(1);
-    ring.insert_node(String::from("Client-2"));
+    ring.insert_node(String::from("Client-2"), 3);
     ring.add_point(2);
     ring.add_point(3);
     ring.add_point(4);
@@ -147,7 +149,7 @@ fn wtf() {
     for i in ring.iterate() {
         println!("{:?}", i);
     }
-    ring.insert_node(String::from("Client-3"));
+    ring.insert_node(String::from("Client-3"), 3);
     println!("ADDED");
     for i in ring.iterate() {
         println!("{:?}", i);
@@ -155,19 +157,19 @@ fn wtf() {
 
     println!("{:?}", ring.get_node(&3));
     println!("{:?}", ring.get_points(&String::from("Client-2")));
-    ring.delete_node(&String::from("Client-3"));
+    ring.remove_node(&String::from("Client-3"));
     println!("DELETED");
     for i in ring.iterate() {
         println!("{:?}", i);
     }
 
-    ring.delete_node(&String::from("Client-1"));
+    ring.remove_node(&String::from("Client-1"));
     println!("DELETED");
     for i in ring.iterate() {
         println!("{:?}", i);
     }
 
-    ring.delete_point(&7);
+    ring.remove_point(&7);
 
     println!("DELETED POINT");
     for i in ring.iterate() {
@@ -176,13 +178,13 @@ fn wtf() {
 }
 
 #[test]
-fn edgy() {
+fn stats() {
     extern crate rand;
     use std::collections::HashMap;
 
-    let mut ring = Ring::new(10);
+    let mut ring = Ring::new();
     for i in 0..100 {
-        ring.insert_node(format!("Client-{}", i));
+        ring.insert_node(format!("Client-{}", i), 3);
     }
     for i in 0..10_000 {
         ring.add_point(i);
@@ -192,7 +194,6 @@ fn edgy() {
         let count = stats.entry(i.0).or_insert(0);
         *count += i.2.len();
     }
-    println!("min: {:?}", stats.iter().next());
-    println!("min: {:?}", stats.iter().next());
-    println!("min: {:?}", stats.iter().next());
+    println!("min: {:?}", stats.iter().map(|entry| entry.1).min());
+    println!("max: {:?}", stats.iter().map(|entry| entry.1).max());
 }

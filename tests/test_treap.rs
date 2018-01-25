@@ -1,14 +1,14 @@
 extern crate code;
 extern crate rand;
 
-use code::data_structures::treap::Tree;
+use code::data_structures::Treap;
 use std::vec::Vec;
 use self::rand::Rng;
 
 #[test]
 fn name() {
     let mut rng = rand::thread_rng();
-    let mut t = Tree::new();
+    let mut t = Treap::new();
     let mut expected = Vec::new();
     for _ in 0..100000 {
         let key = rng.gen::<u32>();

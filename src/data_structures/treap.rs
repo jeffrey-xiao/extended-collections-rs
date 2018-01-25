@@ -130,7 +130,7 @@ impl<T: PartialOrd + Clone, U> Treap<T, U> {
         }
     }
 
-    pub fn delete(&mut self, key: &T) -> Option<(T, U)> {
+    pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
         let &mut Treap(ref mut tree) = self;
         let (old_node_opt, r_tree) = Self::split(tree, key);
         Self::merge(tree, r_tree);
