@@ -11,16 +11,18 @@ struct Node <T: PartialOrd + Clone, U> {
     value: U,
     priority: u32,
     size: usize,
-    left: Option<Box<Node<T, U>>>,
-    right: Option<Box<Node<T, U>>>,
+    left: Tree<T, U>,
+    right: Tree<T, U>,
 }
 
-pub struct Tree<T: PartialOrd + Clone, U>(Option<Box<Node<T, U>>>);
+type Tree<T, U> = Option<Box<Node<T, U>>>;
 
-impl<T: PartialOrd + Clone, U> Tree<T, U> {
-    pub fn new() -> Self { Tree(None) }
+pub struct Treap<T: PartialOrd + Clone, U>(Tree<T, U>);
 
-    fn update(tree: &mut Option<Box<Node<T, U>>>) {
+impl<T: PartialOrd + Clone, U> Treap<T, U> {
+    pub fn new() -> Self { Treap(None) }
+
+    fn update(tree: &mut Tree<T, U>) {
         let tree_opt = tree.take();
         if let Some(node) = tree_opt {
             let Node {key, value, priority, left, right, .. } = unbox(node);
@@ -35,7 +37,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
         }
     }
 
-    fn merge(l_tree: &mut Option<Box<Node<T, U>>>, mut r_tree: Option<Box<Node<T, U>>>) {
+    fn merge(l_tree: &mut Tree<T, U>, mut r_tree: Tree<T, U>) {
         let r_tree_opt = r_tree.take();
 
         if let Some(r_node) = r_tree_opt {
@@ -67,7 +69,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
         }
     }
 
-    fn split(tree: &mut Option<Box<Node<T, U>>>, k: &T) -> (Option<Box<Node<T, U>>>, Option<Box<Node<T, U>>>) {
+    fn split(tree: &mut Tree<T, U>, k: &T) -> (Tree<T, U>, Tree<T, U>) {
         let tree_opt = tree.take();
         match tree_opt {
             Some(mut node) => {
@@ -105,7 +107,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
 
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
         let mut rng = rand::thread_rng();
-        let &mut Tree(ref mut tree) = self;
+        let &mut Treap(ref mut tree) = self;
 
         let (old_node_opt, r_tree) = Self::split(tree, &key);
 
@@ -129,7 +131,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     pub fn delete(&mut self, key: &T) -> Option<(T, U)> {
-        let &mut Tree(ref mut tree) = self;
+        let &mut Treap(ref mut tree) = self;
         let (old_node_opt, r_tree) = Self::split(tree, key);
         Self::merge(tree, r_tree);
         match old_node_opt {
@@ -141,7 +143,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
         }
     }
 
-    fn tree_traverse<'a>(tree: &'a Option<Box<Node<T, U>>>, v: &mut Vec<(&'a T, &'a U)>) {
+    fn tree_traverse<'a>(tree: &'a Tree<T, U>, v: &mut Vec<(&'a T, &'a U)>) {
         if let Some(ref node) = *tree {
             if node.left.is_some() {
                 Self::tree_traverse(&node.left, v);
@@ -154,13 +156,13 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     pub fn traverse(&self) -> Vec<(&T, &U)> {
-        let &Tree(ref tree) = self;
+        let &Treap(ref tree) = self;
         let mut ret = Vec::new();
         Self::tree_traverse(tree, &mut ret);
         ret
     }
 
-    fn tree_contains(tree: &Option<Box<Node<T, U>>>, k: &T) -> bool {
+    fn tree_contains(tree: &Tree<T, U>, k: &T) -> bool {
         match *tree {
             Some(ref node) => {
                 if k == &node.key {
@@ -176,11 +178,11 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     pub fn contains(&self, k: &T) -> bool {
-         let &Tree(ref n) = self;
+         let &Treap(ref n) = self;
          Self::tree_contains(n, k)
     }
 
-    fn tree_get<'a>(tree: &'a Option<Box<Node<T, U>>>, k: &T) -> Option<&'a U> {
+    fn tree_get<'a>(tree: &'a Tree<T, U>, k: &T) -> Option<&'a U> {
         match *tree {
             Some(ref node) => {
                 if k == &node.key {
@@ -196,11 +198,11 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     pub fn get(&self, k: &T) -> Option<&U> {
-        let &Tree(ref tree) = self;
+        let &Treap(ref tree) = self;
         Self::tree_get(tree, k)
     }
 
-    fn tree_get_mut<'a>(tree: &'a mut Option<Box<Node<T, U>>>, k: &T) -> Option<&'a mut U> {
+    fn tree_get_mut<'a>(tree: &'a mut Tree<T, U>, k: &T) -> Option<&'a mut U> {
         match *tree {
             Some(ref mut node) => {
                 if k == &node.key {
@@ -216,19 +218,19 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     pub fn get_mut(&mut self, k: &T) -> Option<&mut U> {
-        let &mut Tree(ref mut tree) = self;
+        let &mut Treap(ref mut tree) = self;
         Self::tree_get_mut(tree, k)
     }
 
     pub fn size(&self) -> usize {
-        let &Tree(ref tree) = self;
+        let &Treap(ref tree) = self;
         match *tree {
             Some(ref node) => node.size,
             None => 0,
         }
     }
 
-    fn tree_ceil<'a>(tree: &'a Option<Box<Node<T, U>>>, k: &T) -> Option<&'a T> {
+    fn tree_ceil<'a>(tree: &'a Tree<T, U>, k: &T) -> Option<&'a T> {
         match *tree {
             Some(ref node) => {
                 if &node.key == k {
@@ -249,11 +251,11 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     pub fn ceil(&self, k: &T) -> Option<&T> {
-        let &Tree(ref tree) = self;
+        let &Treap(ref tree) = self;
         Self::tree_ceil(tree, k)
     }
 
-    fn tree_floor<'a>(tree: &'a Option<Box<Node<T, U>>>, k: &T) -> Option<&'a T> {
+    fn tree_floor<'a>(tree: &'a Tree<T, U>, k: &T) -> Option<&'a T> {
         match *tree {
             Some(ref node) => {
                 if &node.key == k {
@@ -274,11 +276,11 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     pub fn floor(&self, k: &T) -> Option<&T> {
-        let &Tree(ref tree) = self;
+        let &Treap(ref tree) = self;
         Self::tree_floor(tree, k)
     }
 
-    fn tree_min(tree: &Option<Box<Node<T, U>>>) -> Option<&T> {
+    fn tree_min(tree: &Tree<T, U>) -> Option<&T> {
         match *tree {
             Some(ref node) => {
                 if node.left.is_some() {
@@ -292,11 +294,11 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     pub fn min(&self) -> Option<&T> {
-        let &Tree(ref tree) = self;
+        let &Treap(ref tree) = self;
         Self::tree_min(tree)
     }
 
-    fn tree_max(tree: &Option<Box<Node<T, U>>>) -> Option<&T> {
+    fn tree_max(tree: &Tree<T, U>) -> Option<&T> {
         match *tree {
             Some(ref node) => {
                 if node.right.is_some() {
@@ -310,7 +312,7 @@ impl<T: PartialOrd + Clone, U> Tree<T, U> {
     }
 
     pub fn max(&self) -> Option<&T> {
-        let &Tree(ref tree) = self;
+        let &Treap(ref tree) = self;
         Self::tree_max(tree)
     }
 }
@@ -327,7 +329,7 @@ mod tests {
                 #[test]
                 fn $name() {
                     let mut rng = rand::thread_rng();
-                    let mut t = Tree::new();
+                    let mut t = Treap::new();
                     let mut expected = Vec::new();
                     for _ in 0..$size {
                         let key = rng.gen::<u32>();

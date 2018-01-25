@@ -1,4 +1,4 @@
-use data_structures::treap;
+use data_structures::Treap;
 use std::hash::Hash;
 use std::collections::HashMap;
 use std::vec::Vec;
@@ -9,19 +9,19 @@ use util;
 #[derive(Debug)]
 struct Node<T: Hash, U: Hash + Eq> {
     id: Rc<T>,
-    index: u64,
+    index: u32,
     points: HashMap<U, u64>,
 }
 
 struct Ring<T: Hash, U: Hash + Eq> {
-    nodes: treap::Tree<u64, Node<T, U>>,
-    replicas: u64,
+    nodes: Treap<u64, Node<T, U>>,
+    replicas: u32,
 }
 
 impl<T: Hash, U: Hash + Eq> Ring<T, U> {
-    pub fn new(replicas: u64) -> Self {
+    pub fn new(replicas: u32) -> Self {
         Ring {
-            nodes: treap::Tree::new(),
+            nodes: Treap::new(),
             replicas: replicas,
         }
     }

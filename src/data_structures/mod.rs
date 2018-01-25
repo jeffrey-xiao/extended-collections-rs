@@ -1,1 +1,2 @@
-pub mod treap;
+mod treap;
+pub use self::treap::Treap;
