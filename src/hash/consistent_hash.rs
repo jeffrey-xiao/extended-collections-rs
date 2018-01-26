@@ -9,7 +9,6 @@ use util;
 #[derive(Debug)]
 struct Node<T: Hash + Eq, U: Hash + Eq> {
     id: Rc<T>,
-    index: usize,
     points: HashMap<U, u64>,
 }
 
@@ -46,7 +45,6 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         for i in 0..replicas {
             let mut new_node: Node<T, U> = Node {
                 id: Rc::clone(&id_ref),
-                index: i,
                 points: HashMap::new(),
             };
             let new_hash = util::combine_hash(util::gen_hash(&id_ref), util::gen_hash(&i));
@@ -85,6 +83,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
                 }
             }
         }
+        self.replicas.remove(id);
     }
 
     pub fn get_points(&mut self, id: &T) -> Vec<&U> {
