@@ -1,10 +1,7 @@
 extern crate rand;
 use self::rand::Rng;
 use std::vec::Vec;
-
-fn unbox<T>(value: Box<T>) -> T {
-    *value
-}
+use util;
 
 struct Node <T: PartialOrd + Clone, U> {
     key: T,
@@ -25,7 +22,7 @@ impl<T: PartialOrd + Clone, U> Treap<T, U> {
     fn update(tree: &mut Tree<T, U>) {
         let tree_opt = tree.take();
         if let Some(node) = tree_opt {
-            let Node {key, value, priority, left, right, .. } = unbox(node);
+            let Node {key, value, priority, left, right, .. } = util::unbox(node);
             let mut size = 1;
             if let Some(ref l_node) = left {
                 size += l_node.size;
@@ -59,7 +56,7 @@ impl<T: PartialOrd + Clone, U> Treap<T, U> {
                     *l_tree = Some(l_node);
                     Self::update(l_tree);
                 } else {
-                    let Node { key, value, size, priority, left, right } = unbox(r_node);
+                    let Node { key, value, size, priority, left, right } = util::unbox(r_node);
                     Self::merge(&mut l_tree_opt, left);
                     let new_left = Some(l_tree_opt.unwrap());
                     *l_tree = Some(Box::new(Node { key, value, size, priority, left: new_left, right }));
@@ -82,7 +79,7 @@ impl<T: PartialOrd + Clone, U> Treap<T, U> {
                     ret.1 = res.1;
                     *tree = Some(node);
                 } else if node.key > *k {
-                    let Node { key, value, priority, size, right, left: mut new_tree } = unbox(node);
+                    let Node { key, value, priority, size, right, left: mut new_tree } = util::unbox(node);
                     let res = Self::split(&mut new_tree, k);
                     if res.0.is_some() {
                         ret.0 = res.0;
@@ -90,7 +87,7 @@ impl<T: PartialOrd + Clone, U> Treap<T, U> {
                     *tree = new_tree;
                     ret.1 = Some(Box::new(Node { key, value, priority, size, left: res.1, right }))
                 } else {
-                    let Node { key, value, priority, left, right, .. } = unbox(node);
+                    let Node { key, value, priority, left, right, .. } = util::unbox(node);
                     *tree = left;
                     ret = (
                         Some(Box::new(Node { key, value, priority, size: 1, left: None, right: None})),
@@ -123,7 +120,7 @@ impl<T: PartialOrd + Clone, U> Treap<T, U> {
         Self::merge(tree, r_tree);
         match old_node_opt {
             Some(old_node) => {
-                let Node {key, value, .. } = unbox(old_node);
+                let Node {key, value, .. } = util::unbox(old_node);
                 Some((key, value))
             }
             None => None,
@@ -136,7 +133,7 @@ impl<T: PartialOrd + Clone, U> Treap<T, U> {
         Self::merge(tree, r_tree);
         match old_node_opt {
             Some(old_node) => {
-                let Node {key, value, .. } = unbox(old_node);
+                let Node {key, value, .. } = util::unbox(old_node);
                 Some((key, value))
             }
             None => None,
@@ -320,47 +317,85 @@ impl<T: PartialOrd + Clone, U> Treap<T, U> {
 
 #[cfg(test)]
 mod tests {
-    use self::rand::Rng;
-    use super::*;
+    use super::Treap;
 
-    macro_rules! sorted_tests {
-        ( $($name: ident: $size:expr,)* ) => {
-            $(
-                #[test]
-                fn $name() {
-                    let mut rng = rand::thread_rng();
-                    let mut t = Treap::new();
-                    let mut expected = Vec::new();
-                    for _ in 0..$size {
-                        let key = rng.gen::<u32>();
-                        let val = rng.gen::<u32>();
-
-                        if !t.contains(&key) {
-                            t.insert(key, val);
-                            expected.push((key, val));
-                        }
-                    }
-
-                    let actual = t.traverse();
-
-                    expected.sort();
-                    expected.dedup_by_key(|pair| pair.0);
-
-                    assert_eq!(expected.len(), actual.len());
-                    for i in 0..expected.len() {
-                        assert_eq!(&expected[i].0, actual[i].0);
-                        assert_eq!(&expected[i].1, actual[i].1);
-                    }
-                }
-            )*
-        }
+    #[test]
+    fn test_size_empty() {
+        let tree: Treap<u32, u32> = Treap::new();
+        assert_eq!(tree.size(), 0);
     }
 
-    sorted_tests! {
-        test_integration_10: 10,
-        test_integration_100: 100,
-        test_integration_1000: 1000,
-        test_integration_10000: 10_000,
-        test_integration_100000: 100_000,
+    #[test]
+    fn test_min_max_empty() {
+        let tree: Treap<u32, u32> = Treap::new();
+        assert_eq!(tree.min(), None);
+        assert_eq!(tree.max(), None);
+    }
+
+    #[test]
+    fn test_insert() {
+        let mut tree = Treap::new();
+        tree.insert(1, 1);
+        assert!(tree.contains(&1));
+        assert_eq!(tree.get(&1), Some(&1));
+    }
+
+    #[test]
+    fn test_insert_replace() {
+        let mut tree = Treap::new();
+        let ret_1 = tree.insert(1, 1);
+        let ret_2 = tree.insert(1, 3);
+        assert_eq!(tree.get(&1), Some(&3));
+        assert_eq!(ret_1, None);
+        assert_eq!(ret_2, Some((1, 1)));
+    }
+
+    #[test]
+    fn test_remove() {
+        let mut tree = Treap::new();
+        tree.insert(1, 1);
+        let ret = tree.remove(&1);
+        assert!(!tree.contains(&1));
+        assert_eq!(ret, Some((1, 1)));
+    }
+
+    #[test]
+    fn test_min_max() {
+        let mut tree = Treap::new();
+        tree.insert(1, 1);
+        tree.insert(3, 3);
+        tree.insert(5, 5);
+
+        assert_eq!(tree.min(), Some(&1));
+        assert_eq!(tree.max(), Some(&5));
+    }
+
+    #[test]
+    fn test_get_mut() {
+        let mut tree = Treap::new();
+        tree.insert(1, 1);
+        {
+            let value = tree.get_mut(&1);
+            *value.unwrap() = 3;
+        }
+        assert_eq!(tree.get(&1), Some(&3));
+    }
+
+    #[test]
+    fn test_floor_ceil() {
+        let mut tree = Treap::new();
+        tree.insert(1, 1);
+        tree.insert(3, 3);
+        tree.insert(5, 5);
+
+        assert_eq!(tree.floor(&0), None);
+        assert_eq!(tree.floor(&2), Some(&1));
+        assert_eq!(tree.floor(&4), Some(&3));
+        assert_eq!(tree.floor(&6), Some(&5));
+
+        assert_eq!(tree.ceil(&0), Some(&1));
+        assert_eq!(tree.ceil(&2), Some(&3));
+        assert_eq!(tree.ceil(&4), Some(&5));
+        assert_eq!(tree.ceil(&6), None);
     }
 }

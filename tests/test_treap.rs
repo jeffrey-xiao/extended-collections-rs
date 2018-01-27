@@ -5,29 +5,54 @@ use code::data_structures::Treap;
 use std::vec::Vec;
 use self::rand::Rng;
 
+
 #[test]
-fn name() {
+fn int_test_treap() {
     let mut rng = rand::thread_rng();
-    let mut t = Treap::new();
+    let mut tree = Treap::new();
     let mut expected = Vec::new();
-    for _ in 0..100000 {
+    for _ in 0..10000 {
         let key = rng.gen::<u32>();
         let val = rng.gen::<u32>();
 
-        if !t.contains(&key) {
-            t.insert(key, val);
-            expected.push((key, val));
-        }
+        tree.insert(key, val);
+        expected.push((key, val));
     }
 
-    let actual = t.traverse();
-
-    expected.sort();
+    expected.sort_by(|l, r| l.0.cmp(&r.0));
     expected.dedup_by_key(|pair| pair.0);
 
-    assert_eq!(expected.len(), actual.len());
-    for i in 0..expected.len() {
-        assert_eq!(&expected[i].0, actual[i].0);
-        assert_eq!(&expected[i].1, actual[i].1);
+    assert_eq!(tree.size(), expected.len());
+
+    assert_eq!(tree.min(), Some(&expected[0].0));
+    assert_eq!(tree.max(), Some(&expected[expected.len() - 1].0));
+
+    for ref entry in &expected {
+        assert!(tree.contains(&entry.0));
+        assert_eq!(tree.get(&entry.0), Some(&entry.1));
+        assert_eq!(tree.ceil(&entry.0), Some(&entry.0));
+        assert_eq!(tree.floor(&entry.0), Some(&entry.0));
+    }
+
+    for entry in expected.iter_mut() {
+        let val_1 = rng.gen::<u32>();
+        let val_2 = rng.gen::<u32>();
+
+        let old_entry = tree.insert(entry.0, val_1);
+        assert_eq!(old_entry, Some((entry.0, entry.1)));
+        {
+            let old_val = tree.get_mut(&entry.0);
+            *old_val.unwrap() = val_2;
+        }
+        *entry = (entry.0, val_2);
+        assert_eq!(tree.get(&entry.0), Some(&val_2));
+    }
+
+    let mut expected_size = expected.len();
+    for entry in expected {
+        let old_entry = tree.remove(&entry.0);
+        expected_size -= 1;
+        assert_eq!(old_entry, Some((entry.0, entry.1)));
+        assert_eq!(tree.size(), expected_size);
     }
 }

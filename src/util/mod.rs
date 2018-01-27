@@ -1,6 +1,10 @@
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 
+pub fn unbox<T>(value: Box<T>) -> T {
+    *value
+}
+
 pub fn gen_hash<T: Hash>(value: &T) -> u64 {
     let mut hasher = DefaultHasher::new();
     value.hash(&mut hasher);
