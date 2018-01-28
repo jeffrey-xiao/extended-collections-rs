@@ -3,7 +3,7 @@ use self::rand::Rng;
 use std::vec::Vec;
 use util;
 
-struct Node <T: PartialOrd + Clone, U> {
+struct Node <T: PartialOrd, U> {
     key: T,
     value: U,
     priority: u32,
@@ -14,9 +14,9 @@ struct Node <T: PartialOrd + Clone, U> {
 
 type Tree<T, U> = Option<Box<Node<T, U>>>;
 
-pub struct Treap<T: PartialOrd + Clone, U>(Tree<T, U>);
+pub struct Treap<T: PartialOrd, U>(Tree<T, U>);
 
-impl<T: PartialOrd + Clone, U> Treap<T, U> {
+impl<T: PartialOrd, U> Treap<T, U> {
     pub fn new() -> Self { Treap(None) }
 
     fn update(tree: &mut Tree<T, U>) {
@@ -138,25 +138,6 @@ impl<T: PartialOrd + Clone, U> Treap<T, U> {
             }
             None => None,
         }
-    }
-
-    fn tree_traverse<'a>(tree: &'a Tree<T, U>, v: &mut Vec<(&'a T, &'a U)>) {
-        if let Some(ref node) = *tree {
-            if node.left.is_some() {
-                Self::tree_traverse(&node.left, v);
-            }
-            v.push((&node.key, &node.value));
-            if node.right.is_some() {
-                Self::tree_traverse(&node.right, v);
-            }
-        }
-    }
-
-    pub fn traverse(&self) -> Vec<(&T, &U)> {
-        let &Treap(ref tree) = self;
-        let mut ret = Vec::new();
-        Self::tree_traverse(tree, &mut ret);
-        ret
     }
 
     fn tree_contains(tree: &Tree<T, U>, k: &T) -> bool {
@@ -312,8 +293,49 @@ impl<T: PartialOrd + Clone, U> Treap<T, U> {
         let &Treap(ref tree) = self;
         Self::tree_max(tree)
     }
+
+    pub fn iter(&self) -> TreapIterator<T, U> {
+        let &Treap(ref tree) = self;
+        TreapIterator { current: tree, stack: Vec::new() }
+    }
 }
 
+impl<'a, T: 'a + PartialOrd, U: 'a> IntoIterator for &'a Treap<T, U> {
+    type Item = (&'a T, &'a U);
+    type IntoIter = TreapIterator<'a, T, U>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+
+}
+
+pub struct TreapIterator<'a, T: 'a + PartialOrd, U: 'a> {
+    current: &'a Tree<T, U>,
+    stack: Vec<&'a Node<T, U>>,
+}
+
+impl<'a, T: 'a + PartialOrd, U: 'a> Iterator for TreapIterator<'a, T, U> {
+    type Item = (&'a T, &'a U);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(ref node) = *self.current {
+            self.stack.push(node);
+            self.current = &node.left;
+        }
+        self.stack.pop().map(|node| {
+            let &Node { ref key, ref value, ref right, .. } = node;
+            self.current = right;
+            (key, value)
+        })
+    }
+}
+
+impl<T: PartialOrd, U> Default for Treap<T, U> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -397,5 +419,15 @@ mod tests {
         assert_eq!(tree.ceil(&2), Some(&3));
         assert_eq!(tree.ceil(&4), Some(&5));
         assert_eq!(tree.ceil(&6), None);
+    }
+
+    #[test]
+    fn test_iter() {
+        let mut tree = Treap::new();
+        tree.insert(1, 2);
+        tree.insert(5, 6);
+        tree.insert(3, 4);
+
+        assert_eq!(tree.into_iter().collect::<Vec<(&u32, &u32)>>(), vec![(&1, &2), (&3, &4), (&5, &6)])
     }
 }

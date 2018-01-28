@@ -1,22 +1,20 @@
 use std::hash::Hash;
-use std::fmt::Debug;
 use std::collections::{HashMap, HashSet};
 use std::vec::Vec;
 use std::rc::Rc;
 use util;
 
-#[derive(Debug)]
-struct NodeData<U: Hash + Eq + Debug> {
+struct NodeData<U: Hash + Eq> {
     hashes: Vec<u64>,
     points: HashSet<Rc<U>>,
 }
 
-struct Ring<T: Hash + Ord + Debug, U: Hash + Eq + Debug> {
+struct Ring<T: Hash + Ord, U: Hash + Eq> {
     nodes: HashMap<Rc<T>, NodeData<U>>,
     points: HashMap<Rc<U>, (u64, Rc<T>, u64)>,
 }
 
-impl<T: Hash + Ord + Debug, U: Hash + Eq + Debug> Ring<T, U> {
+impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
     pub fn new() -> Self {
         Ring {
             nodes: HashMap::new(),
@@ -110,6 +108,32 @@ impl<T: Hash + Ord + Debug, U: Hash + Eq + Debug> Ring<T, U> {
     pub fn iterate(&self) -> Vec<(Rc<T>, &HashSet<Rc<U>>)> {
         self.nodes.iter().map(|entry| (entry.0.clone(), &entry.1.points)).collect()
     }
+
+    pub fn iter<'a>(&'a self) -> Box<Iterator<Item=(&'a T, Vec<&'a U>)> + 'a> {
+        Box::new(self.nodes.iter().map(move |ref node_entry| {
+            let &(node_id, node_data) = node_entry;
+            let mut points = Vec::new();
+            for point in &node_data.points {
+                points.push(&**point);
+            }
+            (&**node_id, points)
+        }))
+    }
+}
+
+impl<'a, T: Hash + Ord, U: Hash + Eq> IntoIterator for &'a Ring<T, U> {
+    type Item = (&'a T, Vec<&'a U>);
+    type IntoIter = Box<Iterator<Item=(&'a T, Vec<&'a U>)> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<T: Hash + Ord, U: Hash + Eq> Default for Ring<T, U> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[test]
@@ -124,12 +148,12 @@ fn int_test() {
     ring.add_point(5);
     ring.add_point(6);
     ring.add_point(7);
-    for i in ring.iterate() {
+    for i in &ring {
         println!("{:?}", i);
     }
     ring.insert_node(String::from("Client-3"), 3);
     println!("ADDED");
-    for i in ring.iterate() {
+    for i in &ring {
         println!("{:?}", i);
     }
 
@@ -137,20 +161,20 @@ fn int_test() {
     println!("{:?}", ring.get_points(&String::from("Client-2")));
     ring.remove_node(&String::from("Client-3"));
     println!("DELETED");
-    for i in ring.iterate() {
+    for i in &ring {
         println!("{:?}", i);
     }
 
     ring.remove_node(&String::from("Client-1"));
     println!("DELETED");
-    for i in ring.iterate() {
+    for i in &ring {
         println!("{:?}", i);
     }
 
     ring.remove_point(&7);
 
     println!("DELETED POINT");
-    for i in ring.iterate() {
+    for i in &ring {
         println!("{:?}", i);
     }
 }
@@ -168,7 +192,7 @@ fn stats() {
         ring.add_point(i);
     }
     let mut stats = HashMap::new();
-    for i in ring.iterate() {
+    for i in &ring {
         let count = stats.entry(i.0).or_insert(0);
         *count += i.1.len();
     }
