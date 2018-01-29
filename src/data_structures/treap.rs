@@ -1,6 +1,5 @@
-extern crate rand;
-use self::rand::Rng;
 use std::vec::Vec;
+use rand;
 use util;
 
 struct Node <T: PartialOrd, U> {
@@ -103,7 +102,6 @@ impl<T: PartialOrd, U> Treap<T, U> {
     }
 
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
-        let mut rng = rand::thread_rng();
         let &mut Treap(ref mut tree) = self;
 
         let (old_node_opt, r_tree) = Self::split(tree, &key);
@@ -111,7 +109,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
         let new_node = Some(Box::new(Node {
             key: key,
             value: value,
-            priority: rng.gen::<u32>(),
+            priority: rand::random::<u32>(),
             size: 1,
             left: None,
             right: None,
