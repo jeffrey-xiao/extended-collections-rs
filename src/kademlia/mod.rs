@@ -7,3 +7,4 @@ const MESSAGE_LENGTH: usize = 8196;
 const ROUTING_TABLE_SIZE: usize = KEY_LENGTH * 8;
 const BUCKET_SIZE: usize = 20;
 const CONCURRENCY_PARAM: usize = 3;
+const REQUEST_TIMEOUT: u64 = 10000;

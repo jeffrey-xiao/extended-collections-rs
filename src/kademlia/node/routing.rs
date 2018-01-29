@@ -1,5 +1,5 @@
-use kademlia::{CONCURRENCY_PARAM, ROUTING_TABLE_SIZE};
-use super::NodeData;
+use kademlia::{CONCURRENCY_PARAM, ROUTING_TABLE_SIZE, BUCKET_SIZE};
+use kademlia::node::NodeData;
 
 #[derive(Clone)]
 struct RoutingBucket {
@@ -14,6 +14,9 @@ impl RoutingBucket {
             self.nodes.remove(index);
         }
         self.nodes.push(node_data);
+        if self.nodes.len() > BUCKET_SIZE {
+            self.nodes.remove(0);
+        }
     }
 
     pub fn get_nodes(&self, count: usize) -> Vec<NodeData> {

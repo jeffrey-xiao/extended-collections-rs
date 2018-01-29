@@ -1,7 +1,7 @@
 use std::net::UdpSocket;
 use std::str;
-use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::Arc;
+use std::sync::mpsc::Sender;
 use std::thread;
 use serde_json;
 
@@ -10,7 +10,7 @@ use kademlia::MESSAGE_LENGTH;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Request {
-    pub request_id: Key,
+    pub id: Key,
     pub caller: NodeData,
     pub payload: RequestPayload,
 }
@@ -23,14 +23,14 @@ pub enum RequestPayload {
     FindValue(Key),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Response {
     pub request: Request,
-    pub receiver_id: Key,
+    pub receiver: NodeData,
     pub payload: ResponsePayload,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ResponsePayload {
     Nodes(Vec<NodeData>),
     Value(String),
@@ -49,7 +49,7 @@ pub struct Protocol {
 }
 
 impl Protocol {
-    pub fn new(socket: UdpSocket, tx: Sender<Request>) -> Protocol {
+    pub fn new(socket: UdpSocket, tx: Sender<Message>) -> Protocol {
         let protocol = Protocol { socket: Arc::new(socket) };
         let ret = protocol.clone();
         thread::spawn(move || {
@@ -57,19 +57,10 @@ impl Protocol {
             println!("IN THREAD");
             loop {
                 let (len, src_addr) = protocol.socket.recv_from(&mut buffer).unwrap();
-                println!("HERE");
                 let buffer_string = String::from(str::from_utf8(&buffer[..len]).unwrap());
                 let message = serde_json::from_str::<Message>(&buffer_string).unwrap();
 
-                println!("{:?}", message);
-                match message {
-                    Message::Request(request) => {
-                        tx.send(request).unwrap();
-                    },
-                    Message::Response(response) => {
-                        println!("received response");
-                    },
-                }
+                tx.send(message).unwrap();
             }
         });
         ret
@@ -77,13 +68,7 @@ impl Protocol {
 
     pub fn send_message(&self, message: Message, node_data: &NodeData) {
         let buffer_string = serde_json::to_string(&message).unwrap();
-        self.socket.send_to(&buffer_string.as_bytes(), node_data.addr.clone()).unwrap();
-    }
-
-    pub fn send_request(&self, request: Request, node_data: &NodeData) {
-        let (tx, rx) = channel();
-
-
-
+        let &NodeData { ref addr, .. } = node_data;
+        self.socket.send_to(&buffer_string.as_bytes(), addr).unwrap();
     }
 }
