@@ -1,5 +1,6 @@
-use kademlia::{CONCURRENCY_PARAM, ROUTING_TABLE_SIZE, BUCKET_SIZE};
-use kademlia::node::NodeData;
+use kademlia::{ROUTING_TABLE_SIZE, REPLICATION_PARAM};
+use kademlia::node::{NodeData, Key};
+use std::sync::Arc;
 
 #[derive(Clone)]
 struct RoutingBucket {
@@ -14,7 +15,7 @@ impl RoutingBucket {
             self.nodes.remove(index);
         }
         self.nodes.push(node_data);
-        if self.nodes.len() > BUCKET_SIZE {
+        if self.nodes.len() > REPLICATION_PARAM {
             self.nodes.remove(0);
         }
     }
@@ -33,25 +34,28 @@ impl RoutingBucket {
 #[derive(Clone)]
 pub struct RoutingTable {
     buckets: Vec<RoutingBucket>,
+    node_data: Arc<NodeData>,
 }
 
 impl RoutingTable {
-    pub fn new() -> Self {
+    pub fn new(node_data: Arc<NodeData>) -> Self {
         let mut buckets = Vec::new();
         for _ in 0..ROUTING_TABLE_SIZE {
             buckets.push(RoutingBucket::new());
         }
-        RoutingTable{ buckets: buckets }
+        RoutingTable{ buckets: buckets, node_data: node_data }
     }
 
-    pub fn update_node(&mut self, distance: usize, node_data: NodeData) {
-        self.buckets[distance].update_node(node_data);
+    pub fn update_node(&mut self, node_data: NodeData) {
+        let key = self.node_data.id.xor(&node_data.id);
+        self.buckets[key.get_distance()].update_node(node_data);
     }
 
-    pub fn get_closest(&mut self, distance: usize) -> Vec<NodeData> {
+    pub fn get_closest(&mut self, key: &Key, count: usize) -> Vec<NodeData> {
+        let key = self.node_data.id.xor(key);
         let mut ret = Vec::new();
-        for i in (0..distance).rev() {
-            let nodes = self.buckets[i].get_nodes(CONCURRENCY_PARAM - ret.len());
+        for i in (0..key.get_distance()).rev() {
+            let nodes = self.buckets[i].get_nodes(count - ret.len());
             ret.extend(nodes);
         }
         ret

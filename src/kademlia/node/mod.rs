@@ -11,7 +11,7 @@ use std::time::Duration;
 use kademlia::node::node_data::{NodeData, Key};
 use kademlia::node::routing::RoutingTable;
 use kademlia::protocol::{Protocol, Message, Request, Response, RequestPayload, ResponsePayload};
-use kademlia::REQUEST_TIMEOUT;
+use kademlia::{REQUEST_TIMEOUT, REPLICATION_PARAM};
 
 #[derive(Clone)]
 pub struct Node {
@@ -26,23 +26,20 @@ impl Node {
     pub fn new(ip: String, port: String, bootstrap: Option<NodeData>) -> Self {
         let socket = UdpSocket::bind(format!("{}:{}", ip, port))
             .expect("Error: Could not bind to address!");
-        let node_data = NodeData {
+        let node_data = Arc::new(NodeData {
             addr: socket.local_addr().unwrap().to_string(),
             id: Key::new(),
-        };
-        let mut routing_table = RoutingTable::new();
+        });
+        let mut routing_table = RoutingTable::new(Arc::clone(&node_data));
         if let Some(bootstrap_data) = bootstrap.clone() {
-            routing_table.update_node(
-                node_data.id.xor(&bootstrap_data.id).get_distance(),
-                bootstrap_data,
-            );
+            routing_table.update_node(bootstrap_data);
         }
 
         let (message_tx, message_rx) = channel();
 
         let protocol = Protocol::new(socket, message_tx);
         let mut ret = Node {
-            node_data: Arc::new(node_data),
+            node_data: node_data,
             routing_table: Arc::new(Mutex::new(routing_table)),
             data: Arc::new(Mutex::new(HashMap::new())),
             pending_requests: Arc::new(Mutex::new(HashMap::new())),
@@ -83,7 +80,7 @@ impl Node {
             }
             RequestPayload::FindNode(key) => {
                 ResponsePayload::Nodes(
-                    self.routing_table.lock().unwrap().get_closest(self.node_data.id.xor(&key).get_distance())
+                    self.routing_table.lock().unwrap().get_closest(&key, REPLICATION_PARAM)
                 )
             },
             RequestPayload::FindValue(key) => {
@@ -91,7 +88,7 @@ impl Node {
                     ResponsePayload::Value(value.clone())
                 } else {
                     ResponsePayload::Nodes(
-                        self.routing_table.lock().unwrap().get_closest(self.node_data.id.xor(&key).get_distance())
+                        self.routing_table.lock().unwrap().get_closest(&key, REPLICATION_PARAM)
                     )
                 }
             },
@@ -109,10 +106,10 @@ impl Node {
         let Response { ref request, .. } = response.clone();
         println!("{:?}", response);
         if let Some(sender) = pending_requests.get(&request.id) {
-            println!("SENDING RESPONSE BACK");
+            println!("RECIEVED RESPONSE BACK");
             sender.send(Some(response)).unwrap();
         } else {
-            println!("Warning: Ignoring irrelevant request");
+            println!("Warning: Original request not found; irrelevant response or expired request.");
         }
     }
 
