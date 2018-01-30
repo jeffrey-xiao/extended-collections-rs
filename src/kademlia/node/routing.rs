@@ -20,14 +20,8 @@ impl RoutingBucket {
         }
     }
 
-    pub fn get_nodes(&self, count: usize) -> Vec<NodeData> {
-        let mut ret = Vec::new();
-        for node_data in &self.nodes {
-            if ret.len() < count {
-                ret.push(node_data.clone());
-            }
-        }
-        ret
+    pub fn get_nodes(&self) -> &[NodeData] {
+        self.nodes.as_slice()
     }
 
     pub fn size(&self) -> usize {
@@ -66,10 +60,25 @@ impl RoutingTable {
     pub fn get_closest(&self, key: &Key, count: usize) -> Vec<NodeData> {
         let key = self.node_data.id.xor(key);
         let mut ret = Vec::new();
-        for i in (0..key.get_distance()).rev() {
-            let nodes = self.buckets[i].get_nodes(count - ret.len());
-            ret.extend(nodes);
+        // the distance between target key and keys in [key.get_distance(), ROUTING_TABLE_SIZE]
+        // is not necessarily monotonic
+        for i in key.get_distance()..ROUTING_TABLE_SIZE {
+            ret.extend_from_slice(self.buckets[i].get_nodes());
         }
+
+        if ret.len() < count {
+            // the distance between target key and keys in [0, key.get_distance()]
+            // is monotonicly decreasing by bucket
+            for i in (0..key.get_distance()).rev() {
+                ret.extend_from_slice(self.buckets[i].get_nodes());
+                if ret.len() >= count {
+                    break;
+                }
+            }
+        }
+
+        ret.sort_by_key(|node| node.id.xor(&key).get_distance());
+        ret.truncate(count);
         ret
     }
 
