@@ -1,10 +1,10 @@
 use rand;
+use std::cmp::Ordering;
+
 use kademlia::KEY_LENGTH;
 
-#[derive(PartialEq, Clone, Hash, Serialize, Deserialize, Debug, Default)]
+#[derive(PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Debug, Default)]
 pub struct Key([u8; KEY_LENGTH]);
-
-impl Eq for Key {}
 
 impl Key {
     pub fn new() -> Self {
@@ -38,8 +38,29 @@ impl Key {
     }
 }
 
-#[derive(PartialEq, Clone, Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Debug)]
 pub struct NodeData {
     pub addr: String,
     pub id: Key,
+}
+
+#[derive(Eq, Clone, Debug)]
+pub struct NodeDataDistancePair(pub NodeData, pub usize);
+
+impl PartialEq for NodeDataDistancePair {
+    fn eq(&self, other: &NodeDataDistancePair) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
+impl PartialOrd for NodeDataDistancePair {
+    fn partial_cmp(&self, other: &NodeDataDistancePair) -> Option<Ordering> {
+        Some(other.1.cmp(&self.1))
+    }
+}
+
+impl Ord for NodeDataDistancePair {
+    fn cmp(&self, other: &NodeDataDistancePair) -> Ordering {
+        other.1.cmp(&self.1)
+    }
 }
