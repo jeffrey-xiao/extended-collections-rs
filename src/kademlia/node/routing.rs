@@ -29,6 +29,18 @@ impl RoutingBucket {
         }
         ret
     }
+
+    pub fn size(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn remove_lrs(&mut self) -> Option<NodeData> {
+        if self.size() == 0 {
+            None
+        } else {
+            Some(self.nodes.remove(0))
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -51,7 +63,7 @@ impl RoutingTable {
         self.buckets[key.get_distance()].update_node(node_data);
     }
 
-    pub fn get_closest(&mut self, key: &Key, count: usize) -> Vec<NodeData> {
+    pub fn get_closest(&self, key: &Key, count: usize) -> Vec<NodeData> {
         let key = self.node_data.id.xor(key);
         let mut ret = Vec::new();
         for i in (0..key.get_distance()).rev() {
@@ -59,5 +71,15 @@ impl RoutingTable {
             ret.extend(nodes);
         }
         ret
+    }
+
+    pub fn remove_lrs(&mut self, key: &Key) -> Option<NodeData> {
+        let key = self.node_data.id.xor(key);
+        self.buckets[key.get_distance()].remove_lrs()
+    }
+
+    pub fn bucket_size(&self, key: &Key) -> usize {
+        let key = self.node_data.id.xor(key);
+        self.buckets[key.get_distance()].size()
     }
 }

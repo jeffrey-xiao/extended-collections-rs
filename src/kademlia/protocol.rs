@@ -11,7 +11,7 @@ use kademlia::MESSAGE_LENGTH;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Request {
     pub id: Key,
-    pub caller: NodeData,
+    pub sender: NodeData,
     pub payload: RequestPayload,
 }
 
@@ -54,7 +54,6 @@ impl Protocol {
         let ret = protocol.clone();
         thread::spawn(move || {
             let mut buffer = [0u8; MESSAGE_LENGTH];
-            println!("IN THREAD");
             loop {
                 let (len, src_addr) = protocol.socket.recv_from(&mut buffer).unwrap();
                 let buffer_string = String::from(str::from_utf8(&buffer[..len]).unwrap());
