@@ -11,7 +11,7 @@ fn int_test_treap() {
     let mut rng = rand::thread_rng();
     let mut tree = Treap::new();
     let mut expected = Vec::new();
-    for _ in 0..10000 {
+    for _ in 0..10_000 {
         let key = rng.gen::<u32>();
         let val = rng.gen::<u32>();
 
@@ -27,14 +27,14 @@ fn int_test_treap() {
     assert_eq!(tree.min(), Some(&expected[0].0));
     assert_eq!(tree.max(), Some(&expected[expected.len() - 1].0));
 
-    for ref entry in &expected {
+    for entry in &expected {
         assert!(tree.contains(&entry.0));
         assert_eq!(tree.get(&entry.0), Some(&entry.1));
         assert_eq!(tree.ceil(&entry.0), Some(&entry.0));
         assert_eq!(tree.floor(&entry.0), Some(&entry.0));
     }
 
-    for entry in expected.iter_mut() {
+    for entry in &mut expected {
         let val_1 = rng.gen::<u32>();
         let val_2 = rng.gen::<u32>();
 

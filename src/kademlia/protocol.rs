@@ -65,9 +65,9 @@ impl Protocol {
         ret
     }
 
-    pub fn send_message(&self, message: Message, node_data: &NodeData) {
+    pub fn send_message(&self, message: &Message, node_data: &NodeData) {
         let buffer_string = serde_json::to_string(&message).unwrap();
         let &NodeData { ref addr, .. } = node_data;
-        self.socket.send_to(&buffer_string.as_bytes(), addr).unwrap();
+        self.socket.send_to(buffer_string.as_bytes(), addr).unwrap();
     }
 }

@@ -23,7 +23,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(ip: String, port: String, bootstrap: Option<NodeData>) -> Self {
+    pub fn new(ip: &str, port: &str, bootstrap: Option<NodeData>) -> Self {
         let socket = UdpSocket::bind(format!("{}:{}", ip, port))
             .expect("Error: Could not bind to address!");
         let node_data = Arc::new(NodeData {
@@ -117,7 +117,7 @@ impl Node {
                 },
             };
 
-            self.protocol.send_message(Message::Response(Response {
+            self.protocol.send_message(&Message::Response(Response {
                 request: request.clone(),
                 receiver: receiver,
                 payload,
@@ -151,7 +151,7 @@ impl Node {
         pending_requests.insert(token.clone(), response_tx.clone());
         drop(pending_requests);
 
-        self.protocol.send_message(Message::Request(Request {
+        self.protocol.send_message(&Message::Request(Request {
             id: token.clone(),
             sender: (*self.node_data).clone(),
             payload: payload,
@@ -161,7 +161,7 @@ impl Node {
 
         thread::spawn(move || {
             thread::sleep(Duration::from_millis(REQUEST_TIMEOUT));
-            if let Ok(_) = response_tx.send(None) {
+            if response_tx.send(None).is_ok() {
                 println!("Warning: Request timed out after waiting for {} milliseconds", REQUEST_TIMEOUT);
                 let mut pending_requests = node.pending_requests.lock().unwrap();
                 pending_requests.remove(&token);

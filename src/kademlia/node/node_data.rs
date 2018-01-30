@@ -1,7 +1,7 @@
 use rand;
 use kademlia::KEY_LENGTH;
 
-#[derive(PartialEq, Clone, Hash, Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Clone, Hash, Serialize, Deserialize, Debug, Default)]
 pub struct Key([u8; KEY_LENGTH]);
 
 impl Eq for Key {}
@@ -9,8 +9,8 @@ impl Eq for Key {}
 impl Key {
     pub fn new() -> Self {
         let mut ret = [0; KEY_LENGTH];
-        for i in 0..KEY_LENGTH {
-            ret[i] = rand::random::<u8>();
+        for byte in &mut ret {
+            *byte = rand::random::<u8>();
         }
         Key(ret)
     }
