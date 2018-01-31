@@ -1,12 +1,12 @@
+use serde_json;
 use std::net::UdpSocket;
 use std::str;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
 use std::thread;
-use serde_json;
 
-use kademlia::node::node_data::{NodeData, Key};
-use kademlia::MESSAGE_LENGTH;
+use ::MESSAGE_LENGTH;
+use node::node_data::{NodeData, Key};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Request {

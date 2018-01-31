@@ -1,13 +1,15 @@
 use rand;
 use std::cmp::Ordering;
 
-use kademlia::KEY_LENGTH;
+use ::KEY_LENGTH;
 
 #[derive(PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Debug, Default)]
 pub struct Key([u8; KEY_LENGTH]);
 
 impl Key {
-    pub fn new() -> Self {
+    pub fn new(data: [u8; KEY_LENGTH]) -> Self { Key(data) }
+
+    pub fn rand() -> Self {
         let mut ret = [0; KEY_LENGTH];
         for byte in &mut ret {
             *byte = rand::random::<u8>();

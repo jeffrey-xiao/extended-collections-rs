@@ -1,6 +1,7 @@
-use kademlia::{ROUTING_TABLE_SIZE, REPLICATION_PARAM};
-use kademlia::node::{NodeData, Key};
 use std::sync::Arc;
+
+use ::{ROUTING_TABLE_SIZE, REPLICATION_PARAM};
+use node::{NodeData, Key};
 
 #[derive(Clone)]
 struct RoutingBucket {

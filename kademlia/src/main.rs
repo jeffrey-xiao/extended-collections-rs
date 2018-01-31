@@ -1,8 +1,8 @@
-extern crate code;
+extern crate kademlia;
 
 use std::io;
 
-use code::kademlia::Node;
+use kademlia::Node;
 
 fn main() {
     let n1 = Node::new(&"localhost".to_string(), &"8900".to_string(), None);
