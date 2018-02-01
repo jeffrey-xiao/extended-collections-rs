@@ -6,7 +6,7 @@ use std::mem;
 use ::{ROUTING_TABLE_SIZE, REPLICATION_PARAM};
 use node::{NodeData, Key};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct RoutingBucket {
     nodes: Vec<NodeData>,
 }
@@ -59,7 +59,7 @@ impl RoutingBucket {
 }
 
 // An implementation of the routing table tree using a vector of buckets
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RoutingTable {
     buckets: Vec<RoutingBucket>,
     node_data: Arc<NodeData>,
@@ -103,16 +103,16 @@ impl RoutingTable {
     }
 
     pub fn get_closest(&self, key: &Key, count: usize) -> Vec<NodeData> {
-        let key = self.node_data.id.xor(key);
+        let index = cmp::min(self.node_data.id.xor(key).get_distance(), self.buckets.len() - 1);
         let mut ret = Vec::new();
 
         // the closest keys are guaranteed to be in bucket which key would reside
-        ret.extend_from_slice(self.buckets[key.get_distance()].get_nodes());
+        ret.extend_from_slice(self.buckets[index].get_nodes());
 
         if ret.len() < count {
             // the distance between target key and keys is not necessarily monotonic
             // in range (key.get_distance(), self.buckets.len()], so we must iterate
-            for i in (key.get_distance() + 1)..ROUTING_TABLE_SIZE {
+            for i in (index + 1)..self.buckets.len() {
                 ret.extend_from_slice(self.buckets[i].get_nodes());
             }
         }
@@ -120,7 +120,7 @@ impl RoutingTable {
         if ret.len() < count {
             // the distance between target key and keys in [0, key.get_distance())
             // is monotonicly decreasing by bucket
-            for i in (0..key.get_distance()).rev() {
+            for i in (0..index).rev() {
                 ret.extend_from_slice(self.buckets[i].get_nodes());
                 if ret.len() >= count {
                     break;

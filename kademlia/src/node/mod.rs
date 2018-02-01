@@ -9,7 +9,7 @@ use std::thread;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use ::{REQUEST_TIMEOUT, REPLICATION_PARAM, CONCURRENCY_PARAM, ROUTING_TABLE_SIZE};
+use ::{REQUEST_TIMEOUT, REPLICATION_PARAM, CONCURRENCY_PARAM, ROUTING_TABLE_SIZE, KEY_LENGTH};
 use node::node_data::{NodeDataDistancePair, NodeData, Key};
 use node::routing::RoutingTable;
 use protocol::{Protocol, Message, Request, Response, RequestPayload, ResponsePayload};
@@ -35,10 +35,10 @@ impl Node {
         let (message_tx, message_rx) = channel();
         let protocol = Protocol::new(socket, message_tx);
 
+        // directly use update_node as update_routing_table is async
         if let Some(bootstrap_data) = bootstrap.clone() {
             routing_table.update_node(bootstrap_data);
         }
-
 
         let mut ret = Node {
             node_data: node_data,
@@ -50,9 +50,8 @@ impl Node {
 
         ret.clone().start_message_handler(message_rx);
 
-        if let Some(bootstrap_data) = bootstrap {
-            ret.rpc_ping(&bootstrap_data);
-        }
+        let target_key = ret.node_data.id.clone();
+        ret.lookup_nodes(&target_key);
 
         ret
     }
@@ -69,11 +68,13 @@ impl Node {
         });
     }
 
-    fn update_routing_table(mut self, node_data: NodeData) {
+    fn update_routing_table(&mut self, node_data: NodeData) {
+        println!("{:?} ADDING {:?}", self.node_data.addr, node_data);
+        let mut node = self.clone();
         thread::spawn(move || {
             let mut lrs_node_opt = None;
             {
-                let mut routing_table = self.routing_table.lock().unwrap();
+                let mut routing_table = node.routing_table.lock().unwrap();
                 if !routing_table.update_node(node_data.clone()) {
                     lrs_node_opt = routing_table.remove_lrs(&node_data.id);
                 }
@@ -81,11 +82,10 @@ impl Node {
 
             // Ping the lrs node and move to front of bucket if active
             if let Some(lrs_node) = lrs_node_opt {
-                self.rpc_ping(&lrs_node);
+                node.rpc_ping(&lrs_node);
+                let mut routing_table = node.routing_table.lock().unwrap();
+                routing_table.update_node(node_data);
             }
-
-            let mut routing_table = self.routing_table.lock().unwrap();
-            routing_table.update_node(node_data);
         });
     }
 
@@ -153,7 +153,7 @@ impl Node {
         self.protocol.send_message(&Message::Request(Request {
             id: token.clone(),
             sender: (*self.node_data).clone(),
-            payload: payload,
+                payload: payload,
         }), dest);
 
         let node = self.clone();
@@ -186,15 +186,16 @@ impl Node {
         let closest_nodes = routing_table.get_closest(key, CONCURRENCY_PARAM);
         drop(routing_table);
 
-        let mut closest_distance = ROUTING_TABLE_SIZE;
+        let mut closest_distance = Key::new([255u8; KEY_LENGTH]);
         for node_data in &closest_nodes {
-            closest_distance = cmp::min(closest_distance, key.xor(&node_data.id).get_distance())
+            closest_distance = cmp::min(closest_distance, key.xor(&node_data.id))
         }
 
         // initialize found nodes and priority queue
         let mut found_nodes: HashSet<NodeData> = HashSet::from(
             closest_nodes.clone().into_iter().collect()
         );
+        found_nodes.insert((*self.node_data).clone());
         let mut queue: BinaryHeap<NodeDataDistancePair> = BinaryHeap::from(
             closest_nodes
                 .into_iter()
@@ -230,13 +231,16 @@ impl Node {
 
             if let Some(Response{ payload: ResponsePayload::Nodes(nodes), .. }) = response_opt {
                 for node_data in nodes {
-                    let curr_distance = node_data.id.xor(key).get_distance();
-                    if curr_distance < closest_distance {
-                        closest_distance = curr_distance;
-                        *is_terminated.lock().unwrap() = false;
-                    }
+                    let curr_distance = node_data.id.xor(key);
+                    println!("CURR DISTANCE IS {:?}", curr_distance);
 
                     if !found_nodes.contains(&node_data) {
+                        println!("GOT {:?}", node_data);
+                        if curr_distance < closest_distance {
+                            closest_distance = curr_distance;
+                            *is_terminated.lock().unwrap() = false;
+                        }
+
                         found_nodes.insert(node_data.clone());
                         queue.push(NodeDataDistancePair(
                             node_data.clone(),

@@ -1,10 +1,18 @@
 use rand;
 use std::cmp::Ordering;
+use std::fmt::{Debug, Formatter, Result};
 
 use ::KEY_LENGTH;
 
-#[derive(PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Debug, Default)]
+#[derive(Ord, PartialOrd, PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Default)]
 pub struct Key([u8; KEY_LENGTH]);
+
+impl Debug for Key {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        let hex_vec: Vec<String> = self.0.iter().map(|b| format!("{:02X}", b)).collect();
+        write!(f, "{}", hex_vec.connect(""))
+    }
+}
 
 impl Key {
     pub fn new(data: [u8; KEY_LENGTH]) -> Self { Key(data) }
