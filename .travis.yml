@@ -26,6 +26,10 @@ addons:
       - binutils-dev
       - libiberty-dev
 
+script:
+  - cargo build --verbose --all
+  - cargo test --verbose --all
+
 after_success:
   - |
     wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
