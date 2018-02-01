@@ -23,10 +23,10 @@ fn main() {
             break;
         }
         let args: Vec<&str> = buffer.trim_right().split(' ').collect();
-        match args[0].as_ref() {
+        match args[0] {
             "new" => {
                 let index: u32 = args[2].parse().unwrap();
-                let node_data = (*node_map.get(&index).unwrap().node_data).clone();
+                let node_data = (*node_map[&index].node_data).clone();
                 let node = Node::new(
                     &"localhost".to_string(),
                     args[1],

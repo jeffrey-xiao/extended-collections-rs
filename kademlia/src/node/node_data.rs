@@ -10,7 +10,7 @@ pub struct Key([u8; KEY_LENGTH]);
 impl Debug for Key {
     fn fmt(&self, f: &mut Formatter) -> Result {
         let hex_vec: Vec<String> = self.0.iter().map(|b| format!("{:02X}", b)).collect();
-        write!(f, "{}", hex_vec.connect(""))
+        write!(f, "{}", hex_vec.join(""))
     }
 }
 
@@ -27,8 +27,8 @@ impl Key {
 
     pub fn xor(&self, key: &Key) -> Key {
         let mut ret = [0; KEY_LENGTH];
-        for i in 0..KEY_LENGTH {
-            ret[i] = self.0[i] ^ key.0[i];
+        for (i, byte) in ret.iter_mut().enumerate() {
+            *byte = self.0[i] ^ key.0[i];
         }
         Key(ret)
     }

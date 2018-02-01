@@ -55,7 +55,7 @@ impl Protocol {
         thread::spawn(move || {
             let mut buffer = [0u8; MESSAGE_LENGTH];
             loop {
-                let (len, src_addr) = protocol.socket.recv_from(&mut buffer).unwrap();
+                let (len, _src_addr) = protocol.socket.recv_from(&mut buffer).unwrap();
                 let buffer_string = String::from(str::from_utf8(&buffer[..len]).unwrap());
                 let message = serde_json::from_str::<Message>(&buffer_string).unwrap();
 

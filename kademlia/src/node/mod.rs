@@ -5,11 +5,12 @@ use std::cmp;
 use std::net::UdpSocket;
 use std::collections::{HashMap, BinaryHeap, HashSet};
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::atomic::{AtomicBool};
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use ::{REQUEST_TIMEOUT, REPLICATION_PARAM, CONCURRENCY_PARAM, ROUTING_TABLE_SIZE, KEY_LENGTH};
+use ::{REQUEST_TIMEOUT, REPLICATION_PARAM, CONCURRENCY_PARAM, KEY_LENGTH};
 use node::node_data::{NodeDataDistancePair, NodeData, Key};
 use node::routing::RoutingTable;
 use protocol::{Protocol, Message, Request, Response, RequestPayload, ResponsePayload};
@@ -36,7 +37,7 @@ impl Node {
         let protocol = Protocol::new(socket, message_tx);
 
         // directly use update_node as update_routing_table is async
-        if let Some(bootstrap_data) = bootstrap.clone() {
+        if let Some(bootstrap_data) = bootstrap {
             routing_table.update_node(bootstrap_data);
         }
 
@@ -153,10 +154,8 @@ impl Node {
         self.protocol.send_message(&Message::Request(Request {
             id: token.clone(),
             sender: (*self.node_data).clone(),
-                payload: payload,
+            payload: payload,
         }), dest);
-
-        let node = self.clone();
 
         match response_rx.recv_timeout(Duration::from_millis(REQUEST_TIMEOUT)) {
             Ok(response) => {
@@ -168,6 +167,8 @@ impl Node {
                 println!("Warning: Request timed out after waiting for {} milliseconds", REQUEST_TIMEOUT);
                 let mut pending_requests = self.pending_requests.lock().unwrap();
                 pending_requests.remove(&token);
+                let mut routing_table = self.routing_table.lock().unwrap();
+                routing_table.remove_node(dest);
                 None
             },
         }
@@ -192,9 +193,7 @@ impl Node {
         }
 
         // initialize found nodes and priority queue
-        let mut found_nodes: HashSet<NodeData> = HashSet::from(
-            closest_nodes.clone().into_iter().collect()
-        );
+        let mut found_nodes: HashSet<NodeData> = closest_nodes.clone().into_iter().collect();
         found_nodes.insert((*self.node_data).clone());
         let mut queue: BinaryHeap<NodeDataDistancePair> = BinaryHeap::from(
             closest_nodes
@@ -224,10 +223,10 @@ impl Node {
             }
         }
 
-        let is_terminated = Arc::new(Mutex::new(false));
+        let mut is_terminated = AtomicBool::new(false);
         while concurrent_thread_count > 0 {
             let response_opt = rx.recv().unwrap();
-            *is_terminated.lock().unwrap() = true;
+            *is_terminated.get_mut() = true;
 
             if let Some(Response{ payload: ResponsePayload::Nodes(nodes), .. }) = response_opt {
                 for node_data in nodes {
@@ -238,7 +237,7 @@ impl Node {
                         println!("GOT {:?}", node_data);
                         if curr_distance < closest_distance {
                             closest_distance = curr_distance;
-                            *is_terminated.lock().unwrap() = false;
+                            *is_terminated.get_mut() = false;
                         }
 
                         found_nodes.insert(node_data.clone());
@@ -248,9 +247,11 @@ impl Node {
                         ));
                     }
                 }
+            } else {
+                *is_terminated.get_mut() = false;
             }
 
-            if !*is_terminated.lock().unwrap() {
+            if !*is_terminated.get_mut() {
                 let mut node = self.clone();
                 let next_node_data = queue.pop().unwrap().0;
                 let target_key = key.clone();

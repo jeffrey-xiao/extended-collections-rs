@@ -25,7 +25,7 @@ impl RoutingBucket {
     }
 
     pub fn contains(&self, node_data: &NodeData) -> bool {
-        for n in self.nodes.iter() {
+        for n in &self.nodes {
             if node_data == n {
                 return true
             }
@@ -56,6 +56,14 @@ impl RoutingBucket {
             Some(self.nodes.remove(0))
         }
     }
+
+    pub fn remove_node(&mut self, node_data: &NodeData) -> Option<NodeData> {
+        if let Some(index) = self.nodes.iter().position(|data| data == node_data) {
+            Some(self.nodes.remove(index))
+        } else {
+            None
+        }
+    }
 }
 
 // An implementation of the routing table tree using a vector of buckets
@@ -83,7 +91,7 @@ impl RoutingTable {
             // bucket is full
             if self.buckets[target_bucket].size() == REPLICATION_PARAM {
                 // split bucket
-                if target_bucket == self.buckets.len() - 1 {
+                if target_bucket == self.buckets.len() - 1 && self.buckets.len() < ROUTING_TABLE_SIZE {
                     let new_bucket = self.buckets[target_bucket]
                         .split(&self.node_data.id, target_bucket);
                     self.buckets.push(new_bucket);
@@ -128,18 +136,19 @@ impl RoutingTable {
             }
         }
 
-        ret.sort_by_key(|node| node.id.xor(&key).get_distance());
+        ret.sort_by_key(|node| node.id.xor(key).get_distance());
         ret.truncate(count);
         ret
     }
 
     pub fn remove_lrs(&mut self, key: &Key) -> Option<NodeData> {
-        let key = self.node_data.id.xor(key);
-        self.buckets[key.get_distance()].remove_lrs()
+        let index = self.node_data.id.xor(key).get_distance();
+        self.buckets[index].remove_lrs()
     }
 
-    pub fn bucket_size(&self, key: &Key) -> usize {
-        let key = self.node_data.id.xor(key);
-        self.buckets[key.get_distance()].size()
+    pub fn remove_node(&mut self, node_data: &NodeData) {
+        let index = self.node_data.id.xor(&node_data.id).get_distance();
+        self.buckets[index].remove_node(node_data);
+
     }
 }
