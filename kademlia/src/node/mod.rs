@@ -74,8 +74,7 @@ impl Node {
             let mut lrs_node_opt = None;
             {
                 let mut routing_table = self.routing_table.lock().unwrap();
-                // Remove lrs node if bucket is full
-                if routing_table.bucket_size(&node_data.id) == REPLICATION_PARAM {
+                if !routing_table.update_node(node_data.clone()) {
                     lrs_node_opt = routing_table.remove_lrs(&node_data.id);
                 }
             }
@@ -86,9 +85,7 @@ impl Node {
             }
 
             let mut routing_table = self.routing_table.lock().unwrap();
-            if routing_table.bucket_size(&node_data.id) < REPLICATION_PARAM {
-                routing_table.update_node(node_data);
-            }
+            routing_table.update_node(node_data);
         });
     }
 

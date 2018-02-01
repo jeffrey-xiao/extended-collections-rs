@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+use std::cmp;
+use std::mem;
+
 use ::{ROUTING_TABLE_SIZE, REPLICATION_PARAM};
 use node::{NodeData, Key};
 
@@ -21,6 +24,23 @@ impl RoutingBucket {
         }
     }
 
+    pub fn contains(&self, node_data: &NodeData) -> bool {
+        for n in self.nodes.iter() {
+            if node_data == n {
+                return true
+            }
+        }
+        false
+    }
+
+    pub fn split(&mut self, key: &Key, index: usize) -> RoutingBucket {
+        let (old_bucket, new_bucket) = self.nodes.drain(..).partition(|node| {
+            node.id.xor(key).get_distance() == index
+        });
+        mem::replace(&mut self.nodes, old_bucket);
+        RoutingBucket{ nodes: new_bucket }
+    }
+
     pub fn get_nodes(&self) -> &[NodeData] {
         self.nodes.as_slice()
     }
@@ -38,6 +58,7 @@ impl RoutingBucket {
     }
 }
 
+// An implementation of the routing table tree using a vector of buckets
 #[derive(Clone)]
 pub struct RoutingTable {
     buckets: Vec<RoutingBucket>,
@@ -47,28 +68,57 @@ pub struct RoutingTable {
 impl RoutingTable {
     pub fn new(node_data: Arc<NodeData>) -> Self {
         let mut buckets = Vec::new();
-        for _ in 0..ROUTING_TABLE_SIZE {
-            buckets.push(RoutingBucket::new());
-        }
+        buckets.push(RoutingBucket::new());
         RoutingTable{ buckets: buckets, node_data: node_data }
     }
 
-    pub fn update_node(&mut self, node_data: NodeData) {
-        let key = self.node_data.id.xor(&node_data.id);
-        self.buckets[key.get_distance()].update_node(node_data);
+    pub fn update_node(&mut self, node_data: NodeData) -> bool {
+        let distance = self.node_data.id.xor(&node_data.id).get_distance();
+        let mut target_bucket = cmp::min(distance, self.buckets.len() - 1);
+        if self.buckets[target_bucket].contains(&node_data) {
+            self.buckets[target_bucket].update_node(node_data);
+            return true;
+        }
+        loop {
+            // bucket is full
+            if self.buckets[target_bucket].size() == REPLICATION_PARAM {
+                // split bucket
+                if target_bucket == self.buckets.len() - 1 {
+                    let new_bucket = self.buckets[target_bucket]
+                        .split(&self.node_data.id, target_bucket);
+                    self.buckets.push(new_bucket);
+                }
+                // bucket cannot be split
+                else {
+                    return false;
+                }
+            }
+            // add into bucket
+            else {
+                self.buckets[target_bucket].update_node(node_data);
+                return true;
+            }
+            target_bucket = cmp::min(distance, self.buckets.len() - 1);
+        }
     }
 
     pub fn get_closest(&self, key: &Key, count: usize) -> Vec<NodeData> {
         let key = self.node_data.id.xor(key);
         let mut ret = Vec::new();
-        // the distance between target key and keys in [key.get_distance(), ROUTING_TABLE_SIZE]
-        // is not necessarily monotonic
-        for i in key.get_distance()..ROUTING_TABLE_SIZE {
-            ret.extend_from_slice(self.buckets[i].get_nodes());
+
+        // the closest keys are guaranteed to be in bucket which key would reside
+        ret.extend_from_slice(self.buckets[key.get_distance()].get_nodes());
+
+        if ret.len() < count {
+            // the distance between target key and keys is not necessarily monotonic
+            // in range (key.get_distance(), self.buckets.len()], so we must iterate
+            for i in (key.get_distance() + 1)..ROUTING_TABLE_SIZE {
+                ret.extend_from_slice(self.buckets[i].get_nodes());
+            }
         }
 
         if ret.len() < count {
-            // the distance between target key and keys in [0, key.get_distance()]
+            // the distance between target key and keys in [0, key.get_distance())
             // is monotonicly decreasing by bucket
             for i in (0..key.get_distance()).rev() {
                 ret.extend_from_slice(self.buckets[i].get_nodes());
