@@ -9,7 +9,7 @@ struct NodeData<U: Hash + Eq> {
     points: HashSet<Rc<U>>,
 }
 
-struct Ring<T: Hash + Ord, U: Hash + Eq> {
+pub struct Ring<T: Hash + Ord, U: Hash + Eq> {
     nodes: HashMap<Rc<T>, NodeData<U>>,
     points: HashMap<Rc<U>, (u64, Rc<T>, u64)>,
 }
@@ -57,6 +57,9 @@ impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
 
     pub fn remove_node(&mut self, id: &T) {
         let removed_node_data = self.nodes.remove(id).unwrap();
+        if self.nodes.len() == 0 {
+            panic!("Error: empty ring after deletion");
+        }
         for point in removed_node_data.points {
             let point_hash = self.points[&point].2;
             let max_score = self.nodes.iter().map(|entry| {
@@ -76,17 +79,17 @@ impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
         self.nodes[id].points.iter().map(|point| &**point).collect()
     }
 
-    pub fn get_node(&mut self, key: &U) -> Rc<T> {
+    pub fn get_node(&mut self, key: &U) -> &T {
         let point_hash = util::gen_hash(key);
-        self.nodes.iter().map(|entry| {
+        &**self.nodes.iter().map(|entry| {
             (
                 entry.1.hashes.iter().map(|hash| util::combine_hash(*hash, point_hash)).max().unwrap(),
-                entry.0.clone(),
+                entry.0,
             )
         }).max().unwrap().1
     }
 
-    pub fn add_point(&mut self, key: U) {
+    pub fn insert_point(&mut self, key: U) {
         let point_hash = util::gen_hash(&key);
         let key_ref = Rc::new(key);
         let max_score = self.nodes.iter().map(|entry| {
@@ -136,66 +139,101 @@ impl<T: Hash + Ord, U: Hash + Eq> Default for Ring<T, U> {
     }
 }
 
-#[test]
-fn int_test() {
-    let mut ring = Ring::new();
-    ring.insert_node(String::from("Client-1"), 3);
-    ring.add_point(1);
-    ring.insert_node(String::from("Client-2"), 3);
-    ring.add_point(2);
-    ring.add_point(3);
-    ring.add_point(4);
-    ring.add_point(5);
-    ring.add_point(6);
-    ring.add_point(7);
-    for i in &ring {
-        println!("{:?}", i);
-    }
-    ring.insert_node(String::from("Client-3"), 3);
-    println!("ADDED");
-    for i in &ring {
-        println!("{:?}", i);
+#[cfg(test)]
+mod tests {
+    use super::Ring;
+
+    #[test]
+    fn test_size_empty() {
+        let ring: Ring<u32, u32> = Ring::new();
+        assert_eq!(ring.size(), 0);
     }
 
-    println!("{:?}", ring.get_node(&3));
-    println!("{:?}", ring.get_points(&String::from("Client-2")));
-    ring.remove_node(&String::from("Client-3"));
-    println!("DELETED");
-    for i in &ring {
-        println!("{:?}", i);
+    #[test]
+    #[should_panic]
+    fn test_panic_remove_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 1);
+        ring.remove_node(&0);
     }
 
-    ring.remove_node(&String::from("Client-1"));
-    println!("DELETED");
-    for i in &ring {
-        println!("{:?}", i);
+    #[test]
+    #[should_panic]
+    fn test_panic_get_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.get_node(&0);
     }
 
-    ring.remove_point(&7);
+    #[test]
+    #[should_panic]
+    fn test_panic_insert_point() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_point(0);
+    }
 
-    println!("DELETED POINT");
-    for i in &ring {
-        println!("{:?}", i);
+    #[test]
+    #[should_panic]
+    fn test_panic_remove_point() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.remove_point(&0);
     }
-}
 
-#[test]
-fn stats() {
-    extern crate rand;
-    use std::collections::HashMap;
+    #[test]
+    fn test_insert_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 1);
+        ring.insert_point(0);
+        ring.insert_node(1, 1);
+        assert_eq!(ring.get_points(&1).as_slice(), [&0u32,]);
+    }
 
-    let mut ring = Ring::new();
-    for i in 0..100 {
-        ring.insert_node(format!("Client-{}", i), 3);
+    #[test]
+    fn test_remove_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 1);
+        ring.insert_point(0);
+        ring.insert_node(1, 1);
+        ring.remove_node(&1);
+        assert_eq!(ring.get_points(&0), [&0,]);
     }
-    for i in 0..10_000 {
-        ring.add_point(i);
+
+    #[test]
+    fn test_get_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 3);
+        assert_eq!(ring.get_node(&0), &0);
     }
-    let mut stats = HashMap::new();
-    for i in &ring {
-        let count = stats.entry(i.0).or_insert(0);
-        *count += i.1.len();
+
+    #[test]
+    fn test_insert_point() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 3);
+        ring.insert_point(0);
+        assert_eq!(ring.get_points(&0).as_slice(), [&0u32,]);
     }
-    println!("min: {:?}", stats.iter().map(|entry| entry.1).min());
-    println!("max: {:?}", stats.iter().map(|entry| entry.1).max());
+
+    #[test]
+    fn test_remove_point() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 3);
+        ring.insert_point(0);
+        ring.remove_point(&0);
+        let expected: [&u32; 0] = [];
+        assert_eq!(ring.get_points(&0).as_slice(), expected);
+    }
+
+    #[test]
+    fn test_iter() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 3);
+        ring.insert_point(1);
+        ring.insert_point(2);
+        ring.insert_point(3);
+        ring.insert_point(4);
+        ring.insert_point(5);
+        let mut actual: Vec<(&u32, Vec<&u32>)> = ring.iter().collect();
+        actual[0].1.sort();
+        assert_eq!(actual[0].0, &0);
+        assert_eq!(actual[0].1.as_slice(), [&1, &2, &3, &4, &5]);
+    }
 }

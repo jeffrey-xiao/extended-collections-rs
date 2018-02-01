@@ -1,10 +1,11 @@
-use data_structures::Treap;
 use std::hash::Hash;
 use std::collections::HashMap;
 use std::vec::Vec;
 use std::rc::Rc;
 use std::mem;
 use std::iter::Iterator;
+
+use data_structures::Treap;
 use util;
 
 #[derive(Debug)]
@@ -13,7 +14,7 @@ struct Node<T: Hash + Eq, U: Hash + Eq> {
     points: HashMap<U, u64>,
 }
 
-struct Ring<T: Hash + Eq, U: Hash + Eq> {
+pub struct Ring<T: Hash + Eq, U: Hash + Eq> {
     nodes: Treap<u64, Node<T, U>>,
     replicas: HashMap<Rc<T>, usize>,
 }
@@ -37,7 +38,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     }
 
     pub fn size(&self) -> usize {
-        self.nodes.size()
+        self.replicas.len()
     }
 
     pub fn insert_node(&mut self, id: T, replicas: usize) {
@@ -87,7 +88,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         self.replicas.remove(id);
     }
 
-    pub fn get_points(&mut self, id: &T) -> Vec<&U> {
+    pub fn get_points(&self, id: &T) -> Vec<&U> {
         let replicas = self.replicas[id];
         let mut ret: Vec<&U> = Vec::new();
         for i in 0..replicas {
@@ -110,7 +111,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         }
     }
 
-    pub fn add_point(&mut self, key: U) {
+    pub fn insert_point(&mut self, key: U) {
         let hash = util::gen_hash(&key);
         if let Some((_, &mut Node { ref mut points, .. })) = self.get_next_node(&hash) {
             points.insert(key, hash);
@@ -157,66 +158,121 @@ impl<T: Hash + Eq, U: Hash + Eq> Default for Ring<T, U> {
     }
 }
 
-#[test]
-fn int_test() {
-    let mut ring = Ring::new();
-    ring.insert_node(String::from("Client-1"), 3);
-    ring.add_point(1);
-    ring.insert_node(String::from("Client-2"), 3);
-    ring.add_point(2);
-    ring.add_point(3);
-    ring.add_point(4);
-    ring.add_point(5);
-    ring.add_point(6);
-    ring.add_point(7);
-    for i in &ring {
-        println!("{:?}", i);
-    }
-    ring.insert_node(String::from("Client-3"), 3);
-    println!("ADDED");
-    for i in &ring {
-        println!("{:?}", i);
+#[cfg(test)]
+mod tests {
+    use super::Ring;
+    use std::hash::{Hash, Hasher};
+
+    #[test]
+    fn test_size_empty() {
+        let ring: Ring<u32, u32> = Ring::new();
+        assert_eq!(ring.size(), 0);
     }
 
-    println!("{:?}", ring.get_node(&3));
-    println!("{:?}", ring.get_points(&String::from("Client-2")));
-    ring.remove_node(&String::from("Client-3"));
-    println!("DELETED");
-    for i in &ring {
-        println!("{:?}", i);
+    #[test]
+    #[should_panic]
+    fn test_panic_remove_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 1);
+        ring.remove_node(&0);
     }
 
-    ring.remove_node(&String::from("Client-1"));
-    println!("DELETED");
-    for i in &ring {
-        println!("{:?}", i);
+    #[test]
+    #[should_panic]
+    fn test_panic_get_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.get_node(&0);
     }
 
-    ring.remove_point(&7);
+    #[test]
+    #[should_panic]
+    fn test_panic_insert_point() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_point(0);
+    }
 
-    println!("DELETED POINT");
-    for i in &ring {
-        println!("{:?}", i);
+    #[test]
+    #[should_panic]
+    fn test_panic_remove_point() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.remove_point(&0);
     }
-}
 
-#[test]
-fn stats() {
-    extern crate rand;
-    use std::collections::HashMap;
+    #[derive(PartialEq, Eq)]
+    pub struct Key(pub u32);
+    impl Hash for Key {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            state.write_u32(self.0 / 2);
+        }
+    }
 
-    let mut ring = Ring::new();
-    for i in 0..100 {
-        ring.insert_node(format!("Client-{}", i), 3);
+    #[test]
+    fn test_insert_node_replace_node() {
+        let mut ring: Ring<Key, u32> = Ring::new();
+        ring.insert_node(Key(0), 1);
+        ring.insert_point(0);
+        ring.insert_node(Key(1), 1);
+        assert_eq!(ring.get_points(&Key(1)).as_slice(), [&0u32,]);
     }
-    for i in 0..10_000 {
-        ring.add_point(i);
+
+    #[test]
+    fn test_insert_node_share_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 1);
+        ring.insert_point(0);
+        ring.insert_point(1);
+        ring.insert_node(1, 1);
+        assert_eq!(ring.get_points(&0).as_slice(), [&1u32,]);
+        assert_eq!(ring.get_points(&1).as_slice(), [&0u32,]);
     }
-    let mut stats = HashMap::new();
-    for i in &ring {
-        let count = stats.entry(i.0).or_insert(0);
-        *count += i.1.len();
+
+    #[test]
+    fn test_remove_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 1);
+        ring.insert_point(0);
+        ring.insert_node(1, 1);
+        ring.remove_node(&1);
+        assert_eq!(ring.get_points(&0), [&0,]);
     }
-    println!("min: {:?}", stats.iter().map(|entry| entry.1).min());
-    println!("max: {:?}", stats.iter().map(|entry| entry.1).max());
+
+    #[test]
+    fn test_get_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 3);
+        assert_eq!(ring.get_node(&0), &0);
+    }
+
+    #[test]
+    fn test_insert_point() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 3);
+        ring.insert_point(0);
+        assert_eq!(ring.get_points(&0).as_slice(), [&0u32,]);
+    }
+
+    #[test]
+    fn test_remove_point() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 3);
+        ring.insert_point(0);
+        ring.remove_point(&0);
+        let expected: [&u32; 0] = [];
+        assert_eq!(ring.get_points(&0).as_slice(), expected);
+    }
+
+    #[test]
+    fn test_iter() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.insert_node(0, 3);
+        ring.insert_point(1);
+        ring.insert_point(2);
+        ring.insert_point(3);
+        ring.insert_point(4);
+        ring.insert_point(5);
+        let mut actual: Vec<(&u32, Vec<&u32>)> = ring.iter().collect();
+        actual[0].1.sort();
+        assert_eq!(actual[0].0, &0);
+        assert_eq!(actual[0].1.as_slice(), [&1, &2, &3, &4, &5]);
+    }
 }
