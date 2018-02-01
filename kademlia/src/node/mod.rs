@@ -3,13 +3,13 @@ mod routing;
 
 use std::cmp;
 use std::net::UdpSocket;
-use std::collections::{HashMap, BinaryHeap, HashSet, VecDeque};
+use std::collections::{HashMap, BinaryHeap, HashSet};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use ::{REQUEST_TIMEOUT, REPLICATION_PARAM, CONCURRENCY_PARAM, KEY_LENGTH, ROUTING_TABLE_SIZE};
+use ::{REQUEST_TIMEOUT, REPLICATION_PARAM, CONCURRENCY_PARAM, ROUTING_TABLE_SIZE};
 use node::node_data::{NodeDataDistancePair, NodeData, Key};
 use node::routing::RoutingTable;
 use protocol::{Protocol, Message, Request, Response, RequestPayload, ResponsePayload};
@@ -19,7 +19,7 @@ pub struct Node {
     pub node_data: Arc<NodeData>,
     routing_table: Arc<Mutex<RoutingTable>>,
     data: Arc<Mutex<HashMap<Key, String>>>,
-    pending_requests: Arc<Mutex<HashMap<Key, Sender<Option<Response>>>>>,
+    pending_requests: Arc<Mutex<HashMap<Key, Sender<Response>>>>,
     protocol: Arc<Protocol>,
 }
 
@@ -38,6 +38,7 @@ impl Node {
         if let Some(bootstrap_data) = bootstrap.clone() {
             routing_table.update_node(bootstrap_data);
         }
+
 
         let mut ret = Node {
             node_data: node_data,
@@ -133,14 +134,14 @@ impl Node {
             let Response { ref request, .. } = response.clone();
             if let Some(sender) = pending_requests.get(&request.id) {
                 println!("{:?} RECEIVING RESPONSE {:?}", self.node_data.addr, response.payload);
-                sender.send(Some(response)).unwrap();
+                sender.send(response).unwrap();
             } else {
                 println!("Warning: Original request not found; irrelevant response or expired request.");
             }
         });
     }
 
-    fn send_request(&mut self, dest: &NodeData, payload: RequestPayload) -> Receiver<Option<Response>> {
+    fn send_request(&mut self, dest: &NodeData, payload: RequestPayload) -> Option<Response> {
         println!("{:?} SENDING REQUEST {:?}", self.node_data.addr, payload);
         let (response_tx, response_rx) = channel();
         let mut pending_requests = self.pending_requests.lock().unwrap();
@@ -149,7 +150,7 @@ impl Node {
         while pending_requests.contains_key(&token) {
             token = Key::rand();
         }
-        pending_requests.insert(token.clone(), response_tx.clone());
+        pending_requests.insert(token.clone(), response_tx);
         drop(pending_requests);
 
         self.protocol.send_message(&Message::Request(Request {
@@ -160,23 +161,27 @@ impl Node {
 
         let node = self.clone();
 
-        thread::spawn(move || {
-            thread::sleep(Duration::from_millis(REQUEST_TIMEOUT));
-            if response_tx.send(None).is_ok() {
-                println!("Warning: Request timed out after waiting for {} milliseconds", REQUEST_TIMEOUT);
-                let mut pending_requests = node.pending_requests.lock().unwrap();
+        match response_rx.recv_timeout(Duration::from_millis(REQUEST_TIMEOUT)) {
+            Ok(response) => {
+                let mut pending_requests = self.pending_requests.lock().unwrap();
                 pending_requests.remove(&token);
-            }
-        });
-        response_rx
+                Some(response)
+            },
+            Err(_) => {
+                println!("Warning: Request timed out after waiting for {} milliseconds", REQUEST_TIMEOUT);
+                let mut pending_requests = self.pending_requests.lock().unwrap();
+                pending_requests.remove(&token);
+                None
+            },
+        }
     }
 
     fn rpc_ping(&mut self, dest: &NodeData) -> Option<Response> {
-        self.send_request(dest, RequestPayload::Ping).recv().unwrap()
+        self.send_request(dest, RequestPayload::Ping)
     }
 
     fn rpc_find_node(&mut self, dest: &NodeData, key: &Key) -> Option<Response> {
-        self.send_request(dest, RequestPayload::FindNode(key.clone())).recv().unwrap()
+        self.send_request(dest, RequestPayload::FindNode(key.clone()))
     }
 
     fn lookup_nodes(&mut self, key: &Key) {
