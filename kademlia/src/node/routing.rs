@@ -152,3 +152,7 @@ impl RoutingTable {
 
     }
 }
+
+#[cfg(test)]
+mod tests {
+}

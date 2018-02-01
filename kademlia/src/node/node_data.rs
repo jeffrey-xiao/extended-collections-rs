@@ -74,3 +74,7 @@ impl Ord for NodeDataDistancePair {
         other.1.cmp(&self.1)
     }
 }
+
+#[cfg(test)]
+mod tests {
+}
