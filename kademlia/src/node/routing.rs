@@ -142,12 +142,12 @@ impl RoutingTable {
     }
 
     pub fn remove_lrs(&mut self, key: &Key) -> Option<NodeData> {
-        let index = self.node_data.id.xor(key).get_distance();
+        let index = cmp::min(self.node_data.id.xor(key).get_distance(), self.buckets.len() - 1);
         self.buckets[index].remove_lrs()
     }
 
     pub fn remove_node(&mut self, node_data: &NodeData) {
-        let index = self.node_data.id.xor(&node_data.id).get_distance();
+        let index = cmp::min(self.node_data.id.xor(&node_data.id).get_distance(), self.buckets.len() - 1);
         self.buckets[index].remove_node(node_data);
 
     }

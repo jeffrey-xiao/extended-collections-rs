@@ -41,6 +41,7 @@ pub enum ResponsePayload {
 pub enum Message {
     Request(Request),
     Response(Response),
+    Kill,
 }
 
 #[derive(Clone)]
@@ -59,7 +60,10 @@ impl Protocol {
                 let buffer_string = String::from(str::from_utf8(&buffer[..len]).unwrap());
                 let message = serde_json::from_str::<Message>(&buffer_string).unwrap();
 
-                tx.send(message).unwrap();
+                if let Err(_) = tx.send(message) {
+                    println!("Warning: node protocol connection closed");
+
+                }
             }
         });
         ret

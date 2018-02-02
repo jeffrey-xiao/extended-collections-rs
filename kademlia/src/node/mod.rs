@@ -20,7 +20,7 @@ pub struct Node {
     routing_table: Arc<Mutex<RoutingTable>>,
     data: Arc<Mutex<HashMap<Key, String>>>,
     pending_requests: Arc<Mutex<HashMap<Key, Sender<Response>>>>,
-    protocol: Arc<Protocol>,
+    pub protocol: Arc<Protocol>,
 }
 
 impl Node {
@@ -51,7 +51,6 @@ impl Node {
         ret.clone().start_message_handler(message_rx);
 
         let target_key = ret.node_data.id.clone();
-
         ret.lookup_nodes(&target_key, true);
 
         ret
@@ -64,6 +63,7 @@ impl Node {
                 match request {
                     Message::Request(request) => node.handle_request(request),
                     Message::Response(response) => node.handle_response(response),
+                    Message::Kill => break,
                 }
             }
         });
@@ -91,7 +91,7 @@ impl Node {
     }
 
     fn handle_request(self, request: Request) {
-        println!("{:?} RECEIVING REQUEST {:#?}", self.node_data.addr, request.payload);
+        println!("{:?} RECEIVING REQUEST {:?}", self.node_data.addr, request.payload);
         self.clone().update_routing_table(request.sender.clone());
         thread::spawn(move || {
             let receiver = (*self.node_data).clone();
@@ -140,7 +140,7 @@ impl Node {
     }
 
     fn send_request(&mut self, dest: &NodeData, payload: RequestPayload) -> Option<Response> {
-        println!("{:?} SENDING REQUEST {:?}", self.node_data.addr, payload);
+        println!("{:?} SENDING REQUEST TO {:?} {:?}", self.node_data.addr, dest.addr, payload);
         let (response_tx, response_rx) = channel();
         let mut pending_requests = self.pending_requests.lock().unwrap();
         let mut token = Key::rand();
@@ -241,6 +241,11 @@ impl Node {
 
         // loop until we could not find a closer node for a round or if no threads are running
         while concurrent_thread_count > 0 {
+            while concurrent_thread_count < CONCURRENCY_PARAM && queue.len() > 0 {
+                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
+                concurrent_thread_count += 1;
+            }
+
             let mut is_terminated = true;
             let response_opt = rx.recv().unwrap();
             concurrent_thread_count -= 1;
@@ -276,11 +281,6 @@ impl Node {
 
             if is_terminated {
                 break;
-            }
-
-            while concurrent_thread_count < CONCURRENCY_PARAM && queue.len() > 0 {
-                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
-                concurrent_thread_count += 1;
             }
             println!("CURR CLOSEST DISTANCE IS {:?}", closest_distance);
         }
@@ -326,9 +326,7 @@ impl Node {
         let mut ret: Vec<NodeData> = queried_nodes.into_iter().collect();
         ret.sort_by_key(|node_data| node_data.id.xor(key));
         ret.truncate(REPLICATION_PARAM);
+        println!("CLOSEST NODES ARE {:#?}", ret);
         ResponsePayload::Nodes(ret)
-    }
-
-    pub fn kill(&mut self) {
     }
 }
