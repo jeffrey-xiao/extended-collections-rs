@@ -9,7 +9,7 @@ extern crate serde_json;
 extern crate serde_derive;
 
 pub mod protocol;
-mod node;
+pub mod node;
 
 pub use self::node::Node;
 

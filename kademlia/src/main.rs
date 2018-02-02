@@ -4,6 +4,7 @@ use std::io;
 use std::collections::HashMap;
 
 use kademlia::Node;
+use kademlia::node::node_data::Key;
 use kademlia::protocol::Message;
 
 fn main() {
@@ -20,14 +21,14 @@ fn main() {
         id += 1;
     }
 
-    for i in 0..8 {
-        let node_data = node_map[&i].node_data.clone();
-        node_map[&i].protocol.send_message(&Message::Kill, &node_data);
-    }
-    println!("KILLED NODES -----------------------");
-    let n = Node::new(&"localhost".to_string(), &(8900 + 10).to_string(), Some((*node_map[&(10 - 1)].node_data).clone()));
-    node_map.insert(id, n.clone());
-    id += 1;
+    // for i in 0..8 {
+    //     let node_data = node_map[&i].node_data.clone();
+    //     node_map[&i].protocol.send_message(&Message::Kill, &node_data);
+    // }
+    // println!("KILLED NODES -----------------------");
+    // let n = Node::new(&"localhost".to_string(), &(8900 + 10).to_string(), Some((*node_map[&(10 - 1)].node_data).clone()));
+    // node_map.insert(id, n.clone());
+    // id += 1;
 
     let input = io::stdin();
 
@@ -39,16 +40,23 @@ fn main() {
         let args: Vec<&str> = buffer.trim_right().split(' ').collect();
         match args[0] {
             "new" => {
-                let index: u32 = args[2].parse().unwrap();
+                let index: u32 = args[1].parse().unwrap();
                 let node_data = (*node_map[&index].node_data).clone();
                 let node = Node::new(
                     &"localhost".to_string(),
-                    args[1],
+                    &(8900 + id).to_string(),
                     Some(node_data),
                 );
                 node_map.insert(id, node);
                 id += 1;
-            }
+            },
+            "insert" => {
+                let index: u32 = args[1].parse().unwrap();
+                let key = Key::rand();
+                let value = args[2].to_string();
+                node_map.get_mut(&index).unwrap().insert(key, value);
+                println!("{:?}", node_map.get_mut(&index).unwrap().get(&key));
+            },
             _ => {}
         }
     }

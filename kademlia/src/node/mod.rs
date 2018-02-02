@@ -327,4 +327,25 @@ impl Node {
         println!("CLOSEST NODES ARE {:#?}", ret);
         ResponsePayload::Nodes(ret)
     }
+
+    pub fn insert(&mut self, key: Key, value: String) {
+        if let ResponsePayload::Nodes(nodes) = self.lookup_nodes(&key, true) {
+            for dest in nodes {
+                let mut node = self.clone();
+                let key_clone = key.clone();
+                let value_clone = value.clone();
+                thread::spawn(move || {
+                    node.rpc_store(&dest, key_clone, value_clone);
+                });
+            }
+        }
+    }
+
+    pub fn get(&mut self, key: &Key) -> Option<String> {
+        if let ResponsePayload::Value(value) = self.lookup_nodes(key, false) {
+            Some(value)
+        } else {
+            None
+        }
+    }
 }
