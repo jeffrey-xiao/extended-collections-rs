@@ -5,7 +5,6 @@ use std::cmp;
 use std::net::UdpSocket;
 use std::collections::{HashMap, BinaryHeap, HashSet};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::atomic::{AtomicBool};
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -52,7 +51,8 @@ impl Node {
         ret.clone().start_message_handler(message_rx);
 
         let target_key = ret.node_data.id.clone();
-        ret.lookup_nodes(&target_key);
+
+        ret.lookup_nodes(&target_key, true);
 
         ret
     }
@@ -91,15 +91,15 @@ impl Node {
     }
 
     fn handle_request(self, request: Request) {
-        println!("{:?} RECEIVING REQUEST {:?}", self.node_data.addr, request.payload);
+        println!("{:?} RECEIVING REQUEST {:#?}", self.node_data.addr, request.payload);
         self.clone().update_routing_table(request.sender.clone());
         thread::spawn(move || {
             let receiver = (*self.node_data).clone();
             let payload = match request.payload.clone() {
-                RequestPayload::Ping => ResponsePayload::Ping,
+                RequestPayload::Ping => ResponsePayload::Pong,
                 RequestPayload::Store(key, value) => {
                     self.data.lock().unwrap().insert(key, value);
-                    ResponsePayload::Ping
+                    ResponsePayload::Pong
                 }
                 RequestPayload::FindNode(key) => {
                     ResponsePayload::Nodes(
@@ -131,7 +131,7 @@ impl Node {
             let pending_requests = self.pending_requests.lock().unwrap();
             let Response { ref request, .. } = response.clone();
             if let Some(sender) = pending_requests.get(&request.id) {
-                println!("{:?} RECEIVING RESPONSE {:?}", self.node_data.addr, response.payload);
+                println!("{:?} RECEIVING RESPONSE {:#?}", self.node_data.addr, response.payload);
                 sender.send(response).unwrap();
             } else {
                 println!("Warning: Original request not found; irrelevant response or expired request.");
@@ -182,7 +182,22 @@ impl Node {
         self.send_request(dest, RequestPayload::FindNode(key.clone()))
     }
 
-    fn lookup_nodes(&mut self, key: &Key) {
+    fn rpc_find_value(&mut self, dest: &NodeData, key: &Key) -> Option<Response> {
+        self.send_request(dest, RequestPayload::FindValue(key.clone()))
+
+    }
+
+    fn spawn_find_rpc(mut self, dest: NodeData, key: Key, sender: Sender<Option<Response>>, find_node: bool) {
+        thread::spawn(move || {
+            if find_node {
+                sender.send(self.rpc_find_node(&dest, &key));
+            } else {
+                sender.send(self.rpc_find_value(&dest, &key));
+            }
+        });
+    }
+
+    fn lookup_nodes(&mut self, key: &Key, find_node: bool) -> ResponsePayload {
         let routing_table = self.routing_table.lock().unwrap();
         let closest_nodes = routing_table.get_closest(key, CONCURRENCY_PARAM);
         drop(routing_table);
@@ -192,16 +207,21 @@ impl Node {
             closest_distance = cmp::min(closest_distance, key.xor(&node_data.id))
         }
 
-        // initialize found nodes and priority queue
-        let mut found_nodes: HashSet<NodeData> = closest_nodes.clone().into_iter().collect();
+        // initialize found nodes, queried nodes, and priority queue
+        let mut found_nodes: HashSet<NodeData> = closest_nodes
+            .clone()
+            .into_iter()
+            .collect();
         found_nodes.insert((*self.node_data).clone());
+        let mut queried_nodes = HashSet::new();
+
         let mut queue: BinaryHeap<NodeDataDistancePair> = BinaryHeap::from(
             closest_nodes
                 .into_iter()
                 .map(|node_data| {
                     NodeDataDistancePair(
                         node_data.clone(),
-                        node_data.id.xor(key).get_distance()
+                        node_data.id.xor(key),
                     )
                 })
                 .collect::<Vec<NodeDataDistancePair>>()
@@ -210,58 +230,105 @@ impl Node {
         let (tx, rx) = channel();
 
         let mut concurrent_thread_count = 0;
+
+        // spawn initial find requests
         for _ in 0..CONCURRENCY_PARAM {
             if !queue.is_empty() {
-                let mut node = self.clone();
-                let next_node_data = queue.pop().unwrap().0;
-                let target_key = key.clone();
-                let sender = tx.clone();
-                thread::spawn(move || {
-                    sender.send(node.rpc_find_node(&next_node_data, &target_key)).unwrap();
-                });
+                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
                 concurrent_thread_count += 1;
             }
         }
 
-        let mut is_terminated = AtomicBool::new(false);
+        // loop until we could not find a closer node for a round or if no threads are running
         while concurrent_thread_count > 0 {
+            let mut is_terminated = true;
             let response_opt = rx.recv().unwrap();
-            *is_terminated.get_mut() = true;
+            concurrent_thread_count -= 1;
 
-            if let Some(Response{ payload: ResponsePayload::Nodes(nodes), .. }) = response_opt {
-                for node_data in nodes {
-                    let curr_distance = node_data.id.xor(key);
-                    println!("CURR DISTANCE IS {:?}", curr_distance);
+            match response_opt {
+                Some(Response{ payload: ResponsePayload::Nodes(nodes), receiver, .. }) => {
+                    queried_nodes.insert(receiver);
+                    for node_data in nodes {
+                        let curr_distance = node_data.id.xor(key);
 
-                    if !found_nodes.contains(&node_data) {
-                        println!("GOT {:?}", node_data);
-                        if curr_distance < closest_distance {
-                            closest_distance = curr_distance;
-                            *is_terminated.get_mut() = false;
+                        if !found_nodes.contains(&node_data) {
+                            if curr_distance < closest_distance {
+                                closest_distance = curr_distance;
+                                is_terminated = false;
+                            }
+
+                            found_nodes.insert(node_data.clone());
+                            let next = NodeDataDistancePair(
+                                node_data.clone(),
+                                node_data.id.xor(key),
+                            );
+                            queue.push(next.clone());
                         }
-
-                        found_nodes.insert(node_data.clone());
-                        queue.push(NodeDataDistancePair(
-                            node_data.clone(),
-                            node_data.id.xor(key).get_distance()
-                        ));
                     }
+                },
+                Some(Response{ payload: ResponsePayload::Value(value), .. }) => {
+                    return ResponsePayload::Value(value);
+                },
+                _ => {
+                    is_terminated = false;
                 }
-            } else {
-                *is_terminated.get_mut() = false;
             }
 
-            if !*is_terminated.get_mut() {
-                let mut node = self.clone();
-                let next_node_data = queue.pop().unwrap().0;
-                let target_key = key.clone();
-                let sender = tx.clone();
-                thread::spawn(move || {
-                    sender.send(node.rpc_find_node(&next_node_data, &target_key)).unwrap();
-                });
-            } else {
-                concurrent_thread_count -= 1;
+            if is_terminated {
+                break;
+            }
+
+            while concurrent_thread_count < CONCURRENCY_PARAM && queue.len() > 0 {
+                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
+                concurrent_thread_count += 1;
+            }
+            println!("CURR CLOSEST DISTANCE IS {:?}", closest_distance);
+        }
+
+        println!("{:?} TERMINATED LOOKUP BECAUSE NOT CLOSER OR NO THREADS", self.node_data.addr);
+
+        // loop until no threads are running or if we found REPLICATION_PARAM active nodes
+        while queried_nodes.len() < REPLICATION_PARAM {
+            while concurrent_thread_count < CONCURRENCY_PARAM && queue.len() > 0 {
+                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
+                concurrent_thread_count += 1;
+            }
+            if concurrent_thread_count == 0 {
+                break;
+            }
+
+            let response_opt = rx.recv().unwrap();
+            concurrent_thread_count -= 1;
+
+            match response_opt {
+                Some(Response{ payload: ResponsePayload::Nodes(nodes), receiver, .. }) => {
+                    queried_nodes.insert(receiver);
+                    for node_data in nodes {
+                        if !found_nodes.contains(&node_data) {
+                            println!("GOT {:?}", node_data);
+
+                            found_nodes.insert(node_data.clone());
+                            let next = NodeDataDistancePair(
+                                node_data.clone(),
+                                node_data.id.xor(key),
+                            );
+                            queue.push(next.clone());
+                        }
+                    }
+                },
+                Some(Response{ payload: ResponsePayload::Value(value), .. }) => {
+                    return ResponsePayload::Value(value);
+                },
+                _ => {}
             }
         }
+
+        let mut ret: Vec<NodeData> = queried_nodes.into_iter().collect();
+        ret.sort_by_key(|node_data| node_data.id.xor(key));
+        ret.truncate(REPLICATION_PARAM);
+        ResponsePayload::Nodes(ret)
+    }
+
+    pub fn kill(&mut self) {
     }
 }

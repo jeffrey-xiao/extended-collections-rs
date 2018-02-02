@@ -34,7 +34,7 @@ pub struct Response {
 pub enum ResponsePayload {
     Nodes(Vec<NodeData>),
     Value(String),
-    Ping,
+    Pong,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

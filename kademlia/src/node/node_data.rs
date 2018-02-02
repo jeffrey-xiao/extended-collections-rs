@@ -55,7 +55,7 @@ pub struct NodeData {
 }
 
 #[derive(Eq, Clone, Debug)]
-pub struct NodeDataDistancePair(pub NodeData, pub usize);
+pub struct NodeDataDistancePair(pub NodeData, pub Key);
 
 impl PartialEq for NodeDataDistancePair {
     fn eq(&self, other: &NodeDataDistancePair) -> bool {

@@ -8,12 +8,16 @@ use kademlia::Node;
 fn main() {
     let mut node_map = HashMap::new();
     let mut id = 0;
-    let n1 = Node::new(&"localhost".to_string(), &"8900".to_string(), None);
-    node_map.insert(id, n1.clone());
-    id += 1;
-    let n2 = Node::new(&"localhost".to_string(), &"8901".to_string(), Some((*n1.node_data).clone()));
-    node_map.insert(id, n2);
-    id += 1;
+    for i in 0..10 {
+        if i == 0 {
+            let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), None);
+            node_map.insert(id, n.clone());
+        } else {
+            let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), Some((*node_map.get(&(i - 1)).unwrap().node_data).clone()));
+            node_map.insert(id, n.clone());
+        }
+        id += 1;
+    }
 
     let input = io::stdin();
 
