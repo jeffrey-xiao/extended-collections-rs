@@ -4,7 +4,7 @@ use std::fmt::{Debug, Formatter, Result};
 
 use ::KEY_LENGTH;
 
-#[derive(Ord, PartialOrd, PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Default)]
+#[derive(Ord, PartialOrd, PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Default, Copy)]
 pub struct Key([u8; KEY_LENGTH]);
 
 impl Debug for Key {

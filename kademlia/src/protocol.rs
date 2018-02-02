@@ -60,9 +60,8 @@ impl Protocol {
                 let buffer_string = String::from(str::from_utf8(&buffer[..len]).unwrap());
                 let message = serde_json::from_str::<Message>(&buffer_string).unwrap();
 
-                if let Err(_) = tx.send(message) {
+                if tx.send(message).is_err() {
                     println!("Warning: node protocol connection closed");
-
                 }
             }
         });

@@ -50,19 +50,18 @@ impl Node {
 
         ret.clone().start_message_handler(message_rx);
 
-        let target_key = ret.node_data.id.clone();
+        let target_key = ret.node_data.id;
         ret.lookup_nodes(&target_key, true);
 
         ret
     }
 
-    fn start_message_handler(self, rx: Receiver<Message>) {
+    fn start_message_handler(mut self, rx: Receiver<Message>) {
         thread::spawn(move || {
             for request in rx.iter() {
-                let node = self.clone();
                 match request {
-                    Message::Request(request) => node.handle_request(request),
-                    Message::Response(response) => node.handle_response(response),
+                    Message::Request(request) => self.handle_request(&request),
+                    Message::Response(response) => self.handle_response(&response),
                     Message::Kill => break,
                 }
             }
@@ -90,53 +89,49 @@ impl Node {
         });
     }
 
-    fn handle_request(self, request: Request) {
+    fn handle_request(&mut self, request: &Request) {
         println!("{:?} RECEIVING REQUEST {:?}", self.node_data.addr, request.payload);
         self.clone().update_routing_table(request.sender.clone());
-        thread::spawn(move || {
-            let receiver = (*self.node_data).clone();
-            let payload = match request.payload.clone() {
-                RequestPayload::Ping => ResponsePayload::Pong,
-                RequestPayload::Store(key, value) => {
-                    self.data.lock().unwrap().insert(key, value);
-                    ResponsePayload::Pong
-                }
-                RequestPayload::FindNode(key) => {
+        let receiver = (*self.node_data).clone();
+        let payload = match request.payload.clone() {
+            RequestPayload::Ping => ResponsePayload::Pong,
+            RequestPayload::Store(key, value) => {
+                self.data.lock().unwrap().insert(key, value);
+                ResponsePayload::Pong
+            }
+            RequestPayload::FindNode(key) => {
+                ResponsePayload::Nodes(
+                    self.routing_table.lock().unwrap().get_closest(&key, REPLICATION_PARAM)
+                )
+            },
+            RequestPayload::FindValue(key) => {
+                if let Some(value) = self.data.lock().unwrap().get(&key) {
+                    ResponsePayload::Value(value.clone())
+                } else {
                     ResponsePayload::Nodes(
                         self.routing_table.lock().unwrap().get_closest(&key, REPLICATION_PARAM)
                     )
-                },
-                RequestPayload::FindValue(key) => {
-                    if let Some(value) = self.data.lock().unwrap().get(&key) {
-                        ResponsePayload::Value(value.clone())
-                    } else {
-                        ResponsePayload::Nodes(
-                            self.routing_table.lock().unwrap().get_closest(&key, REPLICATION_PARAM)
-                        )
-                    }
-                },
-            };
+                }
+            },
+        };
 
-            self.protocol.send_message(&Message::Response(Response {
-                request: request.clone(),
-                receiver: receiver,
-                payload,
-            }), &request.sender)
-        });
+        self.protocol.send_message(&Message::Response(Response {
+            request: request.clone(),
+            receiver: receiver,
+            payload,
+        }), &request.sender)
     }
 
-    fn handle_response(self, response: Response) {
+    fn handle_response(&mut self, response: &Response) {
         self.clone().update_routing_table(response.receiver.clone());
-        thread::spawn(move || {
-            let pending_requests = self.pending_requests.lock().unwrap();
-            let Response { ref request, .. } = response.clone();
-            if let Some(sender) = pending_requests.get(&request.id) {
-                println!("{:?} RECEIVING RESPONSE {:#?}", self.node_data.addr, response.payload);
-                sender.send(response).unwrap();
-            } else {
-                println!("Warning: Original request not found; irrelevant response or expired request.");
-            }
-        });
+        let pending_requests = self.pending_requests.lock().unwrap();
+        let Response { ref request, .. } = response.clone();
+        if let Some(sender) = pending_requests.get(&request.id) {
+            println!("{:?} RECEIVING RESPONSE {:#?}", self.node_data.addr, response.payload);
+            sender.send(response.clone()).unwrap();
+        } else {
+            println!("Warning: Original request not found; irrelevant response or expired request.");
+        }
     }
 
     fn send_request(&mut self, dest: &NodeData, payload: RequestPayload) -> Option<Response> {
@@ -148,11 +143,11 @@ impl Node {
         while pending_requests.contains_key(&token) {
             token = Key::rand();
         }
-        pending_requests.insert(token.clone(), response_tx);
+        pending_requests.insert(token, response_tx);
         drop(pending_requests);
 
         self.protocol.send_message(&Message::Request(Request {
-            id: token.clone(),
+            id: token,
             sender: (*self.node_data).clone(),
             payload: payload,
         }), dest);
@@ -178,13 +173,16 @@ impl Node {
         self.send_request(dest, RequestPayload::Ping)
     }
 
+    fn rpc_store(&mut self, dest: &NodeData, key: Key, value: String) -> Option<Response> {
+        self.send_request(dest, RequestPayload::Store(key, value))
+    }
+
     fn rpc_find_node(&mut self, dest: &NodeData, key: &Key) -> Option<Response> {
-        self.send_request(dest, RequestPayload::FindNode(key.clone()))
+        self.send_request(dest, RequestPayload::FindNode(*key))
     }
 
     fn rpc_find_value(&mut self, dest: &NodeData, key: &Key) -> Option<Response> {
-        self.send_request(dest, RequestPayload::FindValue(key.clone()))
-
+        self.send_request(dest, RequestPayload::FindValue(*key))
     }
 
     fn spawn_find_rpc(mut self, dest: NodeData, key: Key, sender: Sender<Option<Response>>, find_node: bool) {
@@ -241,7 +239,7 @@ impl Node {
 
         // loop until we could not find a closer node for a round or if no threads are running
         while concurrent_thread_count > 0 {
-            while concurrent_thread_count < CONCURRENCY_PARAM && queue.len() > 0 {
+            while concurrent_thread_count < CONCURRENCY_PARAM && !queue.is_empty() {
                 self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
                 concurrent_thread_count += 1;
             }
@@ -289,7 +287,7 @@ impl Node {
 
         // loop until no threads are running or if we found REPLICATION_PARAM active nodes
         while queried_nodes.len() < REPLICATION_PARAM {
-            while concurrent_thread_count < CONCURRENCY_PARAM && queue.len() > 0 {
+            while concurrent_thread_count < CONCURRENCY_PARAM && !queue.is_empty() {
                 self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
                 concurrent_thread_count += 1;
             }

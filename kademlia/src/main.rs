@@ -14,7 +14,7 @@ fn main() {
             let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), None);
             node_map.insert(id, n.clone());
         } else {
-            let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), Some((*node_map.get(&(i - 1)).unwrap().node_data).clone()));
+            let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), Some((*node_map[&(i - 1)].node_data).clone()));
             node_map.insert(id, n.clone());
         }
         id += 1;
@@ -25,7 +25,7 @@ fn main() {
         node_map[&i].protocol.send_message(&Message::Kill, &node_data);
     }
     println!("KILLED NODES -----------------------");
-    let n = Node::new(&"localhost".to_string(), &(8900 + 10).to_string(), Some((*node_map.get(&(10 - 1)).unwrap().node_data).clone()));
+    let n = Node::new(&"localhost".to_string(), &(8900 + 10).to_string(), Some((*node_map[&(10 - 1)].node_data).clone()));
     node_map.insert(id, n.clone());
     id += 1;
 
