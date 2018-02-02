@@ -212,6 +212,7 @@ impl Node {
             .collect();
         found_nodes.insert((*self.node_data).clone());
         let mut queried_nodes = HashSet::new();
+        queried_nodes.insert((*self.node_data).clone());
 
         let mut queue: BinaryHeap<NodeDataDistancePair> = BinaryHeap::from(
             closest_nodes

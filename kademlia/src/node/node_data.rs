@@ -36,13 +36,12 @@ impl Key {
     pub fn get_distance(&self) -> usize {
         let mut ret = 0;
         for i in 0..KEY_LENGTH {
-            if self.0[i] == 0 {
-                ret += 8;
-            } else {
-                if self.0[i] & 0xF0 == 0 { ret += 4 }
-                if self.0[i] & 0xC0 == 0 { ret += 2 }
-                if self.0[i] & 0x80 == 0 { ret += 1 }
+            for j in 0..8 {
+                if (self.0[i] >> (7 - j)) & 1 != 0 {
+                    return ret + j;
+                }
             }
+            ret += 8;
         }
         ret
     }

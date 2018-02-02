@@ -136,7 +136,7 @@ impl RoutingTable {
             }
         }
 
-        ret.sort_by_key(|node| node.id.xor(key).get_distance());
+        ret.sort_by_key(|node| node.id.xor(key));
         ret.truncate(count);
         ret
     }
