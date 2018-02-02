@@ -5,7 +5,7 @@ use std::fmt::{Debug, Formatter, Result};
 use ::KEY_LENGTH;
 
 #[derive(Ord, PartialOrd, PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Default, Copy)]
-pub struct Key([u8; KEY_LENGTH]);
+pub struct Key(pub [u8; KEY_LENGTH]);
 
 impl Debug for Key {
     fn fmt(&self, f: &mut Formatter) -> Result {

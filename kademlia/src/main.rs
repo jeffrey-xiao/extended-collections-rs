@@ -7,6 +7,24 @@ use kademlia::Node;
 use kademlia::node::node_data::Key;
 use kademlia::protocol::Message;
 
+use std::convert::AsMut;
+
+fn clone_into_array<A, T>(slice: &[T]) -> A
+    where A: Sized + Default + AsMut<[T]>,
+          T: Clone
+{
+    let mut a = Default::default();
+    <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
+    a
+}
+
+fn get_key(mut key: String) -> Key {
+    while key.len() < 20 {
+        key += " ";
+    }
+    Key(clone_into_array(key.as_bytes()))
+}
+
 fn main() {
     let mut node_map = HashMap::new();
     let mut id = 0;
@@ -52,11 +70,16 @@ fn main() {
             },
             "insert" => {
                 let index: u32 = args[1].parse().unwrap();
-                let key = Key::rand();
-                let value = args[2].to_string();
+                let key = get_key(args[2].to_string());
+                let value = args[3].to_string();
                 node_map.get_mut(&index).unwrap().insert(key, value);
-                println!("{:?}", node_map.get_mut(&index).unwrap().get(&key));
             },
+            "get" => {
+                let index: u32 = args[1].parse().unwrap();
+                let key = get_key(args[2].to_string());
+                println!("{:?}", node_map.get_mut(&index).unwrap().get(&key));
+
+            }
             _ => {}
         }
     }
