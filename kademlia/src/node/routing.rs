@@ -114,7 +114,7 @@ impl RoutingTable {
         let index = cmp::min(self.node_data.id.xor(key).get_distance(), self.buckets.len() - 1);
         let mut ret = Vec::new();
 
-        // the closest keys are guaranteed to be in bucket which key would reside
+        // the closest keys are guaranteed to be in bucket which the key would reside
         ret.extend_from_slice(self.buckets[index].get_nodes());
 
         if ret.len() < count {
