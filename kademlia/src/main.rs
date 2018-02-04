@@ -2,6 +2,8 @@ extern crate kademlia;
 
 use std::io;
 use std::collections::HashMap;
+use std::time::Duration;
+use std::thread;
 
 use kademlia::Node;
 use kademlia::node::node_data::Key;
@@ -28,7 +30,7 @@ fn get_key(mut key: String) -> Key {
 fn main() {
     let mut node_map = HashMap::new();
     let mut id = 0;
-    for i in 0..10 {
+    for i in 0..1000 {
         if i == 0 {
             let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), None);
             node_map.insert(id, n.clone());
@@ -36,6 +38,7 @@ fn main() {
             let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), Some((*node_map[&(i - 1)].node_data).clone()));
             node_map.insert(id, n.clone());
         }
+        thread::sleep(Duration::from_millis(50));
         id += 1;
     }
 

@@ -23,7 +23,7 @@ type Tree<T, U> = Option<Box<Node<T, U>>>;
 /// randomly generating priorities, the expected height of the tree is proportional to the
 /// logarithm of the number of keys.
 ///
-/// # Examples:
+/// # Examples
 /// ```
 /// use code::data_structures::Treap;
 ///
@@ -32,7 +32,6 @@ type Tree<T, U> = Option<Box<Node<T, U>>>;
 /// t.insert(3, 4);
 ///
 /// assert_eq!(t.get(&0), Some(&1));
-/// // a non-existent key will yield None
 /// assert_eq!(t.get(&1), None);
 /// assert_eq!(t.size(), 2);
 ///
@@ -41,7 +40,6 @@ type Tree<T, U> = Option<Box<Node<T, U>>>;
 ///
 /// *t.get_mut(&0).unwrap() = 2;
 /// assert_eq!(t.remove(&0), Some((0, 2)));
-/// // a non-existent key will yield None and not throw an error
 /// assert_eq!(t.remove(&1), None);
 /// ```
 pub struct Treap<T: PartialOrd, U>(Tree<T, U>);
@@ -457,6 +455,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// let mut t = Treap::new();
     /// t.insert(1, 1);
     /// t.insert(3, 3);
+    ///
     /// let mut iterator = t.iter();
     /// assert_eq!(iterator.next(), Some((&1, &1)));
     /// assert_eq!(iterator.next(), Some((&3, &3)));

@@ -8,18 +8,48 @@ use std::iter::Iterator;
 use data_structures::Treap;
 use util;
 
-#[derive(Debug)]
 struct Node<T: Hash + Eq, U: Hash + Eq> {
     id: Rc<T>,
     points: HashMap<U, u64>,
 }
 
+/// A hashing ring implementing using consistent hashing.
+///
+/// Consistent hashing is based on mapping each node to a pseudorandom value. In this
+/// implementation the pseudorandom is a combination of the hash of the node and the hash of the
+/// replica number. A point is also represented as a pseudorandom value and it is mapped to the
+/// node with the smallest value that is greater than or equal to the point's value. If such a
+/// node does not exist, then the point maps to the node with the smallest value.
+///
+/// # Examples
+/// ```
+/// use code::hash::consistent_hash::Ring;
+///
+/// let mut r = Ring::new();
+/// r.insert_node("node-1", 3);
+/// r.insert_point("point-1");
+/// r.insert_point("point-2");
+///
+/// assert_eq!(r.size(), 1);
+/// assert_eq!(r.get_node(&"point-1"), &"node-1");
+///
+/// r.remove_point(&"point-2");
+/// assert_eq!(r.get_points(&"node-1"), [&"point-1"]);
+/// ```
 pub struct Ring<T: Hash + Eq, U: Hash + Eq> {
     nodes: Treap<u64, Node<T, U>>,
     replicas: HashMap<Rc<T>, usize>,
 }
 
 impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
+    /// Constructs a new, empty `Ring<T, U>`
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::consistent_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    /// ```
     pub fn new() -> Self {
         Ring {
             nodes: Treap::new(),
@@ -37,10 +67,37 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         }
     }
 
+    /// Returns the number of nodes in the ring.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::consistent_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    ///
+    /// r.insert_node("node-1", 3);
+    /// assert_eq!(r.size(), 1);
+    /// ```
     pub fn size(&self) -> usize {
         self.replicas.len()
     }
 
+    /// Inserts a node into the ring with a number of replicas.
+    ///
+    /// Increasing the number of replicas will increase the number of expected points mapped to the
+    /// node. For example, a node with three replicas will receive approximately three times more points
+    /// than a node with one replica.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::consistent_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    ///
+    /// // "node-2" will receive three times more points than "node-1"
+    /// r.insert_node("node-1", 1);
+    /// r.insert_node("node-2", 3);
+    /// ```
     pub fn insert_node(&mut self, id: T, replicas: usize) {
         let id_ref = Rc::new(id);
         self.replicas.insert(Rc::clone(&id_ref), replicas);
@@ -72,6 +129,21 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         }
     }
 
+    /// Removes a node and all its replicas from a ring.
+    ///
+    /// # Panics
+    /// Panics if the ring is empty after removal of a node or if the node does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::consistent_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    ///
+    /// r.insert_node("node-1", 1);
+    /// r.insert_node("node-2", 1);
+    /// r.remove_node(&"node-1");
+    /// ```
     pub fn remove_node(&mut self, id: &T) {
         for i in 0..self.replicas[id] {
             let hash = util::combine_hash(util::gen_hash(id), util::gen_hash(&i));
@@ -88,6 +160,21 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         self.replicas.remove(id);
     }
 
+    /// Returns the points associated with a node and its replicas.
+    ///
+    /// # Panics
+    /// Panics if the node does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::consistent_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    ///
+    /// r.insert_node("node-1", 1);
+    /// r.insert_point("point-1");
+    /// assert_eq!(r.get_points(&"node-1"), [&"point-1"]);
+    /// ```
     pub fn get_points(&self, id: &T) -> Vec<&U> {
         let replicas = self.replicas[id];
         let mut ret: Vec<&U> = Vec::new();
@@ -102,6 +189,21 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         ret
     }
 
+    /// Returns the node associated with a point.
+    ///
+    /// # Panics
+    /// Panics if the ring is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::consistent_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    ///
+    /// r.insert_node("node-1", 1);
+    /// r.insert_point("point-1");
+    /// assert_eq!(r.get_node(&"point-1"), &"node-1");
+    /// ```
     pub fn get_node(&mut self, key: &U) -> &T {
         let hash = util::gen_hash(key);
         if let Some((_, &mut Node { ref id, .. })) = self.get_next_node(&hash) {
@@ -111,6 +213,19 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         }
     }
 
+    /// Inserts a point into the ring.
+    ///
+    /// # Panics
+    /// Panics if the ring is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::consistent_hash::Ring;
+    ///
+    /// let mut r = Ring::new();
+    /// r.insert_node("node-1", 1);
+    /// r.insert_point("point-1");
+    /// ```
     pub fn insert_point(&mut self, key: U) {
         let hash = util::gen_hash(&key);
         if let Some((_, &mut Node { ref mut points, .. })) = self.get_next_node(&hash) {
@@ -120,6 +235,20 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         }
     }
 
+    /// Removes a point from the ring.
+    ///
+    /// # Panics
+    /// Panics if the ring is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::consistent_hash::Ring;
+    ///
+    /// let mut r = Ring::new();
+    /// r.insert_node("node-1", 1);
+    /// r.insert_point("point-1");
+    /// r.remove_point(&"point-1");
+    /// ```
     pub fn remove_point(&mut self, key: &U) {
         let hash = util::gen_hash(key);
         if let Some((_, &mut Node { ref mut points, .. })) = self.get_next_node(&hash) {
@@ -129,6 +258,20 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         }
     }
 
+    /// Returns an iterator over the ring. The iterator will yield nodes and points in no
+    /// particular order.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::consistent_hash::Ring;
+    ///
+    /// let mut r = Ring::new();
+    /// r.insert_node("node-1", 1);
+    /// r.insert_point("point-1");
+    ///
+    /// let mut iterator = r.iter();
+    /// assert_eq!(iterator.next(), Some((&"node-1", vec![&"point-1"])))
+    /// ```
     pub fn iter<'a>(&'a self) -> Box<Iterator<Item=(&'a T, Vec<&'a U>)> + 'a> {
         Box::new(self.replicas.iter().map(move |ref node_entry| {
             let mut points = Vec::new();
@@ -171,7 +314,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_panic_remove_node() {
+    fn test_panic_remove_node_empty_ring() {
         let mut ring: Ring<u32, u32> = Ring::new();
         ring.insert_node(0, 1);
         ring.remove_node(&0);
@@ -179,21 +322,28 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_panic_get_node() {
+    fn test_panic_remove_node_non_existent_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.remove_node(&0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_panic_get_node_empty_ring() {
         let mut ring: Ring<u32, u32> = Ring::new();
         ring.get_node(&0);
     }
 
     #[test]
     #[should_panic]
-    fn test_panic_insert_point() {
+    fn test_panic_insert_point_empty_ring() {
         let mut ring: Ring<u32, u32> = Ring::new();
         ring.insert_point(0);
     }
 
     #[test]
     #[should_panic]
-    fn test_panic_remove_point() {
+    fn test_panic_remove_point_empty_ring() {
         let mut ring: Ring<u32, u32> = Ring::new();
         ring.remove_point(&0);
     }

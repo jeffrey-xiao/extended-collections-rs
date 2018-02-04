@@ -9,12 +9,41 @@ struct NodeData<U: Hash + Eq> {
     points: HashSet<Rc<U>>,
 }
 
+/// A hashing ring implementing using rendezvous hashing.
+///
+/// Rendezvous hashing is based on based on assigning a pseudorandom value to node-point pair.
+/// A point is mapped to the node that yields the greatest value associated with the node-point
+/// pair.
+///
+/// # Examples
+/// ```
+/// use code::hash::rendezvous_hash::Ring;
+///
+/// let mut r = Ring::new();
+/// r.insert_node("node-1", 3);
+/// r.insert_point("point-1");
+/// r.insert_point("point-2");
+///
+/// assert_eq!(r.size(), 1);
+/// assert_eq!(r.get_node(&"point-1"), &"node-1");
+///
+/// r.remove_point(&"point-2");
+/// assert_eq!(r.get_points(&"node-1"), [&"point-1"]);
+/// ```
 pub struct Ring<T: Hash + Ord, U: Hash + Eq> {
     nodes: HashMap<Rc<T>, NodeData<U>>,
     points: HashMap<Rc<U>, (u64, Rc<T>, u64)>,
 }
 
 impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
+    /// Constructs a new, empty `Ring<T, U>`
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::rendezvous_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    /// ```
     pub fn new() -> Self {
         Ring {
             nodes: HashMap::new(),
@@ -22,10 +51,37 @@ impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
         }
     }
 
+    /// Returns the number of nodes in the ring.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::rendezvous_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    ///
+    /// r.insert_node("node-1", 3);
+    /// assert_eq!(r.size(), 1);
+    /// ```
     pub fn size(&self) -> usize {
         self.nodes.len()
     }
 
+    /// Inserts a node into the ring with a number of replicas.
+    ///
+    /// Increasing the number of replicas will increase the number of expected points mapped to the
+    /// node. For example, a node with three replicas will receive approximately three times more points
+    /// than a node with one replica.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::rendezvous_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    ///
+    /// // "node-2" will receive three times more points than "node-1"
+    /// r.insert_node("node-1", 1);
+    /// r.insert_node("node-2", 3);
+    /// ```
     pub fn insert_node(&mut self, id: T, replicas: usize) {
         let mut new_node: NodeData<U> = NodeData {
             hashes: Vec::new(),
@@ -55,9 +111,24 @@ impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
         self.nodes.insert(id_ref, new_node);
     }
 
+    /// Removes a node and all its replicas from a ring.
+    ///
+    /// # Panics
+    /// Panics if the ring is empty after removal of a node or if the node does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::rendezvous_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    ///
+    /// r.insert_node("node-1", 1);
+    /// r.insert_node("node-2", 1);
+    /// r.remove_node(&"node-1");
+    /// ```
     pub fn remove_node(&mut self, id: &T) {
         let removed_node_data = self.nodes.remove(id).unwrap();
-        if self.nodes.len() == 0 {
+        if self.nodes.is_empty() {
             panic!("Error: empty ring after deletion");
         }
         for point in removed_node_data.points {
@@ -75,10 +146,40 @@ impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
         }
     }
 
+    /// Returns the points associated with a node and its replicas.
+    ///
+    /// # Panics
+    /// Panics if the node does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::rendezvous_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    ///
+    /// r.insert_node("node-1", 1);
+    /// r.insert_point("point-1");
+    /// assert_eq!(r.get_points(&"node-1"), [&"point-1"]);
+    /// ```
     pub fn get_points(&mut self, id: &T) -> Vec<&U> {
         self.nodes[id].points.iter().map(|point| &**point).collect()
     }
 
+    /// Returns the node associated with a point.
+    ///
+    /// # Panics
+    /// Panics if the ring is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::rendezvous_hash::Ring;
+    ///
+    /// let mut r: Ring<&str, &str> = Ring::new();
+    ///
+    /// r.insert_node("node-1", 1);
+    /// r.insert_point("point-1");
+    /// assert_eq!(r.get_node(&"point-1"), &"node-1");
+    /// ```
     pub fn get_node(&mut self, key: &U) -> &T {
         let point_hash = util::gen_hash(key);
         &**self.nodes.iter().map(|entry| {
@@ -89,6 +190,19 @@ impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
         }).max().unwrap().1
     }
 
+    /// Inserts a point into the ring.
+    ///
+    /// # Panics
+    /// Panics if the ring is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::rendezvous_hash::Ring;
+    ///
+    /// let mut r = Ring::new();
+    /// r.insert_node("node-1", 1);
+    /// r.insert_point("point-1");
+    /// ```
     pub fn insert_point(&mut self, key: U) {
         let point_hash = util::gen_hash(&key);
         let key_ref = Rc::new(key);
@@ -103,15 +217,39 @@ impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
         self.points.insert(Rc::clone(&key_ref), max_score);
     }
 
+    /// Removes a point from the ring.
+    ///
+    /// # Panics
+    /// Panics if the ring is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::rendezvous_hash::Ring;
+    ///
+    /// let mut r = Ring::new();
+    /// r.insert_node("node-1", 1);
+    /// r.insert_point("point-1");
+    /// r.remove_point(&"point-1");
+    /// ```
     pub fn remove_point(&mut self, key: &U) {
         self.nodes.get_mut(&self.points[key].1).unwrap().points.remove(key);
         self.points.remove(key);
     }
 
-    pub fn iterate(&self) -> Vec<(Rc<T>, &HashSet<Rc<U>>)> {
-        self.nodes.iter().map(|entry| (entry.0.clone(), &entry.1.points)).collect()
-    }
-
+    /// Returns an iterator over the ring. The iterator will yield nodes and points in no
+    /// particular order.
+    ///
+    /// # Examples
+    /// ```
+    /// use code::hash::rendezvous_hash::Ring;
+    ///
+    /// let mut r = Ring::new();
+    /// r.insert_node("node-1", 1);
+    /// r.insert_point("point-1");
+    ///
+    /// let mut iterator = r.iter();
+    /// assert_eq!(iterator.next(), Some((&"node-1", vec![&"point-1"])))
+    /// ```
     pub fn iter<'a>(&'a self) -> Box<Iterator<Item=(&'a T, Vec<&'a U>)> + 'a> {
         Box::new(self.nodes.iter().map(move |ref node_entry| {
             let &(node_id, node_data) = node_entry;
@@ -151,7 +289,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_panic_remove_node() {
+    fn test_panic_remove_node_empty_ring() {
         let mut ring: Ring<u32, u32> = Ring::new();
         ring.insert_node(0, 1);
         ring.remove_node(&0);
@@ -159,21 +297,28 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_panic_get_node() {
+    fn test_panic_remove_node_non_existent_node() {
+        let mut ring: Ring<u32, u32> = Ring::new();
+        ring.remove_node(&0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_panic_get_node_empty_ring() {
         let mut ring: Ring<u32, u32> = Ring::new();
         ring.get_node(&0);
     }
 
     #[test]
     #[should_panic]
-    fn test_panic_insert_point() {
+    fn test_panic_insert_point_empty_ring() {
         let mut ring: Ring<u32, u32> = Ring::new();
         ring.insert_point(0);
     }
 
     #[test]
     #[should_panic]
-    fn test_panic_remove_point() {
+    fn test_panic_remove_point_empty_ring() {
         let mut ring: Ring<u32, u32> = Ring::new();
         ring.remove_point(&0);
     }
