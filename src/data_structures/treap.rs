@@ -56,48 +56,36 @@ impl<T: PartialOrd, U> Treap<T, U> {
     pub fn new() -> Self { Treap(None) }
 
     fn update(tree: &mut Tree<T, U>) {
-        let tree_opt = tree.take();
-        if let Some(node) = tree_opt {
-            let Node {key, value, priority, left, right, .. } = util::unbox(node);
-            let mut size = 1;
-            if let Some(ref l_node) = left {
-                size += l_node.size;
+        if let Some(ref mut node) = *tree {
+            let mut unboxed = &mut **node;
+            let &mut Node{ ref mut size, ref left, ref right, .. } = unboxed;
+            *size = 1;
+            if let Some(ref l_node) = *left {
+                *size += l_node.size;
             }
-            if let Some(ref r_node) = right {
-                size += r_node.size;
+            if let Some(ref r_node) = *right {
+                *size += r_node.size;
             }
-            *tree = Some(Box::new(Node { key, value, priority, size, left, right }));
         }
     }
 
-    fn merge(l_tree: &mut Tree<T, U>, mut r_tree: Tree<T, U>) {
-        let r_tree_opt = r_tree.take();
+    fn merge(mut l_tree: &mut Tree<T, U>, mut r_tree: Tree<T, U>) {
+        if l_tree.is_none() {
+            *l_tree = r_tree.take();
+        } else if let Some(mut r_node) = r_tree {
 
-        if let Some(r_node) = r_tree_opt {
-            let mut l_tree_opt = l_tree.take();
-
-            if l_tree_opt.is_none() {
-                *l_tree = Some(r_node);
+            if l_tree.as_ref().unwrap().priority > r_node.priority {
+                let mut l_tree_opt = l_tree.take();
+                let mut l_node = l_tree_opt.unwrap();
+                Self::merge(&mut l_node.right, Some(r_node));
+                *l_tree = Some(l_node);
+                Self::update(l_tree);
             } else {
-                let mut left_merge = false;
-                {
-                    let l_node_opt_ref = l_tree_opt.as_ref();
-                    if l_node_opt_ref.unwrap().priority > r_node.priority {
-                        left_merge = true;
-                    }
-                }
-                if left_merge {
-                    let mut l_node = l_tree_opt.unwrap();
-                    Self::merge(&mut l_node.right, Some(r_node));
-                    *l_tree = Some(l_node);
-                    Self::update(l_tree);
-                } else {
-                    let Node { key, value, size, priority, left, right } = util::unbox(r_node);
-                    Self::merge(&mut l_tree_opt, left);
-                    let new_left = Some(l_tree_opt.unwrap());
-                    *l_tree = Some(Box::new(Node { key, value, size, priority, left: new_left, right }));
-                    Self::update(l_tree);
-                }
+                let mut left = r_node.left.take();
+                Self::merge(&mut l_tree, left);
+                r_node.left = l_tree.take();
+                *l_tree = Some(r_node);
+                Self::update(l_tree);
             }
         }
     }
@@ -108,27 +96,19 @@ impl<T: PartialOrd, U> Treap<T, U> {
             Some(mut node) => {
                 let mut ret = (None, None);
                 if node.key < *k {
-                    let res = Self::split(&mut node.right, k);
-                    if res.0.is_some() {
-                        ret.0 = res.0;
-                    }
-                    ret.1 = res.1;
+                    ret = Self::split(&mut node.right, k);
                     *tree = Some(node);
                 } else if node.key > *k {
-                    let Node { key, value, priority, size, right, left: mut new_tree } = util::unbox(node);
+                    let mut new_tree = node.left.take();
                     let res = Self::split(&mut new_tree, k);
-                    if res.0.is_some() {
-                        ret.0 = res.0;
-                    }
                     *tree = new_tree;
-                    ret.1 = Some(Box::new(Node { key, value, priority, size, left: res.1, right }))
+                    node.left = res.1;
+                    ret.0 = res.0;
+                    ret.1 = Some(node);
                 } else {
-                    let Node { key, value, priority, left, right, .. } = util::unbox(node);
-                    *tree = left;
-                    ret = (
-                        Some(Box::new(Node { key, value, priority, size: 1, left: None, right: None})),
-                        right,
-                    );
+                    *tree = node.left.take();
+                    ret.1 = node.right.take();
+                    ret.0 = Some(node);
                 }
                 Self::update(tree);
                 Self::update(&mut ret.1);

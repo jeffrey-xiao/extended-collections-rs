@@ -8,10 +8,10 @@ use self::rand::Rng;
 
 #[test]
 fn int_test_treap() {
-    let mut rng = rand::thread_rng();
+    let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut tree = Treap::new();
     let mut expected = Vec::new();
-    for _ in 0..10_000 {
+    for _ in 0..100_000 {
         let key = rng.gen::<u32>();
         let val = rng.gen::<u32>();
 
@@ -19,6 +19,7 @@ fn int_test_treap() {
         expected.push((key, val));
     }
 
+    expected.reverse();
     expected.sort_by(|l, r| l.0.cmp(&r.0));
     expected.dedup_by_key(|pair| pair.0);
 

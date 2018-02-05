@@ -8,3 +8,5 @@ rand = "0.4"
 kademlia = { path = "kademlia" }
 clippy = { version = "*", optional = true }
 
+[profile.bench]
+debug = true
