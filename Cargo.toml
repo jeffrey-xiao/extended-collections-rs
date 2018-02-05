@@ -4,9 +4,9 @@ version = "0.1.0"
 authors = ["Jeffrey Xiao <jeffrey.xiao1998@gmail.com>"]
 
 [dependencies]
-rand = "0.4"
 kademlia = { path = "kademlia" }
+hash = { path = "hash" }
+data_structures = { path = "data_structures" }
 clippy = { version = "*", optional = true }
 
-[profile.bench]
-debug = true
+[workspace]

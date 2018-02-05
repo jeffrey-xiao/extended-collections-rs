@@ -1,6 +1,5 @@
 use std::vec::Vec;
 use rand;
-use util;
 
 /// A struct representing an internal node of a treap.
 struct Node <T: PartialOrd, U> {
@@ -25,7 +24,7 @@ type Tree<T, U> = Option<Box<Node<T, U>>>;
 ///
 /// # Examples
 /// ```
-/// use code::data_structures::Treap;
+/// use data_structures::Treap;
 ///
 /// let mut t = Treap::new();
 /// t.insert(0, 1);
@@ -49,7 +48,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t: Treap<u32, u32> = Treap::new();
     /// ```
@@ -57,8 +56,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
 
     fn update(tree: &mut Tree<T, U>) {
         if let Some(ref mut node) = *tree {
-            let mut unboxed = &mut **node;
-            let &mut Node{ ref mut size, ref left, ref right, .. } = unboxed;
+            let mut unboxed_node = &mut **node;
+            let &mut Node{ ref mut size, ref left, ref right, .. } = unboxed_node;
             *size = 1;
             if let Some(ref l_node) = *left {
                 *size += l_node.size;
@@ -123,7 +122,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// assert_eq!(t.insert(1, 1), None);
@@ -148,7 +147,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
         Self::merge(tree, r_tree);
         match old_node_opt {
             Some(old_node) => {
-                let Node {key, value, .. } = util::unbox(old_node);
+                let unboxed_old_node = *old_node;
+                let Node {key, value, .. } = unboxed_old_node;
                 Some((key, value))
             }
             None => None,
@@ -160,7 +160,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// t.insert(1, 1);
@@ -173,7 +173,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
         Self::merge(tree, r_tree);
         match old_node_opt {
             Some(old_node) => {
-                let Node {key, value, .. } = util::unbox(old_node);
+                let unboxed_old_node = *old_node;
+                let Node {key, value, .. } = unboxed_old_node;
                 Some((key, value))
             }
             None => None,
@@ -199,7 +200,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// t.insert(1, 1);
@@ -231,7 +232,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// t.insert(1, 1);
@@ -263,7 +264,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// t.insert(1, 1);
@@ -279,7 +280,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// t.insert(1, 1);
@@ -318,7 +319,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// t.insert(1, 1);
@@ -355,7 +356,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// t.insert(1, 1);
@@ -384,7 +385,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// t.insert(1, 1);
@@ -413,7 +414,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// t.insert(1, 1);
@@ -430,7 +431,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::data_structures::Treap;
+    /// use data_structures::Treap;
     ///
     /// let mut t = Treap::new();
     /// t.insert(1, 1);

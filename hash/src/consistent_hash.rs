@@ -23,7 +23,7 @@ struct Node<T: Hash + Eq, U: Hash + Eq> {
 ///
 /// # Examples
 /// ```
-/// use code::hash::consistent_hash::Ring;
+/// use hash::consistent_hash::Ring;
 ///
 /// let mut r = Ring::new();
 /// r.insert_node("node-1", 3);
@@ -46,7 +46,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Ring;
     ///
     /// let mut r: Ring<&str, &str> = Ring::new();
     /// ```
@@ -71,7 +71,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Ring;
     ///
     /// let mut r: Ring<&str, &str> = Ring::new();
     ///
@@ -90,7 +90,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Ring;
     ///
     /// let mut r: Ring<&str, &str> = Ring::new();
     ///
@@ -136,7 +136,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Ring;
     ///
     /// let mut r: Ring<&str, &str> = Ring::new();
     ///
@@ -167,7 +167,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Ring;
     ///
     /// let mut r: Ring<&str, &str> = Ring::new();
     ///
@@ -196,7 +196,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Ring;
     ///
     /// let mut r: Ring<&str, &str> = Ring::new();
     ///
@@ -220,7 +220,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Ring;
     ///
     /// let mut r = Ring::new();
     /// r.insert_node("node-1", 1);
@@ -242,7 +242,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Ring;
     ///
     /// let mut r = Ring::new();
     /// r.insert_node("node-1", 1);
@@ -263,7 +263,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use code::hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Ring;
     ///
     /// let mut r = Ring::new();
     /// r.insert_node("node-1", 1);
