@@ -1,11 +1,11 @@
 #![feature(test)]
 extern crate test;
-extern crate code;
+extern crate data_structures;
 extern crate rand;
 
 use test::Bencher;
 use self::rand::Rng;
-use code::data_structures::Treap;
+use data_structures::Treap;
 use std::collections::BTreeMap;
 
 #[bench]
