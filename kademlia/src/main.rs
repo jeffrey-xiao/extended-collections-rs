@@ -7,7 +7,6 @@ use std::thread;
 
 use kademlia::Node;
 use kademlia::key::Key;
-use kademlia::protocol::Message;
 
 use std::convert::AsMut;
 

@@ -14,12 +14,13 @@ use node::node_data::{NodeDataDistancePair, NodeData};
 use node::routing::RoutingTable;
 use protocol::{Protocol, Message, Request, Response, RequestPayload, ResponsePayload};
 use key::Key;
+use storage::Storage;
 
 #[derive(Clone)]
 pub struct Node {
     pub node_data: Arc<NodeData>,
     routing_table: Arc<Mutex<RoutingTable>>,
-    data: Arc<Mutex<HashMap<Key, String>>>,
+    storage: Arc<Mutex<Storage>>,
     pending_requests: Arc<Mutex<HashMap<Key, Sender<Response>>>>,
     pub protocol: Arc<Protocol>,
 }
@@ -44,7 +45,7 @@ impl Node {
         let mut ret = Node {
             node_data: node_data,
             routing_table: Arc::new(Mutex::new(routing_table)),
-            data: Arc::new(Mutex::new(HashMap::new())),
+            storage: Arc::new(Mutex::new(Storage::new())),
             pending_requests: Arc::new(Mutex::new(HashMap::new())),
             protocol: Arc::new(protocol),
         };
@@ -101,7 +102,7 @@ impl Node {
         let payload = match request.payload.clone() {
             RequestPayload::Ping => ResponsePayload::Pong,
             RequestPayload::Store(key, value) => {
-                self.data.lock().unwrap().insert(key, value);
+                self.storage.lock().unwrap().insert(key, value);
                 ResponsePayload::Pong
             }
             RequestPayload::FindNode(key) => {
@@ -110,7 +111,7 @@ impl Node {
                 )
             },
             RequestPayload::FindValue(key) => {
-                if let Some(value) = self.data.lock().unwrap().get(&key) {
+                if let Some(value) = self.storage.lock().unwrap().get(&key) {
                     ResponsePayload::Value(value.clone())
                 } else {
                     ResponsePayload::Nodes(
