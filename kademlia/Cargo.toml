@@ -9,3 +9,6 @@ serde = "1.0"
 serde_json = "*"
 serde_derive = "*"
 clippy = { version = "*", optional = true }
+
+[dev-dependencies]
+num-bigint = "0.1"

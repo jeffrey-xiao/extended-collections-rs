@@ -1,51 +1,7 @@
-use rand;
 use std::cmp::Ordering;
-use std::fmt::{Debug, Formatter, Result};
 
-use ::KEY_LENGTH;
+use ::key::Key;
 
-#[derive(Ord, PartialOrd, PartialEq, Eq, Clone, Hash, Serialize, Deserialize, Default, Copy)]
-pub struct Key(pub [u8; KEY_LENGTH]);
-
-impl Debug for Key {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        let hex_vec: Vec<String> = self.0.iter().map(|b| format!("{:02X}", b)).collect();
-        write!(f, "{}", hex_vec.join(""))
-    }
-}
-
-impl Key {
-    pub fn new(data: [u8; KEY_LENGTH]) -> Self { Key(data) }
-
-    pub fn rand() -> Self {
-        let mut ret = [0; KEY_LENGTH];
-        for byte in &mut ret {
-            *byte = rand::random::<u8>();
-        }
-        Key(ret)
-    }
-
-    pub fn xor(&self, key: &Key) -> Key {
-        let mut ret = [0; KEY_LENGTH];
-        for (i, byte) in ret.iter_mut().enumerate() {
-            *byte = self.0[i] ^ key.0[i];
-        }
-        Key(ret)
-    }
-
-    pub fn get_distance(&self) -> usize {
-        let mut ret = 0;
-        for i in 0..KEY_LENGTH {
-            for j in 0..8 {
-                if (self.0[i] >> (7 - j)) & 1 != 0 {
-                    return ret + j;
-                }
-            }
-            ret += 8;
-        }
-        ret
-    }
-}
 
 #[derive(PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Debug)]
 pub struct NodeData {

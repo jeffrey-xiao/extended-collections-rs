@@ -4,7 +4,8 @@ use std::cmp;
 use std::mem;
 
 use ::{ROUTING_TABLE_SIZE, REPLICATION_PARAM};
-use node::{NodeData, Key};
+use node::NodeData;
+use key::Key;
 
 #[derive(Clone, Debug)]
 struct RoutingBucket {
@@ -35,7 +36,7 @@ impl RoutingBucket {
 
     pub fn split(&mut self, key: &Key, index: usize) -> RoutingBucket {
         let (old_bucket, new_bucket) = self.nodes.drain(..).partition(|node| {
-            node.id.xor(key).get_distance() == index
+            node.id.xor(key).count_leading_zeroes() == index
         });
         mem::replace(&mut self.nodes, old_bucket);
         RoutingBucket{ nodes: new_bucket }
@@ -81,7 +82,7 @@ impl RoutingTable {
     }
 
     pub fn update_node(&mut self, node_data: NodeData) -> bool {
-        let distance = self.node_data.id.xor(&node_data.id).get_distance();
+        let distance = self.node_data.id.xor(&node_data.id).count_leading_zeroes();
         let mut target_bucket = cmp::min(distance, self.buckets.len() - 1);
         if self.buckets[target_bucket].contains(&node_data) {
             self.buckets[target_bucket].update_node(node_data);
@@ -111,7 +112,7 @@ impl RoutingTable {
     }
 
     pub fn get_closest(&self, key: &Key, count: usize) -> Vec<NodeData> {
-        let index = cmp::min(self.node_data.id.xor(key).get_distance(), self.buckets.len() - 1);
+        let index = cmp::min(self.node_data.id.xor(key).count_leading_zeroes(), self.buckets.len() - 1);
         let mut ret = Vec::new();
 
         // the closest keys are guaranteed to be in bucket which the key would reside
@@ -119,14 +120,14 @@ impl RoutingTable {
 
         if ret.len() < count {
             // the distance between target key and keys is not necessarily monotonic
-            // in range (key.get_distance(), self.buckets.len()], so we must iterate
+            // in range (key.count_leading_zeroes(), self.buckets.len()], so we must iterate
             for i in (index + 1)..self.buckets.len() {
                 ret.extend_from_slice(self.buckets[i].get_nodes());
             }
         }
 
         if ret.len() < count {
-            // the distance between target key and keys in [0, key.get_distance())
+            // the distance between target key and keys in [0, key.count_leading_zeroes())
             // is monotonicly decreasing by bucket
             for i in (0..index).rev() {
                 ret.extend_from_slice(self.buckets[i].get_nodes());
@@ -142,12 +143,12 @@ impl RoutingTable {
     }
 
     pub fn remove_lrs(&mut self, key: &Key) -> Option<NodeData> {
-        let index = cmp::min(self.node_data.id.xor(key).get_distance(), self.buckets.len() - 1);
+        let index = cmp::min(self.node_data.id.xor(key).count_leading_zeroes(), self.buckets.len() - 1);
         self.buckets[index].remove_lrs()
     }
 
     pub fn remove_node(&mut self, node_data: &NodeData) {
-        let index = cmp::min(self.node_data.id.xor(&node_data.id).get_distance(), self.buckets.len() - 1);
+        let index = cmp::min(self.node_data.id.xor(&node_data.id).count_leading_zeroes(), self.buckets.len() - 1);
         self.buckets[index].remove_node(node_data);
 
     }

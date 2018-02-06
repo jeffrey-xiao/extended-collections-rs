@@ -10,9 +10,10 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use ::{REQUEST_TIMEOUT, REPLICATION_PARAM, CONCURRENCY_PARAM, KEY_LENGTH};
-use node::node_data::{NodeDataDistancePair, NodeData, Key};
+use node::node_data::{NodeDataDistancePair, NodeData};
 use node::routing::RoutingTable;
 use protocol::{Protocol, Message, Request, Response, RequestPayload, ResponsePayload};
+use key::Key;
 
 #[derive(Clone)]
 pub struct Node {
@@ -50,8 +51,7 @@ impl Node {
 
         ret.clone().start_message_handler(message_rx);
 
-        let target_key = ret.node_data.id;
-        ret.lookup_nodes(&target_key, true);
+        ret.bootstrap_routing_table();
 
         ret
     }
@@ -66,6 +66,11 @@ impl Node {
                 }
             }
         });
+    }
+
+    fn bootstrap_routing_table(&mut self) {
+        let target_key = self.node_data.id;
+        self.lookup_nodes(&target_key, true);
     }
 
     fn update_routing_table(&mut self, node_data: NodeData) {
@@ -188,9 +193,13 @@ impl Node {
     fn spawn_find_rpc(mut self, dest: NodeData, key: Key, sender: Sender<Option<Response>>, find_node: bool) {
         thread::spawn(move || {
             if find_node {
-                sender.send(self.rpc_find_node(&dest, &key));
+                if sender.send(self.rpc_find_node(&dest, &key)).is_err() {
+                    println!("Warning: receiver closed channel before rpc returned.");
+                }
             } else {
-                sender.send(self.rpc_find_value(&dest, &key));
+                if sender.send(self.rpc_find_value(&dest, &key)).is_err() {
+                    println!("Warning: receiver closed channel before rpc returned.");
+                }
             }
         });
     }

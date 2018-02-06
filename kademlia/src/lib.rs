@@ -10,6 +10,7 @@ extern crate serde_derive;
 
 pub mod protocol;
 pub mod node;
+pub mod key;
 
 pub use self::node::Node;
 

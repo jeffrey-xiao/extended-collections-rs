@@ -6,7 +6,8 @@ use std::sync::mpsc::Sender;
 use std::thread;
 
 use ::MESSAGE_LENGTH;
-use node::node_data::{NodeData, Key};
+use node::node_data::NodeData;
+use key::Key;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Request {
