@@ -4,7 +4,7 @@ use std::cmp;
 use std::mem;
 
 use ::{ROUTING_TABLE_SIZE, REPLICATION_PARAM};
-use node::NodeData;
+use node::node_data::NodeData;
 use key::Key;
 
 #[derive(Clone, Debug)]

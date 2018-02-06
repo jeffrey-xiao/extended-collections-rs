@@ -12,6 +12,7 @@ pub mod protocol;
 pub mod node;
 pub mod key;
 pub mod storage;
+pub mod routing;
 
 pub use self::node::Node;
 

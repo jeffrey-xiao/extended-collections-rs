@@ -1,5 +1,4 @@
 pub mod node_data;
-mod routing;
 
 use std::cmp;
 use std::net::UdpSocket;
@@ -11,7 +10,7 @@ use std::time::Duration;
 
 use ::{REQUEST_TIMEOUT, REPLICATION_PARAM, CONCURRENCY_PARAM, KEY_LENGTH};
 use node::node_data::{NodeDataDistancePair, NodeData};
-use node::routing::RoutingTable;
+use routing::RoutingTable;
 use protocol::{Protocol, Message, Request, Response, RequestPayload, ResponsePayload};
 use key::Key;
 use storage::Storage;
