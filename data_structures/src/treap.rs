@@ -56,8 +56,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
 
     fn update(tree: &mut Tree<T, U>) {
         if let Some(ref mut node) = *tree {
-            let mut unboxed_node = &mut **node;
-            let &mut Node{ ref mut size, ref left, ref right, .. } = unboxed_node;
+            let &mut Node{ ref mut size, ref left, ref right, .. } = &mut **node;
             *size = 1;
             if let Some(ref l_node) = *left {
                 *size += l_node.size;
@@ -72,16 +71,14 @@ impl<T: PartialOrd, U> Treap<T, U> {
         if l_tree.is_none() {
             *l_tree = r_tree.take();
         } else if let Some(mut r_node) = r_tree {
-
             if l_tree.as_ref().unwrap().priority > r_node.priority {
-                let mut l_tree_opt = l_tree.take();
-                let mut l_node = l_tree_opt.unwrap();
-                Self::merge(&mut l_node.right, Some(r_node));
-                *l_tree = Some(l_node);
+                {
+                    let &mut Node{ ref mut right, .. } = &mut **l_tree.as_mut().unwrap();
+                    Self::merge(right, Some(r_node));
+                }
                 Self::update(l_tree);
             } else {
-                let mut left = r_node.left.take();
-                Self::merge(&mut l_tree, left);
+                Self::merge(&mut l_tree, r_node.left.take());
                 r_node.left = l_tree.take();
                 *l_tree = Some(r_node);
                 Self::update(l_tree);
@@ -98,9 +95,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     ret = Self::split(&mut node.right, k);
                     *tree = Some(node);
                 } else if node.key > *k {
-                    let mut new_tree = node.left.take();
-                    let res = Self::split(&mut new_tree, k);
-                    *tree = new_tree;
+                    let mut res = Self::split(&mut node.left, k);
+                    *tree = node.left.take();
                     node.left = res.1;
                     ret.0 = res.0;
                     ret.1 = Some(node);
