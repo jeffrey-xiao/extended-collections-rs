@@ -1,3 +1,4 @@
+use std::mem;
 use std::vec::Vec;
 use rand;
 
@@ -144,7 +145,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
         match old_node_opt {
             Some(old_node) => {
                 let unboxed_old_node = *old_node;
-                let Node {key, value, .. } = unboxed_old_node;
+                let Node { key, value, .. } = unboxed_old_node;
                 Some((key, value))
             }
             None => None,
@@ -170,7 +171,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
         match old_node_opt {
             Some(old_node) => {
                 let unboxed_old_node = *old_node;
-                let Node {key, value, .. } = unboxed_old_node;
+                let Node { key, value, .. } = unboxed_old_node;
                 Some((key, value))
             }
             None => None,
@@ -422,6 +423,64 @@ impl<T: PartialOrd, U> Treap<T, U> {
         Self::tree_max(tree)
     }
 
+    fn tree_union(left_tree: Tree<T, U>, right_tree: Tree<T, U>) -> Tree<T, U> {
+        match (left_tree, right_tree) {
+            (None, None) => None,
+            (None, right_tree) => right_tree,
+            (left_tree, None) => left_tree,
+            (Some(mut left_node), Some(mut right_node)) => {
+                let mut swapped = false;
+                if left_node.priority < right_node.priority {
+                    mem::swap(&mut left_node, &mut right_node);
+                    swapped = true;
+                }
+                {
+                    let &mut Node { left: ref mut left_subtree, right: ref mut right_subtree, ref mut key, ref mut value, .. } = &mut *left_node;
+                    let mut right_left_subtree = Some(right_node);
+                    let (duplicate_opt, right_right_subtree) = Self::split(&mut right_left_subtree, key);
+                    if swapped {
+                        *left_subtree = Self::tree_union(right_left_subtree, left_subtree.take());
+                        *right_subtree = Self::tree_union(right_right_subtree, right_subtree.take());
+                        if let Some(duplicate_node) = duplicate_opt {
+                            *value = duplicate_node.value;
+                        }
+                    } else {
+                        *left_subtree = Self::tree_union(left_subtree.take(),  right_left_subtree);
+                        *right_subtree = Self::tree_union(right_subtree.take(), right_right_subtree);
+                    }
+                }
+                Some(left_node)
+            }
+        }
+    }
+
+    /// Returns the union of two treaps. If there is a key that is found in both `left` and
+    /// `right`, the union will contain the value associated with the key in `left`.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::Treap;
+    ///
+    /// let mut n = Treap::new();
+    /// n.insert(1, 1);
+    /// n.insert(2, 2);
+    ///
+    /// let mut m = Treap::new();
+    /// m.insert(2, 3);
+    /// m.insert(3, 3);
+    ///
+    /// let union = Treap::union(n, m);
+    /// assert_eq!(
+    ///     union.into_iter().collect::<Vec<(&u32, &u32)>>(), 
+    ///     vec![(&1, &1), (&2, &2), (&3, &3)],
+    /// );
+    /// ```
+    pub fn union(left: Self, right: Self) -> Self {
+        let Treap(left_tree) = left;
+        let Treap(right_tree) = right;
+        Treap(Self::tree_union(left_tree, right_tree))
+    }
+
     /// Returns an iterator over the treap. The iterator will yield key-value pairs using in-order
     /// traversal.
     ///
@@ -569,12 +628,30 @@ mod tests {
     }
 
     #[test]
+    fn test_union() {
+        let mut n = Treap::new();
+        n.insert(1, 1);
+        n.insert(2, 2);
+        n.insert(3, 3);
+
+        let mut m = Treap::new();
+        m.insert(3, 5);
+        m.insert(4, 4);
+        m.insert(5, 5);
+
+        assert_eq!(
+            Treap::union(n, m).into_iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&1, &1), (&2, &2), (&3, &3), (&4, &4), (&5, &5)],
+        );
+    }
+
+    #[test]
     fn test_iter() {
         let mut tree = Treap::new();
         tree.insert(1, 2);
         tree.insert(5, 6);
         tree.insert(3, 4);
 
-        assert_eq!(tree.into_iter().collect::<Vec<(&u32, &u32)>>(), vec![(&1, &2), (&3, &4), (&5, &6)])
+        assert_eq!(tree.into_iter().collect::<Vec<(&u32, &u32)>>(), vec![(&1, &2), (&3, &4), (&5, &6)]);
     }
 }
