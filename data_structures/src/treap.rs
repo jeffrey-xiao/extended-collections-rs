@@ -68,30 +68,29 @@ impl<T: PartialOrd, U> Treap<T, U> {
         }
     }
 
-    fn merge(mut l_tree: &mut Tree<T, U>, mut r_tree: Tree<T, U>) {
-        if l_tree.is_none() {
-            *l_tree = r_tree.take();
-        } else if let Some(mut r_node) = r_tree {
-            if l_tree.as_ref().unwrap().priority > r_node.priority {
-                {
-                    let &mut Node{ ref mut right, .. } = &mut **l_tree.as_mut().unwrap();
-                    Self::merge(right, Some(r_node));
+    fn merge(l_tree: &mut Tree<T, U>, r_tree: Tree<T, U>) {
+        match (l_tree.take(), r_tree) {
+            (Some(mut l_node), Some(mut r_node)) => {
+                if l_node.priority > r_node.priority {
+                    Self::merge(&mut l_node.right, Some(r_node));
+                    *l_tree = Some(l_node);
+                } else {
+                    let mut new_tree = Some(l_node);
+                    Self::merge(&mut new_tree, r_node.left.take());
+                    r_node.left = new_tree;
+                    *l_tree = Some(r_node);
                 }
-                Self::update(l_tree);
-            } else {
-                Self::merge(&mut l_tree, r_node.left.take());
-                r_node.left = l_tree.take();
-                *l_tree = Some(r_node);
-                Self::update(l_tree);
-            }
+            },
+            (new_tree, None) => *l_tree = new_tree,
+            (None, new_tree) => *l_tree = new_tree,
         }
+        Self::update(l_tree);
     }
 
     fn split(tree: &mut Tree<T, U>, k: &T) -> (Tree<T, U>, Tree<T, U>) {
-        let tree_opt = tree.take();
-        match tree_opt {
+        match tree.take() {
             Some(mut node) => {
-                let mut ret = (None, None);
+                let mut ret;
                 if node.key < *k {
                     ret = Self::split(&mut node.right, k);
                     *tree = Some(node);
@@ -99,12 +98,11 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     let mut res = Self::split(&mut node.left, k);
                     *tree = node.left.take();
                     node.left = res.1;
-                    ret.0 = res.0;
-                    ret.1 = Some(node);
+                    ret = (res.0, Some(node));
                 } else {
                     *tree = node.left.take();
-                    ret.1 = node.right.take();
-                    ret.0 = Some(node);
+                    let right = node.right.take();
+                    ret = (Some(node), right);
                 }
                 Self::update(tree);
                 Self::update(&mut ret.1);
@@ -471,7 +469,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// let union = Treap::union(n, m);
     /// assert_eq!(
-    ///     union.into_iter().collect::<Vec<(&u32, &u32)>>(), 
+    ///     union.into_iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&1, &1), (&2, &2), (&3, &3)],
     /// );
     /// ```
