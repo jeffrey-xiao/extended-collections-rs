@@ -421,34 +421,29 @@ impl<T: PartialOrd, U> Treap<T, U> {
         Self::tree_max(tree)
     }
 
-    fn tree_union(left_tree: Tree<T, U>, right_tree: Tree<T, U>) -> Tree<T, U> {
+    fn tree_union(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> Tree<T, U> {
         match (left_tree, right_tree) {
-            (None, None) => None,
-            (None, right_tree) => right_tree,
-            (left_tree, None) => left_tree,
             (Some(mut left_node), Some(mut right_node)) => {
-                let mut swapped = false;
                 if left_node.priority < right_node.priority {
                     mem::swap(&mut left_node, &mut right_node);
-                    swapped = true;
+                    swapped = !swapped;
                 }
                 {
                     let &mut Node { left: ref mut left_subtree, right: ref mut right_subtree, ref mut key, ref mut value, .. } = &mut *left_node;
                     let mut right_left_subtree = Some(right_node);
                     let (duplicate_opt, right_right_subtree) = Self::split(&mut right_left_subtree, key);
+                    *left_subtree = Self::tree_union(left_subtree.take(), right_left_subtree, swapped);
+                    *right_subtree = Self::tree_union(right_subtree.take(), right_right_subtree, swapped);
                     if swapped {
-                        *left_subtree = Self::tree_union(right_left_subtree, left_subtree.take());
-                        *right_subtree = Self::tree_union(right_right_subtree, right_subtree.take());
                         if let Some(duplicate_node) = duplicate_opt {
                             *value = duplicate_node.value;
                         }
-                    } else {
-                        *left_subtree = Self::tree_union(left_subtree.take(),  right_left_subtree);
-                        *right_subtree = Self::tree_union(right_subtree.take(), right_right_subtree);
                     }
                 }
                 Some(left_node)
-            }
+            },
+            (None, right_tree) => right_tree,
+            (left_tree, None) => left_tree,
         }
     }
 
@@ -476,7 +471,121 @@ impl<T: PartialOrd, U> Treap<T, U> {
     pub fn union(left: Self, right: Self) -> Self {
         let Treap(left_tree) = left;
         let Treap(right_tree) = right;
-        Treap(Self::tree_union(left_tree, right_tree))
+        Treap(Self::tree_union(left_tree, right_tree, false))
+    }
+
+    fn tree_inter(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> Tree<T, U> {
+        if let (Some(mut left_node), Some(mut right_node)) = (left_tree, right_tree) {
+            {
+                if left_node.priority < right_node.priority {
+                    mem::swap(&mut left_node, &mut right_node);
+                    swapped = !swapped;
+                }
+                let &mut Node { left: ref mut left_subtree, right: ref mut right_subtree, ref mut key, ref mut value, .. } = &mut *left_node;
+                let mut right_left_subtree = Some(right_node);
+                let (duplicate_opt, right_right_subtree) = Self::split(&mut right_left_subtree, key);
+                *left_subtree = Self::tree_inter(left_subtree.take(), right_left_subtree, swapped);
+                *right_subtree = Self::tree_inter(right_subtree.take(), right_right_subtree, swapped);
+                match duplicate_opt {
+                    Some(duplicate_node) => {
+                        if swapped {
+                            *value = duplicate_node.value;
+                        }
+                    },
+                    None => {
+                        Self::merge(left_subtree, right_subtree.take());
+                        return left_subtree.take()
+                    }
+                }
+            }
+            Some(left_node)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the intersection of two treaps. If there is a key that is found in both `left` and
+    /// `right`, the union will contain the value associated with the key in `left`.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::Treap;
+    ///
+    /// let mut n = Treap::new();
+    /// n.insert(1, 1);
+    /// n.insert(2, 2);
+    ///
+    /// let mut m = Treap::new();
+    /// m.insert(2, 3);
+    /// m.insert(3, 3);
+    ///
+    /// let inter = Treap::inter(n, m);
+    /// assert_eq!(
+    ///     inter.into_iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     vec![(&2, &2)],
+    /// );
+    /// ```
+    pub fn inter(left: Self, right: Self) -> Self {
+        let Treap(left_tree) = left;
+        let Treap(right_tree) = right;
+        Treap(Self::tree_inter(left_tree, right_tree, false))
+    }
+
+    fn tree_subtract(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> Tree<T, U> {
+        match (left_tree, right_tree) {
+            (Some(mut left_node), Some(mut right_node)) => {
+                {
+                    if left_node.priority < right_node.priority {
+                        mem::swap(&mut left_node, &mut right_node);
+                        swapped = !swapped;
+                    }
+                    let &mut Node { left: ref mut left_subtree, right: ref mut right_subtree, ref mut key, .. } = &mut *left_node;
+                    let mut right_left_subtree = Some(right_node);
+                    let (duplicate_opt, right_right_subtree) = Self::split(&mut right_left_subtree, key);
+                    *left_subtree = Self::tree_subtract(left_subtree.take(), right_left_subtree, swapped);
+                    *right_subtree = Self::tree_subtract(right_subtree.take(), right_right_subtree, swapped);
+                    if duplicate_opt.is_some() || swapped {
+                        Self::merge(left_subtree, right_subtree.take());
+                        return left_subtree.take()
+                    }
+                }
+                Some(left_node)
+            }
+            (left_tree, right_tree) => {
+                if swapped {
+                    right_tree
+                } else {
+                    left_tree
+                }
+            }
+        }
+    }
+
+    /// Returns `left` subtracted by `right`. The returned treap will contain all entries that do
+    /// not have a key in `right`.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::Treap;
+    ///
+    /// let mut n = Treap::new();
+    /// n.insert(1, 1);
+    /// n.insert(2, 2);
+    ///
+    /// let mut m = Treap::new();
+    /// m.insert(2, 3);
+    /// m.insert(3, 3);
+    ///
+    /// let subtract = Treap::subtract(n, m);
+    /// assert_eq!(
+    ///     subtract.into_iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     vec![(&1, &1)],
+    /// );
+    /// ```
+    pub fn subtract(left: Self, right: Self) -> Self {
+        let Treap(left_tree) = left;
+        let Treap(right_tree) = right;
+        Treap(Self::tree_subtract(left_tree, right_tree, false))
     }
 
     /// Returns an iterator over the treap. The iterator will yield key-value pairs using in-order
@@ -640,6 +749,42 @@ mod tests {
         assert_eq!(
             Treap::union(n, m).into_iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2), (&3, &3), (&4, &4), (&5, &5)],
+        );
+    }
+
+    #[test]
+    fn test_inter() {
+        let mut n = Treap::new();
+        n.insert(1, 1);
+        n.insert(2, 2);
+        n.insert(3, 3);
+
+        let mut m = Treap::new();
+        m.insert(3, 5);
+        m.insert(4, 4);
+        m.insert(5, 5);
+
+        assert_eq!(
+            Treap::inter(n, m).into_iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&3, &3)],
+        );
+    }
+
+    #[test]
+    fn test_subtract() {
+        let mut n = Treap::new();
+        n.insert(1, 1);
+        n.insert(2, 2);
+        n.insert(3, 3);
+
+        let mut m = Treap::new();
+        m.insert(3, 5);
+        m.insert(4, 4);
+        m.insert(5, 5);
+
+        assert_eq!(
+            Treap::subtract(n, m).into_iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&1, &1), (&2, &2)],
         );
     }
 
