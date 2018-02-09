@@ -1,4 +1,5 @@
 use std::mem;
+use std::ops::{Add, Sub};
 use std::vec::Vec;
 use rand;
 
@@ -448,7 +449,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
     }
 
     /// Returns the union of two treaps. If there is a key that is found in both `left` and
-    /// `right`, the union will contain the value associated with the key in `left`.
+    /// `right`, the union will contain the value associated with the key in `left`. The `+`
+    /// operator is implemented to take the union of two treaps.
     ///
     /// # Examples
     /// ```
@@ -562,7 +564,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
     }
 
     /// Returns `left` subtracted by `right`. The returned treap will contain all entries that do
-    /// not have a key in `right`.
+    /// not have a key in `right`. The `-` operator is implemented to take the difference of two
+    /// treaps.
     ///
     /// # Examples
     /// ```
@@ -647,6 +650,22 @@ impl<'a, T: 'a + PartialOrd, U: 'a> Iterator for TreapIterator<'a, T, U> {
 impl<T: PartialOrd, U> Default for Treap<T, U> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<T: PartialOrd, U> Add for Treap<T, U> {
+    type Output = Treap<T, U>;
+
+    fn add(self, other: Treap<T, U>) -> Treap<T, U> {
+        Treap::union(self, other)
+    }
+}
+
+impl<T: PartialOrd, U> Sub for Treap<T, U> {
+    type Output = Treap<T, U>;
+
+    fn sub(self, other: Treap<T, U>) -> Treap<T, U> {
+        Treap::subtract(self, other)
     }
 }
 
@@ -747,7 +766,7 @@ mod tests {
         m.insert(5, 5);
 
         assert_eq!(
-            Treap::union(n, m).into_iter().collect::<Vec<(&u32, &u32)>>(),
+            (n + m).into_iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2), (&3, &3), (&4, &4), (&5, &5)],
         );
     }
@@ -783,7 +802,7 @@ mod tests {
         m.insert(5, 5);
 
         assert_eq!(
-            Treap::subtract(n, m).into_iter().collect::<Vec<(&u32, &u32)>>(),
+            (n - m).into_iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2)],
         );
     }
