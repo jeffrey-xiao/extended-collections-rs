@@ -207,14 +207,10 @@ impl Node {
 
     fn spawn_find_rpc(mut self, dest: NodeData, key: Key, sender: Sender<Option<Response>>, find_node: bool) {
         thread::spawn(move || {
-            if find_node {
-                if sender.send(self.rpc_find_node(&dest, &key)).is_err() {
-                    println!("Warning: receiver closed channel before rpc returned.");
-                }
-            } else {
-                if sender.send(self.rpc_find_value(&dest, &key)).is_err() {
-                    println!("Warning: receiver closed channel before rpc returned.");
-                }
+            let find_node_err = find_node && sender.send(self.rpc_find_node(&dest, &key)).is_err();
+            let find_value_err = find_node && sender.send(self.rpc_find_value(&dest, &key)).is_err();
+            if find_node_err || find_value_err {
+                println!("Warning: receiver closed channel before rpc returned.");
             }
         });
     }
@@ -343,7 +339,7 @@ impl Node {
         if let ResponsePayload::Nodes(nodes) = self.lookup_nodes(&key, true) {
             for dest in nodes {
                 let mut node = self.clone();
-                let key_clone = key.clone();
+                let key_clone = key;
                 let value_clone = value.clone();
                 thread::spawn(move || {
                     node.rpc_store(&dest, key_clone, value_clone);

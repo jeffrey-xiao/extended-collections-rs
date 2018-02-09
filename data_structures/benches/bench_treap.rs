@@ -38,7 +38,7 @@ fn bench_treap_get(b: &mut Bencher) {
 
     b.iter(|| {
         for key in &values {
-            test::black_box(tree.get(&key));
+            test::black_box(tree.get(key));
         }
     });
 }
@@ -71,7 +71,7 @@ fn bench_btreemap_get(b: &mut Bencher) {
     }
     b.iter(|| {
         for key in &values {
-            test::black_box(tree.get(&key));
+            test::black_box(tree.get(key));
         }
     });
 }

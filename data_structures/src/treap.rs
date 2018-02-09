@@ -89,8 +89,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     *l_tree = Some(r_node);
                 }
             },
-            (new_tree, None) => *l_tree = new_tree,
-            (None, new_tree) => *l_tree = new_tree,
+            (new_tree, None) | (None, new_tree) => *l_tree = new_tree,
         }
         Self::update(l_tree);
     }

@@ -33,12 +33,8 @@ impl Storage {
         self.remove_expired();
         let curr_time = SteadyTime::now();
 
-        self.data.insert(key.clone(), value);
-
-        if !self.publish_times.contains_key(&curr_time) {
-            self.publish_times.insert(curr_time, vec![]);
-        }
-        self.publish_times.get_mut(&curr_time).unwrap().push(key);
+        self.data.insert(key, value);
+        self.publish_times.entry(curr_time).or_insert(vec![]).push(key);
     }
 
     pub fn get(&mut self, key: &Key) -> Option<&String> {
