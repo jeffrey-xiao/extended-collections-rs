@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 
-use ::key::Key;
-
+use key::Key;
 
 #[derive(PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Debug)]
 pub struct NodeData {
@@ -31,5 +30,4 @@ impl Ord for NodeDataDistancePair {
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

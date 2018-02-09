@@ -63,7 +63,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
             None => match self.nodes.min() {
                 Some(&id) => Some((id, self.nodes.get_mut(&id).unwrap())),
                 None => None,
-            }
+            },
         }
     }
 
@@ -272,7 +272,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     /// let mut iterator = r.iter();
     /// assert_eq!(iterator.next(), Some((&"node-1", vec![&"point-1"])))
     /// ```
-    pub fn iter<'a>(&'a self) -> Box<Iterator<Item=(&'a T, Vec<&'a U>)> + 'a> {
+    pub fn iter<'a>(&'a self) -> Box<Iterator<Item = (&'a T, Vec<&'a U>)> + 'a> {
         Box::new(self.replicas.iter().map(move |ref node_entry| {
             let mut points = Vec::new();
             for i in 0..*node_entry.1 {
@@ -288,7 +288,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
 
 impl<'a, T: Hash + Eq, U: Hash + Eq> IntoIterator for &'a Ring<T, U> {
     type Item = (&'a T, Vec<&'a U>);
-    type IntoIter = Box<Iterator<Item=(&'a T, Vec<&'a U>)> + 'a>;
+    type IntoIter = Box<Iterator<Item = (&'a T, Vec<&'a U>)> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()

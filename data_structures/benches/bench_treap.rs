@@ -1,7 +1,7 @@
 #![feature(test)]
-extern crate test;
 extern crate data_structures;
 extern crate rand;
+extern crate test;
 
 use test::Bencher;
 use self::rand::Rng;
@@ -37,9 +37,9 @@ fn bench_treap_get(b: &mut Bencher) {
     }
 
     b.iter(|| {
-            for key in &values {
-                test::black_box(tree.get(&key));
-            }
+        for key in &values {
+            test::black_box(tree.get(&key));
+        }
     });
 }
 

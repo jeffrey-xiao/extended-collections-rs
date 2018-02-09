@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::cmp;
 use std::mem;
 
-use ::{ROUTING_TABLE_SIZE, REPLICATION_PARAM};
+use {REPLICATION_PARAM, ROUTING_TABLE_SIZE};
 use node::node_data::NodeData;
 use key::Key;
 
@@ -13,7 +13,9 @@ struct RoutingBucket {
 }
 
 impl RoutingBucket {
-    fn new() -> Self { RoutingBucket{ nodes: Vec::new() } }
+    fn new() -> Self {
+        RoutingBucket { nodes: Vec::new() }
+    }
 
     fn update_node(&mut self, node_data: NodeData) {
         if let Some(index) = self.nodes.iter().position(|data| *data == node_data) {
@@ -28,18 +30,18 @@ impl RoutingBucket {
     fn contains(&self, node_data: &NodeData) -> bool {
         for n in &self.nodes {
             if node_data == n {
-                return true
+                return true;
             }
         }
         false
     }
 
     fn split(&mut self, key: &Key, index: usize) -> RoutingBucket {
-        let (old_bucket, new_bucket) = self.nodes.drain(..).partition(|node| {
-            node.id.xor(key).count_leading_zeroes() == index
-        });
+        let (old_bucket, new_bucket) = self.nodes
+            .drain(..)
+            .partition(|node| node.id.xor(key).count_leading_zeroes() == index);
         mem::replace(&mut self.nodes, old_bucket);
-        RoutingBucket{ nodes: new_bucket }
+        RoutingBucket { nodes: new_bucket }
     }
 
     fn get_nodes(&self) -> &[NodeData] {
@@ -78,7 +80,10 @@ impl RoutingTable {
     pub fn new(node_data: Arc<NodeData>) -> Self {
         let mut buckets = Vec::new();
         buckets.push(RoutingBucket::new());
-        RoutingTable{ buckets: buckets, node_data: node_data }
+        RoutingTable {
+            buckets: buckets,
+            node_data: node_data,
+        }
     }
 
     pub fn update_node(&mut self, node_data: NodeData) -> bool {
@@ -93,8 +98,7 @@ impl RoutingTable {
             if self.buckets[target_bucket].size() == REPLICATION_PARAM {
                 // split bucket
                 if target_bucket == self.buckets.len() - 1 && self.buckets.len() < ROUTING_TABLE_SIZE {
-                    let new_bucket = self.buckets[target_bucket]
-                        .split(&self.node_data.id, target_bucket);
+                    let new_bucket = self.buckets[target_bucket].split(&self.node_data.id, target_bucket);
                     self.buckets.push(new_bucket);
                 }
                 // bucket cannot be split
@@ -158,5 +162,4 @@ impl RoutingTable {
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

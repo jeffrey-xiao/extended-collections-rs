@@ -4,7 +4,7 @@ use std::vec::Vec;
 use rand;
 
 /// A struct representing an internal node of a treap.
-struct Node <T: PartialOrd, U> {
+struct Node<T: PartialOrd, U> {
     key: T,
     value: U,
     priority: u32,
@@ -54,11 +54,18 @@ impl<T: PartialOrd, U> Treap<T, U> {
     ///
     /// let mut t: Treap<u32, u32> = Treap::new();
     /// ```
-    pub fn new() -> Self { Treap(None) }
+    pub fn new() -> Self {
+        Treap(None)
+    }
 
     fn update(tree: &mut Tree<T, U>) {
         if let Some(ref mut node) = *tree {
-            let &mut Node{ ref mut size, ref left, ref right, .. } = &mut **node;
+            let &mut Node {
+                ref mut size,
+                ref left,
+                ref right,
+                ..
+            } = &mut **node;
             *size = 1;
             if let Some(ref l_node) = *left {
                 *size += l_node.size;
@@ -81,7 +88,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     r_node.left = new_tree;
                     *l_tree = Some(r_node);
                 }
-            },
+            }
             (new_tree, None) => *l_tree = new_tree,
             (None, new_tree) => *l_tree = new_tree,
         }
@@ -108,7 +115,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 Self::update(tree);
                 Self::update(&mut ret.1);
                 ret
-            },
+            }
             None => (None, None),
         }
     }
@@ -187,7 +194,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 } else {
                     Self::tree_contains(&node.right, key)
                 }
-            },
+            }
             None => false,
         }
     }
@@ -204,8 +211,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.contains(&1), true);
     /// ```
     pub fn contains(&self, key: &T) -> bool {
-         let &Treap(ref tree) = self;
-         Self::tree_contains(tree, key)
+        let &Treap(ref tree) = self;
+        Self::tree_contains(tree, key)
     }
 
     fn tree_get<'a>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a U> {
@@ -305,7 +312,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                         Some(&node.key)
                     }
                 }
-            },
+            }
             None => None,
         }
     }
@@ -342,7 +349,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                         Some(&node.key)
                     }
                 }
-            },
+            }
             None => None,
         }
     }
@@ -372,7 +379,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 } else {
                     Some(&node.key)
                 }
-            },
+            }
             None => None,
         }
     }
@@ -401,7 +408,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 } else {
                     Some(&node.key)
                 }
-            },
+            }
             None => None,
         }
     }
@@ -430,7 +437,13 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     swapped = !swapped;
                 }
                 {
-                    let &mut Node { left: ref mut left_subtree, right: ref mut right_subtree, ref mut key, ref mut value, .. } = &mut *left_node;
+                    let &mut Node {
+                        left: ref mut left_subtree,
+                        right: ref mut right_subtree,
+                        ref mut key,
+                        ref mut value,
+                        ..
+                    } = &mut *left_node;
                     let mut right_left_subtree = Some(right_node);
                     let (duplicate_opt, right_right_subtree) = Self::split(&mut right_left_subtree, key);
                     *left_subtree = Self::tree_union(left_subtree.take(), right_left_subtree, swapped);
@@ -442,7 +455,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     }
                 }
                 Some(left_node)
-            },
+            }
             (None, right_tree) => right_tree,
             (left_tree, None) => left_tree,
         }
@@ -483,7 +496,13 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     mem::swap(&mut left_node, &mut right_node);
                     swapped = !swapped;
                 }
-                let &mut Node { left: ref mut left_subtree, right: ref mut right_subtree, ref mut key, ref mut value, .. } = &mut *left_node;
+                let &mut Node {
+                    left: ref mut left_subtree,
+                    right: ref mut right_subtree,
+                    ref mut key,
+                    ref mut value,
+                    ..
+                } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
                 let (duplicate_opt, right_right_subtree) = Self::split(&mut right_left_subtree, key);
                 *left_subtree = Self::tree_inter(left_subtree.take(), right_left_subtree, swapped);
@@ -493,10 +512,10 @@ impl<T: PartialOrd, U> Treap<T, U> {
                         if swapped {
                             *value = duplicate_node.value;
                         }
-                    },
+                    }
                     None => {
                         Self::merge(left_subtree, right_subtree.take());
-                        return left_subtree.take()
+                        return left_subtree.take();
                     }
                 }
             }
@@ -541,14 +560,19 @@ impl<T: PartialOrd, U> Treap<T, U> {
                         mem::swap(&mut left_node, &mut right_node);
                         swapped = !swapped;
                     }
-                    let &mut Node { left: ref mut left_subtree, right: ref mut right_subtree, ref mut key, .. } = &mut *left_node;
+                    let &mut Node {
+                        left: ref mut left_subtree,
+                        right: ref mut right_subtree,
+                        ref mut key,
+                        ..
+                    } = &mut *left_node;
                     let mut right_left_subtree = Some(right_node);
                     let (duplicate_opt, right_right_subtree) = Self::split(&mut right_left_subtree, key);
                     *left_subtree = Self::tree_subtract(left_subtree.take(), right_left_subtree, swapped);
                     *right_subtree = Self::tree_subtract(right_subtree.take(), right_right_subtree, swapped);
                     if duplicate_opt.is_some() || swapped {
                         Self::merge(left_subtree, right_subtree.take());
-                        return left_subtree.take()
+                        return left_subtree.take();
                     }
                 }
                 Some(left_node)
@@ -609,7 +633,10 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// ```
     pub fn iter(&self) -> TreapIterator<T, U> {
         let &Treap(ref tree) = self;
-        TreapIterator { current: tree, stack: Vec::new() }
+        TreapIterator {
+            current: tree,
+            stack: Vec::new(),
+        }
     }
 }
 
@@ -620,7 +647,6 @@ impl<'a, T: 'a + PartialOrd, U: 'a> IntoIterator for &'a Treap<T, U> {
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
-
 }
 
 /// An iterator for `Treap<T, U>`
@@ -640,7 +666,12 @@ impl<'a, T: 'a + PartialOrd, U: 'a> Iterator for TreapIterator<'a, T, U> {
             self.current = &node.left;
         }
         self.stack.pop().map(|node| {
-            let &Node { ref key, ref value, ref right, .. } = node;
+            let &Node {
+                ref key,
+                ref value,
+                ref right,
+                ..
+            } = node;
             self.current = right;
             (key, value)
         })
@@ -814,6 +845,9 @@ mod tests {
         tree.insert(5, 6);
         tree.insert(3, 4);
 
-        assert_eq!(tree.into_iter().collect::<Vec<(&u32, &u32)>>(), vec![(&1, &2), (&3, &4), (&5, &6)]);
+        assert_eq!(
+            tree.into_iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&1, &2), (&3, &4), (&5, &6)]
+        );
     }
 }

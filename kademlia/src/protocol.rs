@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::mpsc::Sender;
 use std::thread;
 
-use ::MESSAGE_LENGTH;
+use MESSAGE_LENGTH;
 use node::node_data::NodeData;
 use key::Key;
 
@@ -52,7 +52,9 @@ pub struct Protocol {
 
 impl Protocol {
     pub fn new(socket: UdpSocket, tx: Sender<Message>) -> Protocol {
-        let protocol = Protocol { socket: Arc::new(socket) };
+        let protocol = Protocol {
+            socket: Arc::new(socket),
+        };
         let ret = protocol.clone();
         thread::spawn(move || {
             let mut buffer = [0u8; MESSAGE_LENGTH];

@@ -5,7 +5,6 @@ use data_structures::Treap;
 use std::vec::Vec;
 use self::rand::Rng;
 
-
 #[test]
 fn int_test_treap() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);

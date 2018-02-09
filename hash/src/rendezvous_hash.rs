@@ -98,7 +98,11 @@ impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
             let original_node = node.clone();
             let point_hash = node.2;
             for i in 0..replicas {
-                let score = (util::combine_hash(new_node.hashes[i], point_hash), id_ref.clone(), point_hash);
+                let score = (
+                    util::combine_hash(new_node.hashes[i], point_hash),
+                    id_ref.clone(),
+                    point_hash,
+                );
                 if *node < score {
                     *node = score;
                 }
@@ -250,7 +254,7 @@ impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
     /// let mut iterator = r.iter();
     /// assert_eq!(iterator.next(), Some((&"node-1", vec![&"point-1"])))
     /// ```
-    pub fn iter<'a>(&'a self) -> Box<Iterator<Item=(&'a T, Vec<&'a U>)> + 'a> {
+    pub fn iter<'a>(&'a self) -> Box<Iterator<Item = (&'a T, Vec<&'a U>)> + 'a> {
         Box::new(self.nodes.iter().map(move |ref node_entry| {
             let &(node_id, node_data) = node_entry;
             let mut points = Vec::new();
@@ -264,7 +268,7 @@ impl<T: Hash + Ord, U: Hash + Eq> Ring<T, U> {
 
 impl<'a, T: Hash + Ord, U: Hash + Eq> IntoIterator for &'a Ring<T, U> {
     type Item = (&'a T, Vec<&'a U>);
-    type IntoIter = Box<Iterator<Item=(&'a T, Vec<&'a U>)> + 'a>;
+    type IntoIter = Box<Iterator<Item = (&'a T, Vec<&'a U>)> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()

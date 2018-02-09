@@ -2,16 +2,16 @@ pub mod node_data;
 
 use std::cmp;
 use std::net::UdpSocket;
-use std::collections::{HashMap, BinaryHeap, HashSet};
+use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use ::{REQUEST_TIMEOUT, REPLICATION_PARAM, CONCURRENCY_PARAM, KEY_LENGTH};
-use node::node_data::{NodeDataDistancePair, NodeData};
+use {CONCURRENCY_PARAM, KEY_LENGTH, REPLICATION_PARAM, REQUEST_TIMEOUT};
+use node::node_data::{NodeData, NodeDataDistancePair};
 use routing::RoutingTable;
-use protocol::{Protocol, Message, Request, Response, RequestPayload, ResponsePayload};
+use protocol::{Message, Protocol, Request, RequestPayload, Response, ResponsePayload};
 use key::Key;
 use storage::Storage;
 
@@ -117,25 +117,28 @@ impl Node {
             }
             RequestPayload::FindNode(key) => {
                 ResponsePayload::Nodes(
-                    self.routing_table.lock().unwrap().get_closest_nodes(&key, REPLICATION_PARAM)
+                    self.routing_table.lock().unwrap().get_closest_nodes(&key, REPLICATION_PARAM),
                 )
-            },
+            }
             RequestPayload::FindValue(key) => {
                 if let Some(value) = self.storage.lock().unwrap().get(&key) {
                     ResponsePayload::Value(value.clone())
                 } else {
                     ResponsePayload::Nodes(
-                        self.routing_table.lock().unwrap().get_closest_nodes(&key, REPLICATION_PARAM)
+                        self.routing_table.lock().unwrap().get_closest_nodes(&key, REPLICATION_PARAM),
                     )
                 }
-            },
+            }
         };
 
-        self.protocol.send_message(&Message::Response(Response {
-            request: request.clone(),
-            receiver: receiver,
-            payload,
-        }), &request.sender)
+        self.protocol.send_message(
+            &Message::Response(Response {
+                request: request.clone(),
+                receiver: receiver,
+                payload,
+            }),
+            &request.sender,
+        )
     }
 
     fn handle_response(&mut self, response: &Response) {
@@ -173,7 +176,7 @@ impl Node {
                 let mut pending_requests = self.pending_requests.lock().unwrap();
                 pending_requests.remove(&token);
                 Some(response)
-            },
+            }
             Err(_) => {
                 println!("Warning: Request timed out after waiting for {} milliseconds", REQUEST_TIMEOUT);
                 let mut pending_requests = self.pending_requests.lock().unwrap();
@@ -181,7 +184,7 @@ impl Node {
                 let mut routing_table = self.routing_table.lock().unwrap();
                 routing_table.remove_node(dest);
                 None
-            },
+            }
         }
     }
 
@@ -226,10 +229,7 @@ impl Node {
         }
 
         // initialize found nodes, queried nodes, and priority queue
-        let mut found_nodes: HashSet<NodeData> = closest_nodes
-            .clone()
-            .into_iter()
-            .collect();
+        let mut found_nodes: HashSet<NodeData> = closest_nodes.clone().into_iter().collect();
         found_nodes.insert((*self.node_data).clone());
         let mut queried_nodes = HashSet::new();
         queried_nodes.insert((*self.node_data).clone());
@@ -237,13 +237,8 @@ impl Node {
         let mut queue: BinaryHeap<NodeDataDistancePair> = BinaryHeap::from(
             closest_nodes
                 .into_iter()
-                .map(|node_data| {
-                    NodeDataDistancePair(
-                        node_data.clone(),
-                        node_data.id.xor(key),
-                    )
-                })
-                .collect::<Vec<NodeDataDistancePair>>()
+                .map(|node_data| NodeDataDistancePair(node_data.clone(), node_data.id.xor(key)))
+                .collect::<Vec<NodeDataDistancePair>>(),
         );
 
         let (tx, rx) = channel();
@@ -253,7 +248,12 @@ impl Node {
         // spawn initial find requests
         for _ in 0..CONCURRENCY_PARAM {
             if !queue.is_empty() {
-                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
+                self.clone().spawn_find_rpc(
+                    queue.pop().unwrap().0,
+                    key.clone(),
+                    tx.clone(),
+                    find_node,
+                );
                 concurrent_thread_count += 1;
             }
         }
@@ -261,7 +261,12 @@ impl Node {
         // loop until we could not find a closer node for a round or if no threads are running
         while concurrent_thread_count > 0 {
             while concurrent_thread_count < CONCURRENCY_PARAM && !queue.is_empty() {
-                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
+                self.clone().spawn_find_rpc(
+                    queue.pop().unwrap().0,
+                    key.clone(),
+                    tx.clone(),
+                    find_node,
+                );
                 concurrent_thread_count += 1;
             }
 
@@ -270,7 +275,7 @@ impl Node {
             concurrent_thread_count -= 1;
 
             match response_opt {
-                Some(Response{ payload: ResponsePayload::Nodes(nodes), receiver, .. }) => {
+                Some(Response { payload: ResponsePayload::Nodes(nodes), receiver, .. }) => {
                     queried_nodes.insert(receiver);
                     for node_data in nodes {
                         let curr_distance = node_data.id.xor(key);
@@ -282,17 +287,14 @@ impl Node {
                             }
 
                             found_nodes.insert(node_data.clone());
-                            let next = NodeDataDistancePair(
-                                node_data.clone(),
-                                node_data.id.xor(key),
-                            );
+                            let next = NodeDataDistancePair(node_data.clone(), node_data.id.xor(key));
                             queue.push(next.clone());
                         }
                     }
-                },
-                Some(Response{ payload: ResponsePayload::Value(value), .. }) => {
+                }
+                Some(Response { payload: ResponsePayload::Value(value), .. }) => {
                     return ResponsePayload::Value(value);
-                },
+                }
                 _ => {
                     is_terminated = false;
                 }
@@ -309,7 +311,12 @@ impl Node {
         // loop until no threads are running or if we found REPLICATION_PARAM active nodes
         while queried_nodes.len() < REPLICATION_PARAM {
             while concurrent_thread_count < CONCURRENCY_PARAM && !queue.is_empty() {
-                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
+                self.clone().spawn_find_rpc(
+                    queue.pop().unwrap().0,
+                    key.clone(),
+                    tx.clone(),
+                    find_node,
+                );
                 concurrent_thread_count += 1;
             }
             if concurrent_thread_count == 0 {
@@ -320,24 +327,21 @@ impl Node {
             concurrent_thread_count -= 1;
 
             match response_opt {
-                Some(Response{ payload: ResponsePayload::Nodes(nodes), receiver, .. }) => {
+                Some(Response { payload: ResponsePayload::Nodes(nodes), receiver, .. }) => {
                     queried_nodes.insert(receiver);
                     for node_data in nodes {
                         if !found_nodes.contains(&node_data) {
                             println!("GOT {:?}", node_data);
 
                             found_nodes.insert(node_data.clone());
-                            let next = NodeDataDistancePair(
-                                node_data.clone(),
-                                node_data.id.xor(key),
-                            );
+                            let next = NodeDataDistancePair(node_data.clone(), node_data.id.xor(key));
                             queue.push(next.clone());
                         }
                     }
-                },
-                Some(Response{ payload: ResponsePayload::Value(value), .. }) => {
+                }
+                Some(Response { payload: ResponsePayload::Value(value), .. }) => {
                     return ResponsePayload::Value(value);
-                },
+                }
                 _ => {}
             }
         }

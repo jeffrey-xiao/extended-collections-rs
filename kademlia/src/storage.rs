@@ -1,10 +1,10 @@
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::vec::Vec;
 use std::mem;
-use time::{SteadyTime, Duration};
+use time::{Duration, SteadyTime};
 
 use key::Key;
-use ::KEY_EXPIRATION;
+use KEY_EXPIRATION;
 
 pub struct Storage {
     data: HashMap<Key, String>,

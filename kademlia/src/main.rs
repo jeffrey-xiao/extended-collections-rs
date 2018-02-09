@@ -11,8 +11,9 @@ use kademlia::key::Key;
 use std::convert::AsMut;
 
 fn clone_into_array<A, T>(slice: &[T]) -> A
-    where A: Sized + Default + AsMut<[T]>,
-          T: Clone
+where
+    A: Sized + Default + AsMut<[T]>,
+    T: Clone,
 {
     let mut a = Default::default();
     <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
@@ -34,7 +35,11 @@ fn main() {
             let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), None);
             node_map.insert(id, n.clone());
         } else {
-            let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), Some((*node_map[&(i - 1)].node_data).clone()));
+            let n = Node::new(
+                &"localhost".to_string(),
+                &(8900 + i).to_string(),
+                Some((*node_map[&(i - 1)].node_data).clone()),
+            );
             node_map.insert(id, n.clone());
         }
         thread::sleep(Duration::from_millis(50));
@@ -69,18 +74,17 @@ fn main() {
                 );
                 node_map.insert(id, node);
                 id += 1;
-            },
+            }
             "insert" => {
                 let index: u32 = args[1].parse().unwrap();
                 let key = get_key(args[2].to_string());
                 let value = args[3].to_string();
                 node_map.get_mut(&index).unwrap().insert(key, value);
-            },
+            }
             "get" => {
                 let index: u32 = args[1].parse().unwrap();
                 let key = get_key(args[2].to_string());
                 println!("{:?}", node_map.get_mut(&index).unwrap().get(&key));
-
             }
             _ => {}
         }
