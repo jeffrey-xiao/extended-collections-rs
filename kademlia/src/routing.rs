@@ -13,9 +13,9 @@ struct RoutingBucket {
 }
 
 impl RoutingBucket {
-    pub fn new() -> Self { RoutingBucket{ nodes: Vec::new() } }
+    fn new() -> Self { RoutingBucket{ nodes: Vec::new() } }
 
-    pub fn update_node(&mut self, node_data: NodeData) {
+    fn update_node(&mut self, node_data: NodeData) {
         if let Some(index) = self.nodes.iter().position(|data| *data == node_data) {
             self.nodes.remove(index);
         }
@@ -25,7 +25,7 @@ impl RoutingBucket {
         }
     }
 
-    pub fn contains(&self, node_data: &NodeData) -> bool {
+    fn contains(&self, node_data: &NodeData) -> bool {
         for n in &self.nodes {
             if node_data == n {
                 return true
@@ -34,7 +34,7 @@ impl RoutingBucket {
         false
     }
 
-    pub fn split(&mut self, key: &Key, index: usize) -> RoutingBucket {
+    fn split(&mut self, key: &Key, index: usize) -> RoutingBucket {
         let (old_bucket, new_bucket) = self.nodes.drain(..).partition(|node| {
             node.id.xor(key).count_leading_zeroes() == index
         });
@@ -42,15 +42,15 @@ impl RoutingBucket {
         RoutingBucket{ nodes: new_bucket }
     }
 
-    pub fn get_nodes(&self) -> &[NodeData] {
+    fn get_nodes(&self) -> &[NodeData] {
         self.nodes.as_slice()
     }
 
-    pub fn size(&self) -> usize {
+    fn size(&self) -> usize {
         self.nodes.len()
     }
 
-    pub fn remove_lrs(&mut self) -> Option<NodeData> {
+    fn remove_lrs(&mut self) -> Option<NodeData> {
         if self.size() == 0 {
             None
         } else {
@@ -111,7 +111,7 @@ impl RoutingTable {
         }
     }
 
-    pub fn get_closest(&self, key: &Key, count: usize) -> Vec<NodeData> {
+    pub fn get_closest_nodes(&self, key: &Key, count: usize) -> Vec<NodeData> {
         let index = cmp::min(self.node_data.id.xor(key).count_leading_zeroes(), self.buckets.len() - 1);
         let mut ret = Vec::new();
 
@@ -150,7 +150,10 @@ impl RoutingTable {
     pub fn remove_node(&mut self, node_data: &NodeData) {
         let index = cmp::min(self.node_data.id.xor(&node_data.id).count_leading_zeroes(), self.buckets.len() - 1);
         self.buckets[index].remove_node(node_data);
+    }
 
+    pub fn size(&self) -> usize {
+        self.buckets.len()
     }
 }
 

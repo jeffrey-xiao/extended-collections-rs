@@ -71,6 +71,17 @@ impl Node {
     fn bootstrap_routing_table(&mut self) {
         let target_key = self.node_data.id;
         self.lookup_nodes(&target_key, true);
+
+        let routing_table = self.routing_table.lock().unwrap();
+        let bucket_size = routing_table.size();
+        drop(routing_table);
+
+        let mut node = self.clone();
+        thread::spawn(move || {
+            for i in 0..bucket_size {
+                node.lookup_nodes(&Key::rand_in_range(i), true);
+            }
+        });
     }
 
     fn update_routing_table(&mut self, node_data: NodeData) {
@@ -106,7 +117,7 @@ impl Node {
             }
             RequestPayload::FindNode(key) => {
                 ResponsePayload::Nodes(
-                    self.routing_table.lock().unwrap().get_closest(&key, REPLICATION_PARAM)
+                    self.routing_table.lock().unwrap().get_closest_nodes(&key, REPLICATION_PARAM)
                 )
             },
             RequestPayload::FindValue(key) => {
@@ -114,7 +125,7 @@ impl Node {
                     ResponsePayload::Value(value.clone())
                 } else {
                     ResponsePayload::Nodes(
-                        self.routing_table.lock().unwrap().get_closest(&key, REPLICATION_PARAM)
+                        self.routing_table.lock().unwrap().get_closest_nodes(&key, REPLICATION_PARAM)
                     )
                 }
             },
@@ -206,7 +217,7 @@ impl Node {
 
     fn lookup_nodes(&mut self, key: &Key, find_node: bool) -> ResponsePayload {
         let routing_table = self.routing_table.lock().unwrap();
-        let closest_nodes = routing_table.get_closest(key, CONCURRENCY_PARAM);
+        let closest_nodes = routing_table.get_closest_nodes(key, CONCURRENCY_PARAM);
         drop(routing_table);
 
         let mut closest_distance = Key::new([255u8; KEY_LENGTH]);
