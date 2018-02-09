@@ -114,12 +114,10 @@ impl Node {
             RequestPayload::Store(key, value) => {
                 self.storage.lock().unwrap().insert(key, value);
                 ResponsePayload::Pong
-            }
-            RequestPayload::FindNode(key) => {
-                ResponsePayload::Nodes(
-                    self.routing_table.lock().unwrap().get_closest_nodes(&key, REPLICATION_PARAM),
-                )
-            }
+            },
+            RequestPayload::FindNode(key) => ResponsePayload::Nodes(
+                self.routing_table.lock().unwrap().get_closest_nodes(&key, REPLICATION_PARAM),
+            ),
             RequestPayload::FindValue(key) => {
                 if let Some(value) = self.storage.lock().unwrap().get(&key) {
                     ResponsePayload::Value(value.clone())
@@ -128,7 +126,7 @@ impl Node {
                         self.routing_table.lock().unwrap().get_closest_nodes(&key, REPLICATION_PARAM),
                     )
                 }
-            }
+            },
         };
 
         self.protocol.send_message(
@@ -165,18 +163,21 @@ impl Node {
         pending_requests.insert(token, response_tx);
         drop(pending_requests);
 
-        self.protocol.send_message(&Message::Request(Request {
-            id: token,
-            sender: (*self.node_data).clone(),
-            payload: payload,
-        }), dest);
+        self.protocol.send_message(
+            &Message::Request(Request {
+                id: token,
+                sender: (*self.node_data).clone(),
+                payload: payload,
+            }),
+            dest,
+        );
 
         match response_rx.recv_timeout(Duration::from_millis(REQUEST_TIMEOUT)) {
             Ok(response) => {
                 let mut pending_requests = self.pending_requests.lock().unwrap();
                 pending_requests.remove(&token);
                 Some(response)
-            }
+            },
             Err(_) => {
                 println!("Warning: Request timed out after waiting for {} milliseconds", REQUEST_TIMEOUT);
                 let mut pending_requests = self.pending_requests.lock().unwrap();
@@ -184,7 +185,7 @@ impl Node {
                 let mut routing_table = self.routing_table.lock().unwrap();
                 routing_table.remove_node(dest);
                 None
-            }
+            },
         }
     }
 
@@ -248,12 +249,7 @@ impl Node {
         // spawn initial find requests
         for _ in 0..CONCURRENCY_PARAM {
             if !queue.is_empty() {
-                self.clone().spawn_find_rpc(
-                    queue.pop().unwrap().0,
-                    key.clone(),
-                    tx.clone(),
-                    find_node,
-                );
+                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
                 concurrent_thread_count += 1;
             }
         }
@@ -261,12 +257,7 @@ impl Node {
         // loop until we could not find a closer node for a round or if no threads are running
         while concurrent_thread_count > 0 {
             while concurrent_thread_count < CONCURRENCY_PARAM && !queue.is_empty() {
-                self.clone().spawn_find_rpc(
-                    queue.pop().unwrap().0,
-                    key.clone(),
-                    tx.clone(),
-                    find_node,
-                );
+                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
                 concurrent_thread_count += 1;
             }
 
@@ -291,13 +282,13 @@ impl Node {
                             queue.push(next.clone());
                         }
                     }
-                }
+                },
                 Some(Response { payload: ResponsePayload::Value(value), .. }) => {
                     return ResponsePayload::Value(value);
-                }
+                },
                 _ => {
                     is_terminated = false;
-                }
+                },
             }
 
             if is_terminated {
@@ -311,12 +302,7 @@ impl Node {
         // loop until no threads are running or if we found REPLICATION_PARAM active nodes
         while queried_nodes.len() < REPLICATION_PARAM {
             while concurrent_thread_count < CONCURRENCY_PARAM && !queue.is_empty() {
-                self.clone().spawn_find_rpc(
-                    queue.pop().unwrap().0,
-                    key.clone(),
-                    tx.clone(),
-                    find_node,
-                );
+                self.clone().spawn_find_rpc(queue.pop().unwrap().0, key.clone(), tx.clone(), find_node);
                 concurrent_thread_count += 1;
             }
             if concurrent_thread_count == 0 {
@@ -338,11 +324,11 @@ impl Node {
                             queue.push(next.clone());
                         }
                     }
-                }
+                },
                 Some(Response { payload: ResponsePayload::Value(value), .. }) => {
                     return ResponsePayload::Value(value);
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 

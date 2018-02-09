@@ -88,7 +88,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     r_node.left = new_tree;
                     *l_tree = Some(r_node);
                 }
-            }
+            },
             (new_tree, None) => *l_tree = new_tree,
             (None, new_tree) => *l_tree = new_tree,
         }
@@ -115,7 +115,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 Self::update(tree);
                 Self::update(&mut ret.1);
                 ret
-            }
+            },
             None => (None, None),
         }
     }
@@ -153,7 +153,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 let unboxed_old_node = *old_node;
                 let Node { key, value, .. } = unboxed_old_node;
                 Some((key, value))
-            }
+            },
             None => None,
         }
     }
@@ -179,7 +179,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 let unboxed_old_node = *old_node;
                 let Node { key, value, .. } = unboxed_old_node;
                 Some((key, value))
-            }
+            },
             None => None,
         }
     }
@@ -194,7 +194,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 } else {
                     Self::tree_contains(&node.right, key)
                 }
-            }
+            },
             None => false,
         }
     }
@@ -225,7 +225,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 } else {
                     Self::tree_get(&node.right, key)
                 }
-            }
+            },
             None => None,
         }
     }
@@ -257,7 +257,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 } else {
                     Self::tree_get_mut(&mut node.right, key)
                 }
-            }
+            },
             None => None,
         }
     }
@@ -312,7 +312,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                         Some(&node.key)
                     }
                 }
-            }
+            },
             None => None,
         }
     }
@@ -349,7 +349,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                         Some(&node.key)
                     }
                 }
-            }
+            },
             None => None,
         }
     }
@@ -379,7 +379,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 } else {
                     Some(&node.key)
                 }
-            }
+            },
             None => None,
         }
     }
@@ -408,7 +408,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 } else {
                     Some(&node.key)
                 }
-            }
+            },
             None => None,
         }
     }
@@ -455,7 +455,7 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     }
                 }
                 Some(left_node)
-            }
+            },
             (None, right_tree) => right_tree,
             (left_tree, None) => left_tree,
         }
@@ -512,11 +512,11 @@ impl<T: PartialOrd, U> Treap<T, U> {
                         if swapped {
                             *value = duplicate_node.value;
                         }
-                    }
+                    },
                     None => {
                         Self::merge(left_subtree, right_subtree.take());
                         return left_subtree.take();
-                    }
+                    },
                 }
             }
             Some(left_node)
@@ -576,14 +576,14 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     }
                 }
                 Some(left_node)
-            }
+            },
             (left_tree, right_tree) => {
                 if swapped {
                     right_tree
                 } else {
                     left_tree
                 }
-            }
+            },
         }
     }
 
