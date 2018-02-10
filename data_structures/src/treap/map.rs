@@ -1,18 +1,17 @@
 use rand::Rng;
 use rand::XorShiftRng;
 use std::ops::{Add, Sub};
-use treap::entry::{PairEntry};
+use treap::entry::{MapEntry};
 use treap::node::Node;
 use treap::tree;
 
 /// An ordered map implemented by a treap.
 ///
-/// A treap is a tree that satisfies both the binary search
-/// tree property and a heap property. Each node has a key, a value, and a priority. The key of any
-/// node is greather than all keys in its left subtree and less than all keys occuring in its right
-/// subtree. The priority of a node is greater than the priority of all nodes in its subtrees. By
-/// randomly generating priorities, the expected height of the tree is proportional to the
-/// logarithm of the number of keys.
+/// A treap is a tree that satisfies both the binary search tree property and a heap property. Each
+/// node has a key, a value, and a priority. The key of any node is greater than all keys in its
+/// left subtree and less than all keys occuring in its right subtree. The priority of a node is
+/// greater than the priority of all nodes in its subtrees. By randomly generating priorities, the
+/// expected height of the tree is proportional to the logarithm of the number of keys.
 ///
 /// # Examples
 /// ```
@@ -34,7 +33,7 @@ use treap::tree;
 /// assert_eq!(t.remove(&1), None);
 /// ```
 pub struct TreapMap<T: Ord, U> {
-    root: tree::Tree<PairEntry<T, U>>,
+    root: tree::Tree<MapEntry<T, U>>,
     rng: XorShiftRng,
     size: usize,
 }
@@ -72,13 +71,13 @@ impl<T: Ord, U> TreapMap<T, U> {
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
         let &mut TreapMap { ref mut root, ref mut rng, ref mut size } = self;
         let new_node = Node {
-            entry: PairEntry { key, value },
+            entry: MapEntry { key, value },
             priority: rng.next_u32(),
             left: None,
             right: None,
         };
         match tree::insert(root, new_node) {
-            Some(PairEntry { key, value }) => Some((key, value)),
+            Some(MapEntry { key, value }) => Some((key, value)),
             None => {
                 *size += 1;
                 None
@@ -105,7 +104,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         match old_node_opt {
             Some(old_node) => {
                 let unboxed_old_node = *old_node;
-                let Node { entry: PairEntry { key, value }, .. } = unboxed_old_node;
+                let Node { entry: MapEntry { key, value }, .. } = unboxed_old_node;
                 *size -= 1;
                 Some((key, value))
             },
@@ -370,8 +369,8 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a TreapMap<T, U> {
 ///
 /// This iterator traverses the elements of a treap in-order.
 pub struct TreapMapIterator<'a, T: 'a + Ord, U: 'a> {
-    current: &'a tree::Tree<PairEntry<T, U>>,
-    stack: Vec<&'a Node<PairEntry<T, U>>>,
+    current: &'a tree::Tree<MapEntry<T, U>>,
+    stack: Vec<&'a Node<MapEntry<T, U>>>,
 }
 
 impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIterator<'a, T, U> {
@@ -384,7 +383,7 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIterator<'a, T, U> {
         }
         self.stack.pop().map(|node| {
             let &Node {
-                entry: PairEntry { ref key, ref value },
+                entry: MapEntry { ref key, ref value },
                 ref right,
                 ..
             } = node;
