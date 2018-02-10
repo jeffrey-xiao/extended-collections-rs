@@ -93,7 +93,7 @@ pub fn contains<T: Ord + Entry<Output=U>, U: Ord>(tree: &Tree<T>, entry: &U) -> 
 pub fn get<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a Tree<T>, entry: &U) -> Option<&'a T> {
     match *tree {
         Some(ref node) => {
-            match entry.cmp(&node.entry.get_key()) {
+            match entry.cmp(node.entry.get_key()) {
                 Ordering::Equal => Some(&node.entry),
                 Ordering::Less => get(&node.left, entry),
                 Ordering::Greater => get(&node.right, entry),
@@ -106,7 +106,7 @@ pub fn get<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a Tree<T>, entry: &U) -
 pub fn get_mut<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a mut Tree<T>, entry: &U) -> Option<&'a mut T> {
     match *tree {
         Some(ref mut node) => {
-            match entry.cmp(&node.entry.get_key()) {
+            match entry.cmp(node.entry.get_key()) {
                 Ordering::Equal => Some(&mut node.entry),
                 Ordering::Less => get_mut(&mut node.left, entry),
                 Ordering::Greater => get_mut(&mut node.right, entry),
@@ -119,7 +119,7 @@ pub fn get_mut<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a mut Tree<T>, entr
 pub fn ceil<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a Tree<T>, entry: &U) -> Option<&'a T> {
     match *tree {
         Some(ref node) => {
-            match entry.cmp(&node.entry.get_key()) {
+            match entry.cmp(node.entry.get_key()) {
                 Ordering::Equal => Some(&node.entry),
                 Ordering::Greater => ceil(&node.right, entry),
                 Ordering::Less => {
@@ -137,7 +137,7 @@ pub fn ceil<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a Tree<T>, entry: &U) 
 pub fn floor<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a Tree<T>, entry: &U) -> Option<&'a T> {
     match *tree {
         Some(ref node) => {
-            match entry.cmp(&node.entry.get_key()) {
+            match entry.cmp(node.entry.get_key()) {
                 Ordering::Equal => Some(&node.entry),
                 Ordering::Less => floor(&node.left, entry),
                 Ordering::Greater => {
@@ -192,7 +192,7 @@ pub fn union<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: boo
                     ..
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
-                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.get_key());
+                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, entry.get_key());
                 let (new_left_subtree, left_dups) = union(left_subtree.take(), right_left_subtree, swapped);
                 let (new_right_subtree, right_dups) = union(right_subtree.take(), right_right_subtree, swapped);
                 dups += left_dups + right_dups;
@@ -227,7 +227,7 @@ pub fn inter<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: boo
                 ..
             } = &mut *left_node;
             let mut right_left_subtree = Some(right_node);
-            let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.get_key());
+            let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, entry.get_key());
             let (new_left_subtree, left_dups) = inter(left_subtree.take(), right_left_subtree, swapped);
             let (new_right_subtree, right_dups) = inter(right_subtree.take(), right_right_subtree, swapped);
             dups += left_dups + right_dups;
@@ -268,7 +268,7 @@ pub fn subtract<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: 
                     ..
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
-                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.get_key());
+                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, entry.get_key());
                 let (new_left_subtree, left_dups) = subtract(left_subtree.take(), right_left_subtree, swapped);
                 let (new_right_subtree, right_dups) = subtract(right_subtree.take(), right_right_subtree, swapped);
                 dups += left_dups + right_dups;
