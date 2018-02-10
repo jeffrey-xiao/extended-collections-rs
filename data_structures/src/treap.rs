@@ -1,16 +1,46 @@
 use std::mem;
 use std::ops::{Add, Sub};
 use std::vec::Vec;
-use rand;
+use std::cmp::Ordering;
+use rand::{Rng, XorShiftRng};
 
 /// A struct representing an internal node of a treap.
-struct Node<T: PartialOrd, U> {
+struct Node<T: Ord, U> {
     key: T,
     value: U,
     priority: u32,
-    size: usize,
     left: Tree<T, U>,
     right: Tree<T, U>,
+}
+
+impl<T: Ord, U> Node<T, U> {
+    #[inline]
+    fn is_heap_property_violated(&self, child: &Tree<T, U>) -> bool {
+        match *child {
+            None => false,
+            Some(ref child_node) => self.priority < child_node.priority,
+        }
+    }
+
+    #[inline]
+    fn rotate_left(&mut self) {
+        let right = self.right.take();
+        if let Some(mut old_node) = right {
+            mem::swap(self, &mut old_node);
+            old_node.right = self.left.take();
+            self.left = Some(old_node);
+        }
+    }
+
+    #[inline]
+    fn rotate_right(&mut self) {
+        let left = self.left.take();
+        if let Some(mut old_node) = left {
+            mem::swap(self, &mut old_node);
+            old_node.left = self.right.take();
+            self.right = Some(old_node);
+        }
+    }
 }
 
 type Tree<T, U> = Option<Box<Node<T, U>>>;
@@ -43,9 +73,13 @@ type Tree<T, U> = Option<Box<Node<T, U>>>;
 /// assert_eq!(t.remove(&0), Some((0, 2)));
 /// assert_eq!(t.remove(&1), None);
 /// ```
-pub struct Treap<T: PartialOrd, U>(Tree<T, U>);
+pub struct Treap<T: Ord, U> {
+    root: Tree<T, U>,
+    rng: XorShiftRng,
+    size: usize,
+}
 
-impl<T: PartialOrd, U> Treap<T, U> {
+impl<T: Ord, U> Treap<T, U> {
     /// Constructs a new, empty `Treap<T, U>`
     ///
     /// # Examples
@@ -55,24 +89,10 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// let mut t: Treap<u32, u32> = Treap::new();
     /// ```
     pub fn new() -> Self {
-        Treap(None)
-    }
-
-    fn update(tree: &mut Tree<T, U>) {
-        if let Some(ref mut node) = *tree {
-            let &mut Node {
-                ref mut size,
-                ref left,
-                ref right,
-                ..
-            } = &mut **node;
-            *size = 1;
-            if let Some(ref l_node) = *left {
-                *size += l_node.size;
-            }
-            if let Some(ref r_node) = *right {
-                *size += r_node.size;
-            }
+        Treap {
+            root: None,
+            rng: XorShiftRng::new_unseeded(),
+            size: 0,
         }
     }
 
@@ -91,7 +111,6 @@ impl<T: PartialOrd, U> Treap<T, U> {
             },
             (new_tree, None) | (None, new_tree) => *l_tree = new_tree,
         }
-        Self::update(l_tree);
     }
 
     fn split(tree: &mut Tree<T, U>, k: &T) -> (Tree<T, U>, Tree<T, U>) {
@@ -111,11 +130,38 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     let right = node.right.take();
                     ret = (Some(node), right);
                 }
-                Self::update(tree);
-                Self::update(&mut ret.1);
                 ret
             },
             None => (None, None),
+        }
+    }
+
+
+    fn tree_insert(tree: &mut Tree<T, U>, new_node: Node<T, U>) -> Option<(T, U)> {
+        if let Some(ref mut node) = *tree {
+            let mut ret;
+            match new_node.key.cmp(&node.key) {
+                Ordering::Less => {
+                    ret = Self::tree_insert(&mut node.left, new_node);
+                    if node.is_heap_property_violated(&node.left) {
+                        node.rotate_right();
+                    }
+                },
+                Ordering::Greater => {
+                    ret = Self::tree_insert(&mut node.right, new_node);
+                    if node.is_heap_property_violated(&node.right) {
+                        node.rotate_left();
+                    }
+                },
+                Ordering::Equal => {
+                    let &mut Node { ref mut key, ref mut value, .. } = &mut **node;
+                    ret = Some((mem::replace(key, new_node.key), mem::replace(value, new_node.value)));
+                },
+            }
+            ret
+        } else {
+            *tree = Some(Box::new(new_node));
+            None
         }
     }
 
@@ -133,28 +179,19 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.get(&1), Some(&2));
     /// ```
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
-        let &mut Treap(ref mut tree) = self;
-
-        let (old_node_opt, r_tree) = Self::split(tree, &key);
-
-        let new_node = Some(Box::new(Node {
+        let &mut Treap { ref mut root, ref mut rng, ref mut size } = self;
+        let new_node = Node {
             key: key,
             value: value,
-            priority: rand::random::<u32>(),
-            size: 1,
+            priority: rng.next_u32(),
             left: None,
             right: None,
-        }));
-        Self::merge(tree, new_node);
-        Self::merge(tree, r_tree);
-        match old_node_opt {
-            Some(old_node) => {
-                let unboxed_old_node = *old_node;
-                let Node { key, value, .. } = unboxed_old_node;
-                Some((key, value))
-            },
-            None => None,
+        };
+        let ret = Self::tree_insert(root, new_node);
+        if ret.is_none() {
+            *size += 1;
         }
+        ret
     }
 
     /// Removes a key-value pair from the treap. If the key exists in the treap, it will return
@@ -170,13 +207,14 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.remove(&1), None);
     /// ```
     pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
-        let &mut Treap(ref mut tree) = self;
-        let (old_node_opt, r_tree) = Self::split(tree, key);
-        Self::merge(tree, r_tree);
+        let &mut Treap { ref mut root, ref mut size, .. } = self;
+        let (old_node_opt, r_tree) = Self::split(root, key);
+        Self::merge(root, r_tree);
         match old_node_opt {
             Some(old_node) => {
                 let unboxed_old_node = *old_node;
                 let Node { key, value, .. } = unboxed_old_node;
+                *size -= 1;
                 Some((key, value))
             },
             None => None,
@@ -210,8 +248,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.contains(&1), true);
     /// ```
     pub fn contains(&self, key: &T) -> bool {
-        let &Treap(ref tree) = self;
-        Self::tree_contains(tree, key)
+        let &Treap { ref root, .. } = self;
+        Self::tree_contains(root, key)
     }
 
     fn tree_get<'a>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a U> {
@@ -242,8 +280,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.get(&1), Some(&1));
     /// ```
     pub fn get(&self, key: &T) -> Option<&U> {
-        let &Treap(ref tree) = self;
-        Self::tree_get(tree, key)
+        let &Treap { ref root, .. } = self;
+        Self::tree_get(root, key)
     }
 
     fn tree_get_mut<'a>(tree: &'a mut Tree<T, U>, key: &T) -> Option<&'a mut U> {
@@ -274,8 +312,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.get(&1), Some(&2));
     /// ```
     pub fn get_mut(&mut self, key: &T) -> Option<&mut U> {
-        let &mut Treap(ref mut tree) = self;
-        Self::tree_get_mut(tree, key)
+        let &mut Treap { ref mut root, .. } = self;
+        Self::tree_get_mut(root, key)
     }
 
     /// Returns the size of the treap.
@@ -289,11 +327,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.size(), 1);
     /// ```
     pub fn size(&self) -> usize {
-        let &Treap(ref tree) = self;
-        match *tree {
-            Some(ref node) => node.size,
-            None => 0,
-        }
+        let &Treap { ref size, .. } = self;
+        *size
     }
 
     fn tree_ceil<'a>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a T> {
@@ -329,8 +364,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.ceil(&2), None);
     /// ```
     pub fn ceil(&self, key: &T) -> Option<&T> {
-        let &Treap(ref tree) = self;
-        Self::tree_ceil(tree, key)
+        let &Treap { ref root, .. } = self;
+        Self::tree_ceil(root, key)
     }
 
     fn tree_floor<'a>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a T> {
@@ -366,20 +401,19 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.floor(&2), Some(&1));
     /// ```
     pub fn floor(&self, key: &T) -> Option<&T> {
-        let &Treap(ref tree) = self;
-        Self::tree_floor(tree, key)
+        let &Treap { ref root, .. } = self;
+        Self::tree_floor(root, key)
     }
 
     fn tree_min(tree: &Tree<T, U>) -> Option<&T> {
-        match *tree {
-            Some(ref node) => {
-                if node.left.is_some() {
-                    Self::tree_min(&node.left)
-                } else {
-                    Some(&node.key)
-                }
-            },
-            None => None,
+        if let Some(ref node) = *tree {
+            let mut curr = node;
+            while let Some(ref left_node) = curr.left {
+                curr = left_node;
+            }
+            Some(&curr.key)
+        } else {
+            None
         }
     }
 
@@ -395,8 +429,8 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.min(), Some(&1));
     /// ```
     pub fn min(&self) -> Option<&T> {
-        let &Treap(ref tree) = self;
-        Self::tree_min(tree)
+        let &Treap { ref root, .. } = self;
+        Self::tree_min(root)
     }
 
     fn tree_max(tree: &Tree<T, U>) -> Option<&T> {
@@ -424,17 +458,18 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(t.max(), Some(&3));
     /// ```
     pub fn max(&self) -> Option<&T> {
-        let &Treap(ref tree) = self;
-        Self::tree_max(tree)
+        let &Treap { ref root, .. } = self;
+        Self::tree_max(root)
     }
 
-    fn tree_union(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> Tree<T, U> {
+    fn tree_union(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
         match (left_tree, right_tree) {
             (Some(mut left_node), Some(mut right_node)) => {
                 if left_node.priority < right_node.priority {
                     mem::swap(&mut left_node, &mut right_node);
                     swapped = !swapped;
                 }
+                let mut dups = 0;
                 {
                     let &mut Node {
                         left: ref mut left_subtree,
@@ -445,18 +480,22 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     } = &mut *left_node;
                     let mut right_left_subtree = Some(right_node);
                     let (duplicate_opt, right_right_subtree) = Self::split(&mut right_left_subtree, key);
-                    *left_subtree = Self::tree_union(left_subtree.take(), right_left_subtree, swapped);
-                    *right_subtree = Self::tree_union(right_subtree.take(), right_right_subtree, swapped);
-                    if swapped {
-                        if let Some(duplicate_node) = duplicate_opt {
+                    let (new_left_subtree, left_dups) = Self::tree_union(left_subtree.take(), right_left_subtree, swapped);
+                    let (new_right_subtree, right_dups) = Self::tree_union(right_subtree.take(), right_right_subtree, swapped);
+                    dups += left_dups + right_dups;
+                    *left_subtree = new_left_subtree;
+                    *right_subtree = new_right_subtree;
+                    if let Some(duplicate_node) = duplicate_opt {
+                        if swapped {
                             *value = duplicate_node.value;
                         }
+                        dups += 1;
                     }
                 }
-                Some(left_node)
+                (Some(left_node), dups)
             },
-            (None, right_tree) => right_tree,
-            (left_tree, None) => left_tree,
+            (None, right_tree) => (right_tree, 0),
+            (left_tree, None) => (left_tree, 0),
         }
     }
 
@@ -483,13 +522,15 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// );
     /// ```
     pub fn union(left: Self, right: Self) -> Self {
-        let Treap(left_tree) = left;
-        let Treap(right_tree) = right;
-        Treap(Self::tree_union(left_tree, right_tree, false))
+        let Treap { root: left_tree, rng, size: left_size } = left;
+        let Treap { root: right_tree, size: right_size, .. } = right;
+        let (root, dups) = Self::tree_union(left_tree, right_tree, false);
+        Treap { root, rng, size: left_size + right_size - dups }
     }
 
-    fn tree_inter(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> Tree<T, U> {
+    fn tree_inter(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
         if let (Some(mut left_node), Some(mut right_node)) = (left_tree, right_tree) {
+            let mut dups = 0;
             {
                 if left_node.priority < right_node.priority {
                     mem::swap(&mut left_node, &mut right_node);
@@ -504,23 +545,27 @@ impl<T: PartialOrd, U> Treap<T, U> {
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
                 let (duplicate_opt, right_right_subtree) = Self::split(&mut right_left_subtree, key);
-                *left_subtree = Self::tree_inter(left_subtree.take(), right_left_subtree, swapped);
-                *right_subtree = Self::tree_inter(right_subtree.take(), right_right_subtree, swapped);
+                let (new_left_subtree, left_dups) = Self::tree_inter(left_subtree.take(), right_left_subtree, swapped);
+                let (new_right_subtree, right_dups) = Self::tree_inter(right_subtree.take(), right_right_subtree, swapped);
+                dups += left_dups + right_dups;
+                *left_subtree = new_left_subtree;
+                *right_subtree = new_right_subtree;
                 match duplicate_opt {
                     Some(duplicate_node) => {
                         if swapped {
                             *value = duplicate_node.value;
                         }
+                        dups += 1;
                     },
                     None => {
                         Self::merge(left_subtree, right_subtree.take());
-                        return left_subtree.take();
+                        return (left_subtree.take(), dups);
                     },
                 }
             }
-            Some(left_node)
+            (Some(left_node), dups)
         } else {
-            None
+            (None, 0)
         }
     }
 
@@ -546,14 +591,16 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// );
     /// ```
     pub fn inter(left: Self, right: Self) -> Self {
-        let Treap(left_tree) = left;
-        let Treap(right_tree) = right;
-        Treap(Self::tree_inter(left_tree, right_tree, false))
+        let Treap { root: left_tree, rng, .. } = left;
+        let Treap { root: right_tree, .. } = right;
+        let (root, dups) = Self::tree_inter(left_tree, right_tree, false);
+        Treap { root, rng, size: dups }
     }
 
-    fn tree_subtract(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> Tree<T, U> {
+    fn tree_subtract(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
         match (left_tree, right_tree) {
             (Some(mut left_node), Some(mut right_node)) => {
+                let mut dups = 0;
                 {
                     if left_node.priority < right_node.priority {
                         mem::swap(&mut left_node, &mut right_node);
@@ -567,20 +614,23 @@ impl<T: PartialOrd, U> Treap<T, U> {
                     } = &mut *left_node;
                     let mut right_left_subtree = Some(right_node);
                     let (duplicate_opt, right_right_subtree) = Self::split(&mut right_left_subtree, key);
-                    *left_subtree = Self::tree_subtract(left_subtree.take(), right_left_subtree, swapped);
-                    *right_subtree = Self::tree_subtract(right_subtree.take(), right_right_subtree, swapped);
+                    let (new_left_subtree, left_dups) = Self::tree_subtract(left_subtree.take(), right_left_subtree, swapped);
+                    let (new_right_subtree, right_dups) = Self::tree_subtract(right_subtree.take(), right_right_subtree, swapped);
+                    dups += left_dups + right_dups;
+                    *left_subtree = new_left_subtree;
+                    *right_subtree = new_right_subtree;
                     if duplicate_opt.is_some() || swapped {
                         Self::merge(left_subtree, right_subtree.take());
-                        return left_subtree.take();
+                        return (left_subtree.take(), dups + 1);
                     }
                 }
-                Some(left_node)
+                (Some(left_node), dups)
             },
             (left_tree, right_tree) => {
                 if swapped {
-                    right_tree
+                    (right_tree, 0)
                 } else {
-                    left_tree
+                    (left_tree, 0)
                 }
             },
         }
@@ -609,9 +659,10 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// );
     /// ```
     pub fn subtract(left: Self, right: Self) -> Self {
-        let Treap(left_tree) = left;
-        let Treap(right_tree) = right;
-        Treap(Self::tree_subtract(left_tree, right_tree, false))
+        let Treap { root: left_tree, rng, size } = left;
+        let Treap { root: right_tree, .. } = right;
+        let (root, dups) = Self::tree_subtract(left_tree, right_tree, false);
+        Treap { root, rng, size: size - dups }
     }
 
     /// Returns an iterator over the treap. The iterator will yield key-value pairs using in-order
@@ -631,15 +682,15 @@ impl<T: PartialOrd, U> Treap<T, U> {
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter(&self) -> TreapIterator<T, U> {
-        let &Treap(ref tree) = self;
+        let &Treap { ref root, .. } = self;
         TreapIterator {
-            current: tree,
+            current: root,
             stack: Vec::new(),
         }
     }
 }
 
-impl<'a, T: 'a + PartialOrd, U: 'a> IntoIterator for &'a Treap<T, U> {
+impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a Treap<T, U> {
     type Item = (&'a T, &'a U);
     type IntoIter = TreapIterator<'a, T, U>;
 
@@ -651,12 +702,12 @@ impl<'a, T: 'a + PartialOrd, U: 'a> IntoIterator for &'a Treap<T, U> {
 /// An iterator for `Treap<T, U>`
 ///
 /// This iterator traverses the elements of a treap in-order.
-pub struct TreapIterator<'a, T: 'a + PartialOrd, U: 'a> {
+pub struct TreapIterator<'a, T: 'a + Ord, U: 'a> {
     current: &'a Tree<T, U>,
     stack: Vec<&'a Node<T, U>>,
 }
 
-impl<'a, T: 'a + PartialOrd, U: 'a> Iterator for TreapIterator<'a, T, U> {
+impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapIterator<'a, T, U> {
     type Item = (&'a T, &'a U);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -677,13 +728,13 @@ impl<'a, T: 'a + PartialOrd, U: 'a> Iterator for TreapIterator<'a, T, U> {
     }
 }
 
-impl<T: PartialOrd, U> Default for Treap<T, U> {
+impl<T: Ord, U> Default for Treap<T, U> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: PartialOrd, U> Add for Treap<T, U> {
+impl<T: Ord, U> Add for Treap<T, U> {
     type Output = Treap<T, U>;
 
     fn add(self, other: Treap<T, U>) -> Treap<T, U> {
@@ -691,7 +742,7 @@ impl<T: PartialOrd, U> Add for Treap<T, U> {
     }
 }
 
-impl<T: PartialOrd, U> Sub for Treap<T, U> {
+impl<T: Ord, U> Sub for Treap<T, U> {
     type Output = Treap<T, U>;
 
     fn sub(self, other: Treap<T, U>) -> Treap<T, U> {
@@ -795,10 +846,13 @@ mod tests {
         m.insert(4, 4);
         m.insert(5, 5);
 
+        let union = n + m;
+
         assert_eq!(
-            (n + m).into_iter().collect::<Vec<(&u32, &u32)>>(),
+            union.into_iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2), (&3, &3), (&4, &4), (&5, &5)],
         );
+        assert_eq!(union.size(), 5);
     }
 
     #[test]
@@ -813,10 +867,13 @@ mod tests {
         m.insert(4, 4);
         m.insert(5, 5);
 
+        let inter = Treap::inter(n, m);
+
         assert_eq!(
-            Treap::inter(n, m).into_iter().collect::<Vec<(&u32, &u32)>>(),
+            inter.into_iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&3, &3)],
         );
+        assert_eq!(inter.size(), 1);
     }
 
     #[test]
@@ -831,10 +888,13 @@ mod tests {
         m.insert(4, 4);
         m.insert(5, 5);
 
+        let sub = n - m;
+
         assert_eq!(
-            (n - m).into_iter().collect::<Vec<(&u32, &u32)>>(),
+            sub.into_iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2)],
         );
+        assert_eq!(sub.size(), 2);
     }
 
     #[test]

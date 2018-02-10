@@ -14,8 +14,8 @@ fn bench_treap_insert(b: &mut Bencher) {
         let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
         let mut tree = Treap::new();
         for _ in 0..100 {
-            let key = rng.gen::<u32>();
-            let val = rng.gen::<u32>();
+            let key = rng.next_u32();
+            let val = rng.next_u32();
 
             tree.insert(key, val);
         }
@@ -29,8 +29,8 @@ fn bench_treap_get(b: &mut Bencher) {
     let mut values = Vec::new();
 
     for _ in 0..100 {
-        let key = rng.gen::<u32>();
-        let val = rng.gen::<u32>();
+        let key = rng.next_u32();
+        let val = rng.next_u32();
 
         tree.insert(key, val);
         values.push(key);
@@ -49,8 +49,8 @@ fn bench_btreemap_insert(b: &mut Bencher) {
         let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
         let mut tree = BTreeMap::new();
         for _ in 0..100 {
-            let key = rng.gen::<u32>();
-            let val = rng.gen::<u32>();
+            let key = rng.next_u32();
+            let val = rng.next_u32();
 
             tree.insert(key, val);
         }
@@ -63,8 +63,8 @@ fn bench_btreemap_get(b: &mut Bencher) {
     let mut tree = BTreeMap::new();
     let mut values = Vec::new();
     for _ in 0..100 {
-        let key = rng.gen::<u32>();
-        let val = rng.gen::<u32>();
+        let key = rng.next_u32();
+        let val = rng.next_u32();
 
         tree.insert(key, val);
         values.push(key);
