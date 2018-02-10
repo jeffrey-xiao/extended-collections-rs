@@ -1,15 +1,16 @@
 use std::mem;
 use treap::tree;
+use treap::entry::Entry;
 
 /// A struct representing an internal node of a treap.
-pub struct Node<T: Ord> {
+pub struct Node<T: Entry> {
     pub entry: T,
     pub priority: u32,
     pub left: tree::Tree<T>,
     pub right: tree::Tree<T>,
 }
 
-impl<T: Ord> Node<T> {
+impl<T: Entry> Node<T> {
     #[inline]
     pub fn is_heap_property_violated(&self, child: &tree::Tree<T>) -> bool {
         match *child {

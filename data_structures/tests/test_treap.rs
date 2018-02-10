@@ -1,14 +1,14 @@
 extern crate data_structures;
 extern crate rand;
 
-use data_structures::Treap;
+use data_structures::treap::TreapMap;
 use std::vec::Vec;
 use self::rand::Rng;
 
 #[test]
 fn int_test_treap() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
-    let mut tree = Treap::new();
+    let mut tree = TreapMap::new();
     let mut expected = Vec::new();
     for _ in 0..100_000 {
         let key = rng.gen::<u32>();

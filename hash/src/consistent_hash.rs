@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::mem;
 use std::iter::Iterator;
 
-use data_structures::Treap;
+use data_structures::treap::TreapMap;
 use util;
 
 struct Node<T: Hash + Eq, U: Hash + Eq> {
@@ -37,7 +37,7 @@ struct Node<T: Hash + Eq, U: Hash + Eq> {
 /// assert_eq!(r.get_points(&"node-1"), [&"point-1"]);
 /// ```
 pub struct Ring<T: Hash + Eq, U: Hash + Eq> {
-    nodes: Treap<u64, Node<T, U>>,
+    nodes: TreapMap<u64, Node<T, U>>,
     replicas: HashMap<Rc<T>, usize>,
 }
 
@@ -52,7 +52,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     /// ```
     pub fn new() -> Self {
         Ring {
-            nodes: Treap::new(),
+            nodes: TreapMap::new(),
             replicas: HashMap::new(),
         }
     }

@@ -3,6 +3,4 @@
 
 extern crate rand;
 
-mod treap;
-pub use self::treap::map::TreapMap;
-pub use self::treap::map::TreapMapIterator;
+pub mod treap;

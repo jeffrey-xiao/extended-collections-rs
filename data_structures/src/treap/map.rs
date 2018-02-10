@@ -1,7 +1,7 @@
 use rand::Rng;
 use rand::XorShiftRng;
 use std::ops::{Add, Sub};
-use treap::entry::{Entry, PairEntry, UnitEntry};
+use treap::entry::{PairEntry};
 use treap::node::Node;
 use treap::tree;
 
@@ -18,7 +18,7 @@ use treap::tree;
 /// ```
 /// use data_structures::treap::TreapMap;
 ///
-/// let mut t = Treap::new();
+/// let mut t = TreapMap::new();
 /// t.insert(0, 1);
 /// t.insert(3, 4);
 ///
@@ -40,13 +40,13 @@ pub struct TreapMap<T: Ord, U> {
 }
 
 impl<T: Ord, U> TreapMap<T, U> {
-    /// Constructs a new, empty `Treap<T, U>`
+    /// Constructs a new, empty `TreapMap<T, U>`
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t: Treap<u32, u32> = Treap::new();
+    /// let mut t: TreapMap<u32, u32> = TreapMap::new();
     /// ```
     pub fn new() -> Self {
         TreapMap {
@@ -61,9 +61,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// assert_eq!(t.insert(1, 1), None);
     /// assert_eq!(t.get(&1), Some(&1));
     /// assert_eq!(t.insert(1, 2), Some((1, 1)));
@@ -91,36 +91,35 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
     /// assert_eq!(t.remove(&1), Some((1, 1)));
     /// assert_eq!(t.remove(&1), None);
     /// ```
     pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
-        // let &mut TreapMap { ref mut root, ref mut size, .. } = self;
-        // let (old_node_opt, r_tree) = tree::split(root, UnitEntry(key));
-        // tree::merge(root, r_tree);
-        // match old_node_opt {
-        //     Some(old_node) => {
-        //         let unboxed_old_node = *old_node;
-        //         let Node { entry: PairEntry { key, value }, .. } = unboxed_old_node;
-        //         *size -= 1;
-        //         Some((key, value))
-        //     },
-        //     None => None,
-        // }
-        None
+        let &mut TreapMap { ref mut root, ref mut size, .. } = self;
+        let (old_node_opt, r_tree) = tree::split(root, key);
+        tree::merge(root, r_tree);
+        match old_node_opt {
+            Some(old_node) => {
+                let unboxed_old_node = *old_node;
+                let Node { entry: PairEntry { key, value }, .. } = unboxed_old_node;
+                *size -= 1;
+                Some((key, value))
+            },
+            None => None,
+        }
     }
 
     /// Checks if a key exists in the treap.
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
     /// assert_eq!(t.contains(&0), false);
     /// assert_eq!(t.contains(&1), true);
@@ -135,9 +134,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
     /// assert_eq!(t.get(&0), None);
     /// assert_eq!(t.get(&1), Some(&1));
@@ -152,9 +151,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
     /// *t.get_mut(&1).unwrap() = 2;
     /// assert_eq!(t.get(&1), Some(&2));
@@ -168,9 +167,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
     /// assert_eq!(t.size(), 1);
     /// ```
@@ -185,9 +184,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
     /// assert_eq!(t.ceil(&0), Some(&1));
     /// assert_eq!(t.ceil(&2), None);
@@ -203,9 +202,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
     /// assert_eq!(t.floor(&0), None);
     /// assert_eq!(t.floor(&2), Some(&1));
@@ -219,9 +218,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
     /// t.insert(3, 3);
     /// assert_eq!(t.min(), Some(&1));
@@ -235,9 +234,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
     /// t.insert(3, 3);
     /// assert_eq!(t.max(), Some(&3));
@@ -253,17 +252,17 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut n = Treap::new();
+    /// let mut n = TreapMap::new();
     /// n.insert(1, 1);
     /// n.insert(2, 2);
     ///
-    /// let mut m = Treap::new();
+    /// let mut m = TreapMap::new();
     /// m.insert(2, 3);
     /// m.insert(3, 3);
     ///
-    /// let union = Treap::union(n, m);
+    /// let union = TreapMap::union(n, m);
     /// assert_eq!(
     ///     union.into_iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&1, &1), (&2, &2), (&3, &3)],
@@ -281,17 +280,17 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut n = Treap::new();
+    /// let mut n = TreapMap::new();
     /// n.insert(1, 1);
     /// n.insert(2, 2);
     ///
-    /// let mut m = Treap::new();
+    /// let mut m = TreapMap::new();
     /// m.insert(2, 3);
     /// m.insert(3, 3);
     ///
-    /// let inter = Treap::inter(n, m);
+    /// let inter = TreapMap::inter(n, m);
     /// assert_eq!(
     ///     inter.into_iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&2, &2)],
@@ -310,17 +309,17 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut n = Treap::new();
+    /// let mut n = TreapMap::new();
     /// n.insert(1, 1);
     /// n.insert(2, 2);
     ///
-    /// let mut m = Treap::new();
+    /// let mut m = TreapMap::new();
     /// m.insert(2, 3);
     /// m.insert(3, 3);
     ///
-    /// let subtract = Treap::subtract(n, m);
+    /// let subtract = TreapMap::subtract(n, m);
     /// assert_eq!(
     ///     subtract.into_iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&1, &1)],
@@ -338,9 +337,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::Treap;
+    /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t = Treap::new();
+    /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
     /// t.insert(3, 3);
     ///
@@ -419,24 +418,24 @@ impl<T: Ord, U> Sub for TreapMap<T, U> {
 
 #[cfg(test)]
 mod tests {
-    use super::Treap;
+    use super::TreapMap;
 
     #[test]
     fn test_size_empty() {
-        let tree: Treap<u32, u32> = Treap::new();
+        let tree: TreapMap<u32, u32> = TreapMap::new();
         assert_eq!(tree.size(), 0);
     }
 
     #[test]
     fn test_min_max_empty() {
-        let tree: Treap<u32, u32> = Treap::new();
+        let tree: TreapMap<u32, u32> = TreapMap::new();
         assert_eq!(tree.min(), None);
         assert_eq!(tree.max(), None);
     }
 
     #[test]
     fn test_insert() {
-        let mut tree = Treap::new();
+        let mut tree = TreapMap::new();
         tree.insert(1, 1);
         assert!(tree.contains(&1));
         assert_eq!(tree.get(&1), Some(&1));
@@ -444,7 +443,7 @@ mod tests {
 
     #[test]
     fn test_insert_replace() {
-        let mut tree = Treap::new();
+        let mut tree = TreapMap::new();
         let ret_1 = tree.insert(1, 1);
         let ret_2 = tree.insert(1, 3);
         assert_eq!(tree.get(&1), Some(&3));
@@ -454,7 +453,7 @@ mod tests {
 
     #[test]
     fn test_remove() {
-        let mut tree = Treap::new();
+        let mut tree = TreapMap::new();
         tree.insert(1, 1);
         let ret = tree.remove(&1);
         assert!(!tree.contains(&1));
@@ -463,7 +462,7 @@ mod tests {
 
     #[test]
     fn test_min_max() {
-        let mut tree = Treap::new();
+        let mut tree = TreapMap::new();
         tree.insert(1, 1);
         tree.insert(3, 3);
         tree.insert(5, 5);
@@ -474,7 +473,7 @@ mod tests {
 
     #[test]
     fn test_get_mut() {
-        let mut tree = Treap::new();
+        let mut tree = TreapMap::new();
         tree.insert(1, 1);
         {
             let value = tree.get_mut(&1);
@@ -485,7 +484,7 @@ mod tests {
 
     #[test]
     fn test_floor_ceil() {
-        let mut tree = Treap::new();
+        let mut tree = TreapMap::new();
         tree.insert(1, 1);
         tree.insert(3, 3);
         tree.insert(5, 5);
@@ -503,12 +502,12 @@ mod tests {
 
     #[test]
     fn test_union() {
-        let mut n = Treap::new();
+        let mut n = TreapMap::new();
         n.insert(1, 1);
         n.insert(2, 2);
         n.insert(3, 3);
 
-        let mut m = Treap::new();
+        let mut m = TreapMap::new();
         m.insert(3, 5);
         m.insert(4, 4);
         m.insert(5, 5);
@@ -524,17 +523,17 @@ mod tests {
 
     #[test]
     fn test_inter() {
-        let mut n = Treap::new();
+        let mut n = TreapMap::new();
         n.insert(1, 1);
         n.insert(2, 2);
         n.insert(3, 3);
 
-        let mut m = Treap::new();
+        let mut m = TreapMap::new();
         m.insert(3, 5);
         m.insert(4, 4);
         m.insert(5, 5);
 
-        let inter = Treap::inter(n, m);
+        let inter = TreapMap::inter(n, m);
 
         assert_eq!(
             inter.into_iter().collect::<Vec<(&u32, &u32)>>(),
@@ -545,12 +544,12 @@ mod tests {
 
     #[test]
     fn test_subtract() {
-        let mut n = Treap::new();
+        let mut n = TreapMap::new();
         n.insert(1, 1);
         n.insert(2, 2);
         n.insert(3, 3);
 
-        let mut m = Treap::new();
+        let mut m = TreapMap::new();
         m.insert(3, 5);
         m.insert(4, 4);
         m.insert(5, 5);
@@ -566,7 +565,7 @@ mod tests {
 
     #[test]
     fn test_iter() {
-        let mut tree = Treap::new();
+        let mut tree = TreapMap::new();
         tree.insert(1, 2);
         tree.insert(5, 6);
         tree.insert(3, 4);

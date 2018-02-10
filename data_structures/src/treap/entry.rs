@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
-pub trait Entry<T: Ord>: Ord {
-    type Output;
-    fn get_key(self) -> Self::Output;
+pub trait Entry {
+    type Output: Ord;
+    fn get_key(&self) -> &Self::Output;
 }
 
 pub struct PairEntry<T: Ord, U> {
@@ -30,16 +30,16 @@ impl<T: Ord, U> PartialEq for PairEntry<T, U> {
 
 impl<T: Ord, U> Eq for PairEntry<T, U> {}
 
-impl<T: Ord, U> Entry<T> for PairEntry<T, U> {
+impl<T: Ord, U> Entry for PairEntry<T, U> {
     type Output = T;
-    fn get_key(self) -> Self::Output {
-        self.key
+    fn get_key(&self) -> &Self::Output {
+        &self.key
     }
 }
 
-impl<'a, T: Ord, U> Entry<T> for &'a PairEntry<T, U> {
-    type Output = &'a T;
-    fn get_key(self) -> Self::Output {
+impl<'a, T: Ord, U> Entry for &'a PairEntry<T, U> {
+    type Output = T;
+    fn get_key(&self) -> &Self::Output {
         &self.key
     }
 }
@@ -66,16 +66,16 @@ impl<T: Ord> PartialEq for UnitEntry<T> {
 
 impl<T: Ord> Eq for UnitEntry<T> {}
 
-impl<T: Ord> Entry<T> for UnitEntry<T> {
+impl<'a, T: Ord> Entry for UnitEntry<T> {
     type Output = T;
-    fn get_key(self) -> Self::Output {
-        self.0
+    fn get_key(&self) -> &Self::Output {
+        &self.0
     }
 }
 
-impl<'a, T: Ord> Entry<T> for &'a UnitEntry<T> {
-    type Output = &'a T;
-    fn get_key(self) -> Self::Output {
+impl<'a, T: Ord> Entry for &'a UnitEntry<T> {
+    type Output = T;
+    fn get_key(&self) -> &Self::Output {
         &self.0
     }
 }
