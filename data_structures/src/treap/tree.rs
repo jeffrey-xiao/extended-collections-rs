@@ -27,11 +27,6 @@ pub fn split<T: Entry>(tree: &mut Tree<T>, entry: &T::Output) -> (Tree<T>, Tree<
         Some(mut node) => {
             let mut ret;
             match entry.cmp(node.entry.get_key()) {
-                Ordering::Equal => {
-                    *tree = node.left.take();
-                    let right = node.right.take();
-                    ret = (Some(node), right);
-                },
                 Ordering::Less => {
                     let mut res = split(&mut node.left, entry);
                     *tree = node.left.take();
@@ -41,6 +36,11 @@ pub fn split<T: Entry>(tree: &mut Tree<T>, entry: &T::Output) -> (Tree<T>, Tree<
                 Ordering::Greater => {
                     ret = split(&mut node.right, entry);
                     *tree = Some(node);
+                },
+                Ordering::Equal => {
+                    *tree = node.left.take();
+                    let right = node.right.take();
+                    ret = (Some(node), right);
                 },
             }
             ret
@@ -53,10 +53,6 @@ pub fn insert<T: Entry<Output=U>, U: Ord>(tree: &mut Tree<T>, new_node: Node<T>)
     if let Some(ref mut node) = *tree {
         let mut ret;
         match new_node.entry.get_key().cmp(node.entry.get_key()) {
-            Ordering::Equal => {
-                let &mut Node { ref mut entry, .. } = &mut **node;
-                ret = Some(mem::replace(entry, new_node.entry));
-            },
             Ordering::Less => {
                 ret = insert(&mut node.left, new_node);
                 if node.is_heap_property_violated(&node.left) {
@@ -68,6 +64,10 @@ pub fn insert<T: Entry<Output=U>, U: Ord>(tree: &mut Tree<T>, new_node: Node<T>)
                 if node.is_heap_property_violated(&node.right) {
                     node.rotate_left();
                 }
+            },
+            Ordering::Equal => {
+                let &mut Node { ref mut entry, .. } = &mut **node;
+                ret = Some(mem::replace(entry, new_node.entry));
             },
         }
         ret
@@ -81,9 +81,9 @@ pub fn contains<T: Ord + Entry<Output=U>, U: Ord>(tree: &Tree<T>, entry: &U) -> 
     match *tree {
         Some(ref node) => {
             match entry.cmp(node.entry.get_key()) {
-                Ordering::Equal => true,
                 Ordering::Less => contains(&node.left, entry),
                 Ordering::Greater => contains(&node.right, entry),
+                Ordering::Equal => true,
             }
         },
         None => false,
@@ -94,9 +94,9 @@ pub fn get<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a Tree<T>, entry: &U) -
     match *tree {
         Some(ref node) => {
             match entry.cmp(node.entry.get_key()) {
-                Ordering::Equal => Some(&node.entry),
                 Ordering::Less => get(&node.left, entry),
                 Ordering::Greater => get(&node.right, entry),
+                Ordering::Equal => Some(&node.entry),
             }
         },
         None => None,
@@ -107,9 +107,9 @@ pub fn get_mut<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a mut Tree<T>, entr
     match *tree {
         Some(ref mut node) => {
             match entry.cmp(node.entry.get_key()) {
-                Ordering::Equal => Some(&mut node.entry),
                 Ordering::Less => get_mut(&mut node.left, entry),
                 Ordering::Greater => get_mut(&mut node.right, entry),
+                Ordering::Equal => Some(&mut node.entry),
             }
         },
         None => None,
@@ -120,14 +120,14 @@ pub fn ceil<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a Tree<T>, entry: &U) 
     match *tree {
         Some(ref node) => {
             match entry.cmp(node.entry.get_key()) {
-                Ordering::Equal => Some(&node.entry),
                 Ordering::Greater => ceil(&node.right, entry),
                 Ordering::Less => {
                     match ceil(&node.left, entry) {
                         None => Some(&node.entry),
                         res => res
                     }
-                }
+                },
+                Ordering::Equal => Some(&node.entry),
             }
         },
         None => None,
@@ -138,14 +138,14 @@ pub fn floor<'a, T: Ord + Entry<Output=U>, U: Ord>(tree: &'a Tree<T>, entry: &U)
     match *tree {
         Some(ref node) => {
             match entry.cmp(node.entry.get_key()) {
-                Ordering::Equal => Some(&node.entry),
                 Ordering::Less => floor(&node.left, entry),
                 Ordering::Greater => {
                     match floor(&node.right, entry) {
                         None => Some(&node.entry),
                         res => res
                     }
-                }
+                },
+                Ordering::Equal => Some(&node.entry),
             }
         },
         None => None,

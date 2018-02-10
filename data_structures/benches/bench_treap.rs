@@ -4,12 +4,12 @@ extern crate rand;
 extern crate test;
 
 use test::Bencher;
-use self::rand::Rng;
 use data_structures::treap::TreapMap;
+use self::rand::Rng;
 use std::collections::BTreeMap;
 
 #[bench]
-fn bench_treap_insert(b: &mut Bencher) {
+fn bench_treapmap_insert(b: &mut Bencher) {
     b.iter(|| {
         let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
         let mut tree = TreapMap::new();
@@ -23,7 +23,7 @@ fn bench_treap_insert(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_treap_get(b: &mut Bencher) {
+fn bench_treapmap_get(b: &mut Bencher) {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut tree = TreapMap::new();
     let mut values = Vec::new();
