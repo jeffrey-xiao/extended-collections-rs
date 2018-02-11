@@ -3,7 +3,7 @@ extern crate rand;
 
 use data_structures::treap::TreapMap;
 use std::vec::Vec;
-use self::rand::Rng;
+use self::rand::{thread_rng, Rng};
 
 #[test]
 fn int_test_treap() {
@@ -47,6 +47,8 @@ fn int_test_treap() {
         *entry = (entry.0, val_2);
         assert_eq!(tree.get(&entry.0), Some(&val_2));
     }
+
+    thread_rng().shuffle(&mut expected);
 
     let mut expected_size = expected.len();
     for entry in expected {
