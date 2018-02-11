@@ -95,17 +95,10 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     pub fn remove(&mut self, key: &T) -> Option<T> {
         let &mut TreapSet { ref mut root, ref mut size, .. } = self;
-        let (old_node_opt, r_tree) = tree::split(root, key);
-        tree::merge(root, r_tree);
-        match old_node_opt {
-            Some(old_node) => {
-                let unboxed_old_node = *old_node;
-                let Node { entry: SetEntry(key), .. } = unboxed_old_node;
-                *size -= 1;
-                Some(key)
-            },
-            None => None,
-        }
+        tree::remove(root, key).and_then(|entry| {
+            *size -= 1;
+            Some(entry.0)
+        })
     }
 
     /// Checks if a key exists in the treap.
