@@ -13,6 +13,7 @@ use sha3::{Digest, Sha3_256};
 
 use kademlia::Node;
 use kademlia::key::Key;
+use kademlia::protocol::Message;
 
 use std::convert::AsMut;
 
@@ -61,14 +62,14 @@ fn main() {
         id += 1;
     }
 
-    // for i in 0..8 {
-    //     let node_data = node_map[&i].node_data.clone();
-    //     node_map[&i].protocol.send_message(&Message::Kill, &node_data);
-    // }
-    // println!("KILLED NODES -----------------------");
-    // let n = Node::new(&"localhost".to_string(), &(8900 + 10).to_string(), Some((*node_map[&(10 - 1)].node_data).clone()));
-    // node_map.insert(id, n.clone());
-    // id += 1;
+    for i in 0..8 {
+        let node_data = node_map[&i].node_data.clone();
+        node_map[&i].protocol.send_message(&Message::Kill, &node_data);
+    }
+    println!("KILLED NODES -----------------------");
+    let n = Node::new(&"localhost".to_string(), &(8900 + 10).to_string(), Some((*node_map[&(10 - 1)].node_data).clone()));
+    node_map.insert(id, n.clone());
+    id += 1;
 
     let input = io::stdin();
 

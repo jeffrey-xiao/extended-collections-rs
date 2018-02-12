@@ -36,7 +36,7 @@ impl Storage {
         let curr_time = SteadyTime::now();
 
         self.data.insert(key, value);
-        self.publish_times.entry(curr_time).or_insert(vec![]).push(key);
+        self.publish_times.entry(curr_time).or_insert_with(Vec::new).push(key);
     }
 
     pub fn get(&mut self, key: &Key) -> Option<&String> {

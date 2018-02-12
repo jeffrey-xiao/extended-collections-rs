@@ -63,7 +63,7 @@ impl Protocol {
                 let message = bincode::deserialize(&buffer[..len]).unwrap();
 
                 if tx.send(message).is_err() {
-                    warn!("Warning: node protocol connection closed");
+                    warn!("Node protocol connection closed");
                 }
             }
         });
