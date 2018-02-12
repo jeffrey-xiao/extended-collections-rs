@@ -1,11 +1,13 @@
 #![cfg_attr(feature = "clippy", feature(plugin))]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
+extern crate bincode;
+#[macro_use]
+extern crate log;
 extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
 extern crate time;
 
 pub mod protocol;
@@ -16,7 +18,7 @@ pub mod routing;
 
 pub use self::node::Node;
 
-const KEY_LENGTH: usize = 20;
+const KEY_LENGTH: usize = 32;
 const MESSAGE_LENGTH: usize = 8196;
 const ROUTING_TABLE_SIZE: usize = KEY_LENGTH * 8;
 

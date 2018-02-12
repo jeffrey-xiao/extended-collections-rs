@@ -1,36 +1,51 @@
+#[macro_use]
+extern crate log;
 extern crate kademlia;
+extern crate simplelog;
+extern crate sha3;
 
+use simplelog::{CombinedLogger, TermLogger, Level, LevelFilter, Config};
 use std::io;
 use std::collections::HashMap;
 use std::time::Duration;
 use std::thread;
+use sha3::{Digest, Sha3_256};
 
 use kademlia::Node;
 use kademlia::key::Key;
 
 use std::convert::AsMut;
 
-fn clone_into_array<A, T>(slice: &[T]) -> A
-where
-    A: Sized + Default + AsMut<[T]>,
-    T: Clone,
-{
+fn clone_into_array<A: Sized + Default + AsMut<[T]>, T: Clone>(slice: &[T]) -> A {
     let mut a = Default::default();
     <A as AsMut<[T]>>::as_mut(&mut a).clone_from_slice(slice);
     a
 }
 
-fn get_key(mut key: String) -> Key {
-    while key.len() < 20 {
-        key += " ";
-    }
-    Key(clone_into_array(key.as_bytes()))
+fn get_key(key: &str) -> Key {
+    let mut hasher = Sha3_256::default();
+    hasher.input(key.as_bytes());
+    Key(clone_into_array(hasher.result().as_slice()))
 }
 
 fn main() {
+    let logger_config = Config {
+        time: None,
+        level: Some(Level::Error),
+        target: None,
+        location: None,
+        time_format: None,
+    };
+    CombinedLogger::init(
+        vec![
+            TermLogger::new(LevelFilter::Warn, logger_config).unwrap(),
+            TermLogger::new(LevelFilter::Debug, logger_config).unwrap(),
+        ],
+    ).unwrap();
+
     let mut node_map = HashMap::new();
     let mut id = 0;
-    for i in 0..1000 {
+    for i in 0..10 {
         if i == 0 {
             let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), None);
             node_map.insert(id, n.clone());
@@ -77,14 +92,14 @@ fn main() {
             },
             "insert" => {
                 let index: u32 = args[1].parse().unwrap();
-                let key = get_key(args[2].to_string());
-                let value = args[3].to_string();
+                let key = get_key(args[2]);
+                let value = args[3];
                 node_map.get_mut(&index).unwrap().insert(key, value);
             },
             "get" => {
                 let index: u32 = args[1].parse().unwrap();
-                let key = get_key(args[2].to_string());
-                println!("{:?}", node_map.get_mut(&index).unwrap().get(&key));
+                let key = get_key(args[2]);
+                info!("{:?}", node_map.get_mut(&index).unwrap().get(&key));
             },
             _ => {},
         }

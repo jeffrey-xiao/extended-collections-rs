@@ -1,4 +1,4 @@
-use serde_json;
+use bincode;
 use std::net::UdpSocket;
 use std::str;
 use std::sync::Arc;
@@ -60,11 +60,10 @@ impl Protocol {
             let mut buffer = [0u8; MESSAGE_LENGTH];
             loop {
                 let (len, _src_addr) = protocol.socket.recv_from(&mut buffer).unwrap();
-                let buffer_string = String::from(str::from_utf8(&buffer[..len]).unwrap());
-                let message = serde_json::from_str::<Message>(&buffer_string).unwrap();
+                let message = bincode::deserialize(&buffer[..len]).unwrap();
 
                 if tx.send(message).is_err() {
-                    println!("Warning: node protocol connection closed");
+                    warn!("Warning: node protocol connection closed");
                 }
             }
         });
@@ -72,8 +71,8 @@ impl Protocol {
     }
 
     pub fn send_message(&self, message: &Message, node_data: &NodeData) {
-        let buffer_string = serde_json::to_string(&message).unwrap();
+        let buffer_string = bincode::serialize(&message, bincode::Bounded(MESSAGE_LENGTH as u64)).unwrap();
         let &NodeData { ref addr, .. } = node_data;
-        self.socket.send_to(buffer_string.as_bytes(), addr).unwrap();
+        self.socket.send_to(&buffer_string, addr).unwrap();
     }
 }

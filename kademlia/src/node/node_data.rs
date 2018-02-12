@@ -1,11 +1,18 @@
 use std::cmp::Ordering;
 
 use key::Key;
+use std::fmt::{Debug, Formatter, Result};
 
-#[derive(PartialEq, Eq, Hash, Clone, Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub struct NodeData {
     pub addr: String,
     pub id: Key,
+}
+
+impl Debug for NodeData {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{} - {:?}", self.addr, self.id)
+    }
 }
 
 #[derive(Eq, Clone, Debug)]

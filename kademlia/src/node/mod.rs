@@ -85,7 +85,7 @@ impl Node {
     }
 
     fn update_routing_table(&mut self, node_data: NodeData) {
-        println!("{:?} ADDING {:?}", self.node_data.addr, node_data);
+        debug!("{} ADDING {}", self.node_data.addr, node_data.addr);
         let mut node = self.clone();
         thread::spawn(move || {
             let mut lrs_node_opt = None;
@@ -106,7 +106,12 @@ impl Node {
     }
 
     fn handle_request(&mut self, request: &Request) {
-        println!("{:?} RECEIVING REQUEST {:?}", self.node_data.addr, request.payload);
+        info!(
+            "{} - RECEIVING REQUEST FROM {} {:#?}",
+            self.node_data.addr,
+            request.sender.addr,
+            request.payload,
+        );
         self.clone().update_routing_table(request.sender.clone());
         let receiver = (*self.node_data).clone();
         let payload = match request.payload.clone() {
@@ -144,15 +149,20 @@ impl Node {
         let pending_requests = self.pending_requests.lock().unwrap();
         let Response { ref request, .. } = response.clone();
         if let Some(sender) = pending_requests.get(&request.id) {
-            println!("{:?} RECEIVING RESPONSE {:#?}", self.node_data.addr, response.payload);
+            info!(
+                "{} - RECEIVING RESPONSE FROM {} {:#?}",
+                self.node_data.addr,
+                response.receiver.addr,
+                response.payload,
+            );
             sender.send(response.clone()).unwrap();
         } else {
-            println!("Warning: Original request not found; irrelevant response or expired request.");
+            warn!("Original request not found; irrelevant response or expired request.");
         }
     }
 
     fn send_request(&mut self, dest: &NodeData, payload: RequestPayload) -> Option<Response> {
-        println!("{:?} SENDING REQUEST TO {:?} {:?}", self.node_data.addr, dest.addr, payload);
+        info!("{} - SENDING REQUEST TO {} {:#?}", self.node_data.addr, dest.addr, payload);
         let (response_tx, response_rx) = channel();
         let mut pending_requests = self.pending_requests.lock().unwrap();
         let mut token = Key::rand();
@@ -179,7 +189,7 @@ impl Node {
                 Some(response)
             },
             Err(_) => {
-                println!("Warning: Request timed out after waiting for {} milliseconds", REQUEST_TIMEOUT);
+                warn!("Request timed out after waiting for {} milliseconds", REQUEST_TIMEOUT);
                 let mut pending_requests = self.pending_requests.lock().unwrap();
                 pending_requests.remove(&token);
                 let mut routing_table = self.routing_table.lock().unwrap();
@@ -208,9 +218,9 @@ impl Node {
     fn spawn_find_rpc(mut self, dest: NodeData, key: Key, sender: Sender<Option<Response>>, find_node: bool) {
         thread::spawn(move || {
             let find_node_err = find_node && sender.send(self.rpc_find_node(&dest, &key)).is_err();
-            let find_value_err = find_node && sender.send(self.rpc_find_value(&dest, &key)).is_err();
+            let find_value_err = !find_node && sender.send(self.rpc_find_value(&dest, &key)).is_err();
             if find_node_err || find_value_err {
-                println!("Warning: receiver closed channel before rpc returned.");
+                warn!("Receiver closed channel before rpc returned.");
             }
         });
     }
@@ -290,10 +300,14 @@ impl Node {
             if is_terminated {
                 break;
             }
-            println!("CURR CLOSEST DISTANCE IS {:?}", closest_distance);
+            debug!("CURR CLOSEST DISTANCE IS {:?}", closest_distance);
         }
 
-        println!("{:?} TERMINATED LOOKUP BECAUSE NOT CLOSER OR NO THREADS", self.node_data.addr);
+        debug!(
+            "{} TERMINATED LOOKUP BECAUSE NOT CLOSER OR NO THREADS WITH DISTANCE {:?}",
+            self.node_data.addr,
+            closest_distance,
+        );
 
         // loop until no threads are running or if we found REPLICATION_PARAM active nodes
         while queried_nodes.len() < REPLICATION_PARAM {
@@ -313,8 +327,6 @@ impl Node {
                     queried_nodes.insert(receiver);
                     for node_data in nodes {
                         if !found_nodes.contains(&node_data) {
-                            println!("GOT {:?}", node_data);
-
                             found_nodes.insert(node_data.clone());
                             let next = NodeDataDistancePair(node_data.clone(), node_data.id.xor(key));
                             queue.push(next.clone());
@@ -331,16 +343,16 @@ impl Node {
         let mut ret: Vec<NodeData> = queried_nodes.into_iter().collect();
         ret.sort_by_key(|node_data| node_data.id.xor(key));
         ret.truncate(REPLICATION_PARAM);
-        println!("CLOSEST NODES ARE {:#?}", ret);
+        debug!("{} -  CLOSEST NODES ARE {:#?}", self.node_data.addr, ret);
         ResponsePayload::Nodes(ret)
     }
 
-    pub fn insert(&mut self, key: Key, value: String) {
+    pub fn insert(&mut self, key: Key, value: &str) {
         if let ResponsePayload::Nodes(nodes) = self.lookup_nodes(&key, true) {
             for dest in nodes {
                 let mut node = self.clone();
                 let key_clone = key;
-                let value_clone = value.clone();
+                let value_clone = value.to_string();
                 thread::spawn(move || {
                     node.rpc_store(&dest, key_clone, value_clone);
                 });

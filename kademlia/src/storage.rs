@@ -6,6 +6,7 @@ use time::{Duration, SteadyTime};
 use key::Key;
 use KEY_EXPIRATION;
 
+#[derive(Default)]
 pub struct Storage {
     data: HashMap<Key, String>,
     publish_times: BTreeMap<SteadyTime, Vec<Key>>,
@@ -25,6 +26,7 @@ impl Storage {
         mem::swap(&mut self.publish_times, &mut expired_times_map);
 
         for key in expired_times_map.into_iter().flat_map(|entry| entry.1.into_iter()) {
+            info!("REMOVED {:?}", key);
             self.data.remove(&key);
         }
     }
