@@ -217,7 +217,7 @@ impl<T: Ord> TreapSet<T> {
     ///
     /// let union = TreapSet::union(n, m);
     /// assert_eq!(
-    ///     union.into_iter().collect::<Vec<&u32>>(),
+    ///     union.iter().collect::<Vec<&u32>>(),
     ///     vec![&1, &2, &3],
     /// );
     /// ```
@@ -244,7 +244,7 @@ impl<T: Ord> TreapSet<T> {
     ///
     /// let inter = TreapSet::inter(n, m);
     /// assert_eq!(
-    ///     inter.into_iter().collect::<Vec<&u32>>(),
+    ///     inter.iter().collect::<Vec<&u32>>(),
     ///     vec![&2],
     /// );
     /// ```
@@ -272,7 +272,7 @@ impl<T: Ord> TreapSet<T> {
     ///
     /// let subtract = TreapSet::subtract(n, m);
     /// assert_eq!(
-    ///     subtract.into_iter().collect::<Vec<&u32>>(),
+    ///     subtract.iter().collect::<Vec<&u32>>(),
     ///     vec![&1],
     /// );
     /// ```
@@ -283,7 +283,8 @@ impl<T: Ord> TreapSet<T> {
         TreapSet { root, rng, size: size - dups }
     }
 
-    /// Returns an iterator over the treap. The iterator will yield keys using in-order traversal.
+    /// Returns an iterator over the treap. The iterator will yield key-value pairs using in-order
+    /// traversal.
     ///
     /// # Examples
     /// ```
@@ -298,9 +299,22 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(iterator.next(), Some(&3));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> TreapSetIterator<T> {
+    pub fn iter(&self) -> TreapSetIter<T> {
         let &TreapSet { ref root, .. } = self;
-        TreapSetIterator {
+        TreapSetIter {
+            current: root,
+            stack: Vec::new(),
+        }
+    }
+}
+
+impl<T: Ord> IntoIterator for TreapSet<T> {
+    type Item = T;
+    type IntoIter = TreapSetIntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let TreapSet { root, .. } = self;
+        TreapSetIntoIter {
             current: root,
             stack: Vec::new(),
         }
@@ -309,28 +323,56 @@ impl<T: Ord> TreapSet<T> {
 
 impl<'a, T: 'a + Ord> IntoIterator for &'a TreapSet<T> {
     type Item = &'a T;
-    type IntoIter = TreapSetIterator<'a, T>;
+    type IntoIter = TreapSetIter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
+/// An owning iterator for `TreapSet<T>`
+///
+/// This iterator traverses the elements of a treap in-order and yields immutable references.
+pub struct TreapSetIntoIter<T: Ord> {
+    current: tree::Tree<SetEntry<T>>,
+    stack: Vec<Node<SetEntry<T>>>,
+}
+
+impl<T: Ord> Iterator for TreapSetIntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(mut node) = self.current.take() {
+            self.current = node.left.take();
+            self.stack.push(*node);
+        }
+        self.stack.pop().map(|node| {
+            let Node {
+                entry: SetEntry(key),
+                right,
+                ..
+            } = node;
+            self.current = right;
+            key
+        })
+    }
+}
+
 /// An iterator for `TreapSet<T>`
 ///
-/// This iterator traverses the elements of a treap in-order.
-pub struct TreapSetIterator<'a, T: 'a + Ord> {
+/// This iterator traverses the elements of a treap in-order and yields immutable references.
+pub struct TreapSetIter<'a, T: 'a + Ord> {
     current: &'a tree::Tree<SetEntry<T>>,
     stack: Vec<&'a Node<SetEntry<T>>>,
 }
 
-impl<'a, T: 'a + Ord> Iterator for TreapSetIterator<'a, T> {
+impl<'a, T: 'a + Ord> Iterator for TreapSetIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(ref node) = *self.current {
-            self.stack.push(node);
             self.current = &node.left;
+            self.stack.push(node);
         }
         self.stack.pop().map(|node| {
             let &Node {
@@ -452,7 +494,7 @@ mod tests {
         let union = n + m;
 
         assert_eq!(
-            union.into_iter().collect::<Vec<&u32>>(),
+            union.iter().collect::<Vec<&u32>>(),
             vec![&1, &2, &3, &4, &5],
         );
         assert_eq!(union.size(), 5);
@@ -473,7 +515,7 @@ mod tests {
         let inter = TreapSet::inter(n, m);
 
         assert_eq!(
-            inter.into_iter().collect::<Vec<&u32>>(),
+            inter.iter().collect::<Vec<&u32>>(),
             vec![&3],
         );
         assert_eq!(inter.size(), 1);
@@ -494,10 +536,23 @@ mod tests {
         let sub = n - m;
 
         assert_eq!(
-            sub.into_iter().collect::<Vec<&u32>>(),
+            sub.iter().collect::<Vec<&u32>>(),
             vec![&1, &2],
         );
         assert_eq!(sub.size(), 2);
+    }
+
+    #[test]
+    fn test_into_iter() {
+        let mut tree = TreapSet::new();
+        tree.insert(1);
+        tree.insert(5);
+        tree.insert(3);
+
+        assert_eq!(
+            tree.into_iter().collect::<Vec<u32>>(),
+            vec![1, 3, 5]
+        );
     }
 
     #[test]
@@ -508,8 +563,8 @@ mod tests {
         tree.insert(3);
 
         assert_eq!(
-            tree.into_iter().collect::<Vec<&u32>>(),
-            vec![&1, &3, &5]
+            tree.iter().collect::<Vec<&u32>>(),
+            vec![&1, &3, &5],
         );
     }
 }

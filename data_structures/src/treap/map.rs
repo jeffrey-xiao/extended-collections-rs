@@ -257,7 +257,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// let union = TreapMap::union(n, m);
     /// assert_eq!(
-    ///     union.into_iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     union.iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&1, &1), (&2, &2), (&3, &3)],
     /// );
     /// ```
@@ -285,7 +285,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// let inter = TreapMap::inter(n, m);
     /// assert_eq!(
-    ///     inter.into_iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     inter.iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&2, &2)],
     /// );
     /// ```
@@ -314,7 +314,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// let subtract = TreapMap::subtract(n, m);
     /// assert_eq!(
-    ///     subtract.into_iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     subtract.iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&1, &1)],
     /// );
     /// ```
@@ -341,9 +341,50 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&3, &3)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> TreapMapIterator<T, U> {
+    pub fn iter(&self) -> TreapMapIter<T, U> {
         let &TreapMap { ref root, .. } = self;
-        TreapMapIterator {
+        TreapMapIter {
+            current: root,
+            stack: Vec::new(),
+        }
+    }
+
+    /// Returns a mutable iterator over the treap. The iterator will yield key-value pairs using
+    /// in-order traversal.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut t = TreapMap::new();
+    /// t.insert(1, 1);
+    /// t.insert(3, 3);
+    ///
+    /// for (key, value) in &mut t {
+    ///   *value += 1;
+    /// }
+    ///
+    /// let mut iterator = t.iter_mut();
+    /// assert_eq!(iterator.next(), Some((&1, &mut 2)));
+    /// assert_eq!(iterator.next(), Some((&3, &mut 4)));
+    /// assert_eq!(iterator.next(), None);
+    /// ```
+    pub fn iter_mut(&mut self) -> TreapMapIterMut<T, U> {
+        let &mut TreapMap { ref mut root, .. } = self;
+        TreapMapIterMut {
+            current: root.as_mut().map(|node| &mut **node),
+            stack: Vec::new(),
+        }
+    }
+}
+
+impl<T: Ord, U> IntoIterator for TreapMap<T, U> {
+    type Item = (T, U);
+    type IntoIter = TreapMapIntoIter<T, U>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let TreapMap { root, .. } = self;
+        TreapMapIntoIter {
             current: root,
             stack: Vec::new(),
         }
@@ -352,28 +393,65 @@ impl<T: Ord, U> TreapMap<T, U> {
 
 impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a TreapMap<T, U> {
     type Item = (&'a T, &'a U);
-    type IntoIter = TreapMapIterator<'a, T, U>;
+    type IntoIter = TreapMapIter<'a, T, U>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
+impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut TreapMap<T, U> {
+    type Item = (&'a T, &'a mut U);
+    type IntoIter = TreapMapIterMut<'a, T, U>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+/// An owning iterator for `TreapMap<T, U>`
+///
+/// This iterator traverses the elements of a treap in-order and yields immutable references.
+pub struct TreapMapIntoIter<T: Ord, U> {
+    current: tree::Tree<MapEntry<T, U>>,
+    stack: Vec<Node<MapEntry<T, U>>>,
+}
+
+impl<T: Ord, U> Iterator for TreapMapIntoIter<T, U> {
+    type Item = (T, U);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(mut node) = self.current.take() {
+            self.current = node.left.take();
+            self.stack.push(*node);
+        }
+        self.stack.pop().map(|node| {
+            let Node {
+                entry: MapEntry { key, value },
+                right,
+                ..
+            } = node;
+            self.current = right;
+            (key, value)
+        })
+    }
+}
+
 /// An iterator for `TreapMap<T, U>`
 ///
-/// This iterator traverses the elements of a treap in-order.
-pub struct TreapMapIterator<'a, T: 'a + Ord, U: 'a> {
+/// This iterator traverses the elements of a treap in-order and yields immutable references.
+pub struct TreapMapIter<'a, T: 'a + Ord, U: 'a> {
     current: &'a tree::Tree<MapEntry<T, U>>,
     stack: Vec<&'a Node<MapEntry<T, U>>>,
 }
 
-impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIterator<'a, T, U> {
+impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIter<'a, T, U> {
     type Item = (&'a T, &'a U);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(ref node) = *self.current {
-            self.stack.push(node);
             self.current = &node.left;
+            self.stack.push(node);
         }
         self.stack.pop().map(|node| {
             let &Node {
@@ -383,6 +461,40 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIterator<'a, T, U> {
             } = node;
             self.current = right;
             (key, value)
+        })
+    }
+}
+
+
+/// A mutable iterator for `TreapMap<T, U>`
+///
+/// This iterator traverses the elements of a treap in-order and yields mutable references.
+pub struct TreapMapIterMut<'a, T: 'a + Ord, U: 'a> {
+    current: Option<&'a mut Node<MapEntry<T, U>>>,
+    stack: Vec<Option<(&'a mut MapEntry<T, U>, Option<&'a mut Node<MapEntry<T, U>>>)>>,
+}
+
+impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIterMut<'a, T, U> {
+    type Item = (&'a T, &'a mut U);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let TreapMapIterMut { ref mut current, ref mut stack } = *self;
+        while current.is_some() {
+            stack.push(current.take().map(|node| {
+                *current = node.left.as_mut().map(|node| &mut **node);
+                (&mut node.entry, node.right.as_mut().map(|node| &mut **node))
+            }));
+        }
+        stack.pop().and_then(|pair_opt| {
+            match pair_opt {
+                Some(pair) => {
+                    let (entry, right) = pair;
+                    let &mut MapEntry { ref key, ref mut value } = entry;
+                    *current = right;
+                    Some((key, value))
+                },
+                None => None,
+            }
         })
     }
 }
@@ -508,7 +620,7 @@ mod tests {
         let union = n + m;
 
         assert_eq!(
-            union.into_iter().collect::<Vec<(&u32, &u32)>>(),
+            union.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2), (&3, &3), (&4, &4), (&5, &5)],
         );
         assert_eq!(union.size(), 5);
@@ -529,7 +641,7 @@ mod tests {
         let inter = TreapMap::inter(n, m);
 
         assert_eq!(
-            inter.into_iter().collect::<Vec<(&u32, &u32)>>(),
+            inter.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&3, &3)],
         );
         assert_eq!(inter.size(), 1);
@@ -550,10 +662,23 @@ mod tests {
         let sub = n - m;
 
         assert_eq!(
-            sub.into_iter().collect::<Vec<(&u32, &u32)>>(),
+            sub.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2)],
         );
         assert_eq!(sub.size(), 2);
+    }
+
+    #[test]
+    fn test_into_iter() {
+        let mut tree = TreapMap::new();
+        tree.insert(1, 2);
+        tree.insert(5, 6);
+        tree.insert(3, 4);
+
+        assert_eq!(
+            tree.into_iter().collect::<Vec<(u32, u32)>>(),
+            vec![(1, 2), (3, 4), (5, 6)],
+        );
     }
 
     #[test]
@@ -564,8 +689,25 @@ mod tests {
         tree.insert(3, 4);
 
         assert_eq!(
-            tree.into_iter().collect::<Vec<(&u32, &u32)>>(),
-            vec![(&1, &2), (&3, &4), (&5, &6)]
+            tree.iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&1, &2), (&3, &4), (&5, &6)],
+        );
+    }
+
+    #[test]
+    fn test_iter_mut() {
+        let mut tree = TreapMap::new();
+        tree.insert(1, 2);
+        tree.insert(5, 6);
+        tree.insert(3, 4);
+
+        for (_, value) in &mut tree {
+            *value += 1;
+        }
+
+        assert_eq!(
+            tree.iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&1, &3), (&3, &5), (&5, &7)],
         );
     }
 }
