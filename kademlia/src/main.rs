@@ -29,7 +29,7 @@ fn get_key(key: &str) -> Key {
 
 fn main() {
     let logger_config = Config {
-        time: None,
+        time: Some(Level::Error),
         level: Some(Level::Error),
         target: None,
         location: None,
@@ -37,13 +37,13 @@ fn main() {
     };
     CombinedLogger::init(
         vec![
-            TermLogger::new(LevelFilter::Info, logger_config).unwrap(),
+            TermLogger::new(LevelFilter::Error, logger_config).unwrap(),
         ],
     ).unwrap();
 
     let mut node_map = HashMap::new();
     let mut id = 0;
-    for i in 0..1000 {
+    for i in 0..50 {
         if i == 0 {
             let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), None);
             node_map.insert(id, n.clone());
@@ -51,14 +51,14 @@ fn main() {
             let n = Node::new(
                 &"localhost".to_string(),
                 &(8900 + i).to_string(),
-                Some((*node_map[&(i - 1)].node_data).clone()),
+                Some((*node_map[&0].node_data).clone()),
             );
             node_map.insert(id, n.clone());
         }
         id += 1;
     }
 
-    for i in 0..8 {
+    for i in (1..50).filter(|num| num % 10 == 0) {
         let node_data = node_map[&i].node_data.clone();
         node_map[&i].protocol.send_message(&Message::Kill, &node_data);
     }
@@ -67,7 +67,7 @@ fn main() {
 
     loop {
         let mut buffer = String::new();
-        println!("READY");
+        println!("Ready for input!");
         if input.read_line(&mut buffer).is_err() {
             break;
         }

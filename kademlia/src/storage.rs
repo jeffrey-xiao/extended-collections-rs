@@ -26,7 +26,7 @@ impl Storage {
         mem::swap(&mut self.publish_times, &mut expired_times_map);
 
         for key in expired_times_map.into_iter().flat_map(|entry| entry.1.into_iter()) {
-            info!("REMOVED {:?}", key);
+            info!("Removed {:?}", key);
             self.data.remove(&key);
         }
     }

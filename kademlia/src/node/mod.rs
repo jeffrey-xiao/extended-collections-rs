@@ -66,7 +66,8 @@ impl Node {
                     Message::Request(request) => node.handle_request(&request),
                     Message::Response(response) => node.handle_response(&response),
                     Message::Kill => {
-                        node.is_active.store(false, Ordering::AcqRel);
+                        node.is_active.store(false, Ordering::Release);
+                        info!("{} - Killed message handler", node.node_data.addr);
                         break;
                     },
                 }
@@ -78,7 +79,7 @@ impl Node {
         let mut node = self.clone();
         thread::spawn(move || {
             thread::sleep(Duration::from_secs(BUCKET_REFRESH_INTERVAL));
-            while node.is_active.load(Ordering::AcqRel) {
+            while node.is_active.load(Ordering::Acquire) {
                 let stale_indexes = {
                     let routing_table = match node.routing_table.lock() {
                         Ok(routing_table) => routing_table,
@@ -92,6 +93,7 @@ impl Node {
                 }
                 thread::sleep(Duration::from_secs(BUCKET_REFRESH_INTERVAL));
             }
+            warn!("{} - Killed bucket refresher", node.node_data.addr);
         });
     }
 
@@ -125,7 +127,10 @@ impl Node {
             // Ping the lrs node and move to front of bucket if active
             if let Some(lrs_node) = lrs_node_opt {
                 node.rpc_ping(&lrs_node);
-                let mut routing_table = node.routing_table.lock().unwrap();
+                let mut routing_table = match node.routing_table.lock() {
+                    Ok(routing_table) => routing_table,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
                 routing_table.update_node(node_data);
             }
         });
@@ -215,7 +220,7 @@ impl Node {
                 Some(response)
             },
             Err(_) => {
-                error!("{} - Request to {} timed out after waiting for {} milliseconds", self.node_data.addr, dest.addr, REQUEST_TIMEOUT);
+                warn!("{} - Request to {} timed out after waiting for {} milliseconds", self.node_data.addr, dest.addr, REQUEST_TIMEOUT);
                 let mut pending_requests = self.pending_requests.lock().unwrap();
                 pending_requests.remove(&token);
                 let mut routing_table = self.routing_table.lock().unwrap();
