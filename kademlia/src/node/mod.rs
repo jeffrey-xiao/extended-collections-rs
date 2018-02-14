@@ -4,11 +4,12 @@ use std::cmp;
 use std::net::UdpSocket;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::thread;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::Duration;
 
-use {CONCURRENCY_PARAM, KEY_LENGTH, REPLICATION_PARAM, REQUEST_TIMEOUT};
+use {BUCKET_REFRESH_INTERVAL, CONCURRENCY_PARAM, KEY_LENGTH, REPLICATION_PARAM, REQUEST_TIMEOUT};
 use node::node_data::{NodeData, NodeDataDistancePair};
 use routing::RoutingTable;
 use protocol::{Message, Protocol, Request, RequestPayload, Response, ResponsePayload};
@@ -22,6 +23,7 @@ pub struct Node {
     storage: Arc<Mutex<Storage>>,
     pending_requests: Arc<Mutex<HashMap<Key, Sender<Response>>>>,
     pub protocol: Arc<Protocol>,
+    is_active: Arc<AtomicBool>,
 }
 
 impl Node {
@@ -47,9 +49,11 @@ impl Node {
             storage: Arc::new(Mutex::new(Storage::new())),
             pending_requests: Arc::new(Mutex::new(HashMap::new())),
             protocol: Arc::new(protocol),
+            is_active: Arc::new(AtomicBool::new(true)),
         };
 
         ret.start_message_handler(message_rx);
+        ret.start_bucket_refresher();
         ret.bootstrap_routing_table();
         ret
     }
@@ -61,8 +65,32 @@ impl Node {
                 match request {
                     Message::Request(request) => node.handle_request(&request),
                     Message::Response(response) => node.handle_response(&response),
-                    Message::Kill => break,
+                    Message::Kill => {
+                        node.is_active.store(false, Ordering::AcqRel);
+                        break;
+                    },
                 }
+            }
+        });
+    }
+
+    fn start_bucket_refresher(&self) {
+        let mut node = self.clone();
+        thread::spawn(move || {
+            thread::sleep(Duration::from_secs(BUCKET_REFRESH_INTERVAL));
+            while node.is_active.load(Ordering::AcqRel) {
+                let stale_indexes = {
+                    let routing_table = match node.routing_table.lock() {
+                        Ok(routing_table) => routing_table,
+                        Err(poisoned) => poisoned.into_inner(),
+                    };
+                    routing_table.get_stale_indexes()
+                };
+
+                for index in stale_indexes {
+                    node.lookup_nodes(&Key::rand_in_range(index), true);
+                }
+                thread::sleep(Duration::from_secs(BUCKET_REFRESH_INTERVAL));
             }
         });
     }

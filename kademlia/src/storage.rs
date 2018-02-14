@@ -21,7 +21,7 @@ impl Storage {
     }
 
     fn remove_expired(&mut self) {
-        let expiration_cutoff = SteadyTime::now() - Duration::seconds(KEY_EXPIRATION);
+        let expiration_cutoff = SteadyTime::now() - Duration::seconds(KEY_EXPIRATION as i64);
         let mut expired_times_map = self.publish_times.split_off(&expiration_cutoff);
         mem::swap(&mut self.publish_times, &mut expired_times_map);
 

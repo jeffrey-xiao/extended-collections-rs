@@ -1,20 +1,24 @@
 use std::sync::Arc;
 
-use std::cmp;
-use std::mem;
+use std::{cmp, mem};
+use time::{Duration, SteadyTime};
 
-use {REPLICATION_PARAM, ROUTING_TABLE_SIZE};
+use {BUCKET_REFRESH_INTERVAL, REPLICATION_PARAM, ROUTING_TABLE_SIZE};
 use node::node_data::NodeData;
 use key::Key;
 
 #[derive(Clone, Debug)]
 struct RoutingBucket {
     nodes: Vec<NodeData>,
+    last_access_time: SteadyTime,
 }
 
 impl RoutingBucket {
     fn new() -> Self {
-        RoutingBucket { nodes: Vec::new() }
+        RoutingBucket {
+            nodes: Vec::new(),
+            last_access_time: SteadyTime::now(),
+        }
     }
 
     fn update_node(&mut self, node_data: NodeData) {
@@ -28,12 +32,7 @@ impl RoutingBucket {
     }
 
     fn contains(&self, node_data: &NodeData) -> bool {
-        for n in &self.nodes {
-            if node_data == n {
-                return true;
-            }
-        }
-        false
+        return self.nodes.iter().position(|data| data == node_data).is_some()
     }
 
     fn split(&mut self, key: &Key, index: usize) -> RoutingBucket {
@@ -41,15 +40,14 @@ impl RoutingBucket {
             .drain(..)
             .partition(|node| node.id.xor(key).count_leading_zeroes() == index);
         mem::replace(&mut self.nodes, old_bucket);
-        RoutingBucket { nodes: new_bucket }
+        RoutingBucket {
+            nodes: new_bucket,
+            last_access_time: self.last_access_time,
+        }
     }
 
     fn get_nodes(&self) -> &[NodeData] {
         self.nodes.as_slice()
-    }
-
-    fn size(&self) -> usize {
-        self.nodes.len()
     }
 
     fn remove_lrs(&mut self) -> Option<NodeData> {
@@ -66,6 +64,14 @@ impl RoutingBucket {
         } else {
             None
         }
+    }
+
+    pub fn is_stale(&self) -> bool {
+        return SteadyTime::now() - self.last_access_time > Duration::seconds(BUCKET_REFRESH_INTERVAL as i64);
+    }
+
+    pub fn size(&self) -> usize {
+        self.nodes.len()
     }
 }
 
@@ -154,6 +160,16 @@ impl RoutingTable {
     pub fn remove_node(&mut self, node_data: &NodeData) {
         let index = cmp::min(self.node_data.id.xor(&node_data.id).count_leading_zeroes(), self.buckets.len() - 1);
         self.buckets[index].remove_node(node_data);
+    }
+
+    pub fn get_stale_indexes(&self)-> Vec<usize> {
+        let mut ret = Vec::new();
+        for (i, bucket) in self.buckets.iter().enumerate() {
+            if bucket.is_stale() {
+                ret.push(i);
+            }
+        }
+        return ret;
     }
 
     pub fn size(&self) -> usize {
