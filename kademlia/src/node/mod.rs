@@ -49,19 +49,18 @@ impl Node {
             protocol: Arc::new(protocol),
         };
 
-        ret.clone().start_message_handler(message_rx);
-
+        ret.start_message_handler(message_rx);
         ret.bootstrap_routing_table();
-
         ret
     }
 
-    fn start_message_handler(mut self, rx: Receiver<Message>) {
+    fn start_message_handler(&self, rx: Receiver<Message>) {
+        let mut node = self.clone();
         thread::spawn(move || {
             for request in rx.iter() {
                 match request {
-                    Message::Request(request) => self.handle_request(&request),
-                    Message::Response(response) => self.handle_response(&response),
+                    Message::Request(request) => node.handle_request(&request),
+                    Message::Response(response) => node.handle_response(&response),
                     Message::Kill => break,
                 }
             }
@@ -72,29 +71,28 @@ impl Node {
         let target_key = self.node_data.id;
         self.lookup_nodes(&target_key, true);
 
-        let routing_table = self.routing_table.lock().unwrap();
-        let bucket_size = routing_table.size();
-        drop(routing_table);
+        let bucket_size = { self.routing_table.lock().unwrap().size() };
 
-        let mut node = self.clone();
-        thread::spawn(move || {
-            for i in 0..bucket_size {
-                node.lookup_nodes(&Key::rand_in_range(i), true);
-            }
-        });
+        for i in 0..bucket_size {
+            self.lookup_nodes(&Key::rand_in_range(i), true);
+        }
     }
 
     fn update_routing_table(&mut self, node_data: NodeData) {
-        debug!("{} ADDING {}", self.node_data.addr, node_data.addr);
+        debug!("{} updating {}", self.node_data.addr, node_data.addr);
         let mut node = self.clone();
         thread::spawn(move || {
-            let mut lrs_node_opt = None;
-            {
-                let mut routing_table = node.routing_table.lock().unwrap();
+            let lrs_node_opt = {
+                let mut routing_table = match node.routing_table.lock() {
+                    Ok(routing_table) => routing_table,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
                 if !routing_table.update_node(node_data.clone()) {
-                    lrs_node_opt = routing_table.remove_lrs(&node_data.id);
+                    routing_table.remove_lrs(&node_data.id)
+                } else {
+                    None
                 }
-            }
+            };
 
             // Ping the lrs node and move to front of bucket if active
             if let Some(lrs_node) = lrs_node_opt {
@@ -107,7 +105,7 @@ impl Node {
 
     fn handle_request(&mut self, request: &Request) {
         info!(
-            "{} - RECEIVING REQUEST FROM {} {:#?}",
+            "{} - Receiving request from {} {:#?}",
             self.node_data.addr,
             request.sender.addr,
             request.payload,
@@ -150,19 +148,19 @@ impl Node {
         let Response { ref request, .. } = response.clone();
         if let Some(sender) = pending_requests.get(&request.id) {
             info!(
-                "{} - RECEIVING RESPONSE FROM {} {:#?}",
+                "{} - Receiving response from {} {:#?}",
                 self.node_data.addr,
                 response.receiver.addr,
                 response.payload,
             );
             sender.send(response.clone()).unwrap();
         } else {
-            warn!("Original request not found; irrelevant response or expired request.");
+            warn!("{} - Original request not found; irrelevant response or expired request.", self.node_data.addr);
         }
     }
 
     fn send_request(&mut self, dest: &NodeData, payload: RequestPayload) -> Option<Response> {
-        info!("{} - SENDING REQUEST TO {} {:#?}", self.node_data.addr, dest.addr, payload);
+        info!("{} - Sending request to {} {:#?}", self.node_data.addr, dest.addr, payload);
         let (response_tx, response_rx) = channel();
         let mut pending_requests = self.pending_requests.lock().unwrap();
         let mut token = Key::rand();
@@ -189,7 +187,7 @@ impl Node {
                 Some(response)
             },
             Err(_) => {
-                warn!("Request timed out after waiting for {} milliseconds", REQUEST_TIMEOUT);
+                error!("{} - Request to {} timed out after waiting for {} milliseconds", self.node_data.addr, dest.addr, REQUEST_TIMEOUT);
                 let mut pending_requests = self.pending_requests.lock().unwrap();
                 pending_requests.remove(&token);
                 let mut routing_table = self.routing_table.lock().unwrap();

@@ -63,7 +63,8 @@ impl Protocol {
                 let message = bincode::deserialize(&buffer[..len]).unwrap();
 
                 if tx.send(message).is_err() {
-                    warn!("Node protocol connection closed");
+                    warn!("Protocol: Connection closed.");
+                    break;
                 }
             }
         });
@@ -73,6 +74,8 @@ impl Protocol {
     pub fn send_message(&self, message: &Message, node_data: &NodeData) {
         let buffer_string = bincode::serialize(&message, bincode::Bounded(MESSAGE_LENGTH as u64)).unwrap();
         let &NodeData { ref addr, .. } = node_data;
-        self.socket.send_to(&buffer_string, addr).unwrap();
+        if let Err(_) = self.socket.send_to(&buffer_string, addr) {
+            warn!("Protocol: Could not send data.");
+        }
     }
 }

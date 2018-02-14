@@ -7,8 +7,6 @@ extern crate sha3;
 use simplelog::{CombinedLogger, TermLogger, Level, LevelFilter, Config};
 use std::io;
 use std::collections::HashMap;
-use std::time::Duration;
-use std::thread;
 use sha3::{Digest, Sha3_256};
 
 use kademlia::Node;
@@ -39,14 +37,13 @@ fn main() {
     };
     CombinedLogger::init(
         vec![
-            TermLogger::new(LevelFilter::Warn, logger_config).unwrap(),
-            TermLogger::new(LevelFilter::Debug, logger_config).unwrap(),
+            TermLogger::new(LevelFilter::Info, logger_config).unwrap(),
         ],
     ).unwrap();
 
     let mut node_map = HashMap::new();
     let mut id = 0;
-    for i in 0..10 {
+    for i in 0..1000 {
         if i == 0 {
             let n = Node::new(&"localhost".to_string(), &(8900 + i).to_string(), None);
             node_map.insert(id, n.clone());
@@ -58,7 +55,6 @@ fn main() {
             );
             node_map.insert(id, n.clone());
         }
-        thread::sleep(Duration::from_millis(50));
         id += 1;
     }
 
@@ -66,15 +62,12 @@ fn main() {
         let node_data = node_map[&i].node_data.clone();
         node_map[&i].protocol.send_message(&Message::Kill, &node_data);
     }
-    println!("KILLED NODES -----------------------");
-    let n = Node::new(&"localhost".to_string(), &(8900 + 10).to_string(), Some((*node_map[&(10 - 1)].node_data).clone()));
-    node_map.insert(id, n.clone());
-    id += 1;
 
     let input = io::stdin();
 
     loop {
         let mut buffer = String::new();
+        println!("READY");
         if input.read_line(&mut buffer).is_err() {
             break;
         }
