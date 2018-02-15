@@ -36,7 +36,7 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t: TreapSet<u32> = TreapSet::new();
+    /// let t: TreapSet<u32> = TreapSet::new();
     /// ```
     pub fn new() -> Self {
         TreapSet {
@@ -44,7 +44,7 @@ impl<T: Ord> TreapSet<T> {
         }
     }
 
-    /// Inserts a key into the treap. If the key already exists in the treap, it will
+    /// Inserts a key into the set. If the key already exists in the set, it will
     /// return and replace the key.
     ///
     /// # Examples
@@ -60,7 +60,7 @@ impl<T: Ord> TreapSet<T> {
         self.map.insert(key, ()).map(|pair| pair.0)
     }
 
-    /// Removes a key from the treap. If the key exists in the treap, it will return
+    /// Removes a key from the set. If the key exists in the set, it will return
     /// the associated key. Otherwise it will return `None`.
     ///
     /// # Examples
@@ -76,7 +76,7 @@ impl<T: Ord> TreapSet<T> {
         self.map.remove(key).map(|pair| pair.0)
     }
 
-    /// Checks if a key exists in the treap.
+    /// Checks if a key exists in the set.
     ///
     /// # Examples
     /// ```
@@ -91,7 +91,7 @@ impl<T: Ord> TreapSet<T> {
         self.map.contains(key)
     }
 
-    /// Returns the size of the treap.
+    /// Returns the size of the set.
     ///
     /// # Examples
     /// ```
@@ -105,8 +105,37 @@ impl<T: Ord> TreapSet<T> {
         self.map.size()
     }
 
+    /// Returns `true` if the set is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapSet;
+    ///
+    /// let t: TreapSet<u32> = TreapSet::new();
+    /// assert!(t.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.map.size() == 0
+    }
 
-    /// Returns a key in the treap that is greater than or equal to a particular key. Returns
+    /// Clears the set, removing all values.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapSet;
+    ///
+    /// let mut t = TreapSet::new();
+    /// t.insert(1);
+    /// t.insert(2);
+    /// t.clear();
+    /// assert_eq!(t.is_empty(), true);
+    /// ```
+    pub fn clear(&mut self) {
+        self.map.clear();
+    }
+
+
+    /// Returns a key in the set that is greater than or equal to a particular key. Returns
     /// `None` if such a key does not exist.
     ///
     /// # Examples
@@ -123,7 +152,7 @@ impl<T: Ord> TreapSet<T> {
     }
 
 
-    /// Returns a key in the treap that is less than or equal to a particular key. Returns
+    /// Returns a key in the set that is less than or equal to a particular key. Returns
     /// `None` if such a key does not exist.
     ///
     /// # Examples
@@ -139,7 +168,7 @@ impl<T: Ord> TreapSet<T> {
         self.map.floor(key)
     }
 
-    /// Returns the minimum key of the treap. Returns `None` if the treap is empty.
+    /// Returns the minimum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
     /// ```
@@ -154,7 +183,7 @@ impl<T: Ord> TreapSet<T> {
         self.map.min()
     }
 
-    /// Returns the maximum key of the treap. Returns `None` if the treap is empty.
+    /// Returns the maximum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
     /// ```
@@ -169,8 +198,8 @@ impl<T: Ord> TreapSet<T> {
         self.map.max()
     }
 
-    /// Returns the union of two treaps. The `+` operator is implemented to take the union of two
-    /// treaps.
+    /// Returns the union of two set. The `+` operator is implemented to take the union of two
+    /// sets.
     ///
     /// # Examples
     /// ```
@@ -196,7 +225,7 @@ impl<T: Ord> TreapSet<T> {
         }
     }
 
-    /// Returns the intersection of two treaps.
+    /// Returns the intersection of two sets.
     ///
     /// # Examples
     /// ```
@@ -223,7 +252,7 @@ impl<T: Ord> TreapSet<T> {
     }
 
     /// Returns `left` subtracted by `right`. The `-` operator is implemented to take the
-    /// difference of two treaps.
+    /// difference of two sets.
     ///
     /// # Examples
     /// ```
@@ -249,7 +278,7 @@ impl<T: Ord> TreapSet<T> {
         }
     }
 
-    /// Returns an iterator over the treap. The iterator will yield key-value pairs using in-order
+    /// Returns an iterator over the set. The iterator will yield key-value pairs using in-order
     /// traversal.
     ///
     /// # Examples
@@ -294,7 +323,7 @@ impl<'a, T: 'a + Ord> IntoIterator for &'a TreapSet<T> {
 
 /// An owning iterator for `TreapSet<T>`
 ///
-/// This iterator traverses the elements of a treap in-order and yields owned keys.
+/// This iterator traverses the elements of a set in-order and yields owned keys.
 pub struct TreapSetIntoIter<T: Ord> {
     map_iter: TreapMapIntoIter<T, ()>,
 }
@@ -309,7 +338,7 @@ impl<T: Ord> Iterator for TreapSetIntoIter<T> {
 
 /// An iterator for `TreapSet<T>`
 ///
-/// This iterator traverses the elements of a treap in-order and yields immutable references.
+/// This iterator traverses the elements of a set in-order and yields immutable references.
 pub struct TreapSetIter<'a, T: 'a + Ord> {
     map_iter: TreapMapIter<'a, T, ()>,
 }
@@ -352,6 +381,12 @@ mod tests {
     fn test_size_empty() {
         let tree: TreapSet<u32> = TreapSet::new();
         assert_eq!(tree.size(), 0);
+    }
+
+    #[test]
+    fn test_is_empty() {
+        let tree: TreapSet<u32> = TreapSet::new();
+        assert!(tree.is_empty());
     }
 
     #[test]

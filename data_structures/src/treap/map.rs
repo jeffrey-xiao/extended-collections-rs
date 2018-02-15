@@ -45,7 +45,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// ```
     /// use data_structures::treap::TreapMap;
     ///
-    /// let mut t: TreapMap<u32, u32> = TreapMap::new();
+    /// let t: TreapMap<u32, u32> = TreapMap::new();
     /// ```
     pub fn new() -> Self {
         TreapMap {
@@ -55,7 +55,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         }
     }
 
-    /// Inserts a key-value pair into the treap. If the key already exists in the treap, it will
+    /// Inserts a key-value pair into the map. If the key already exists in the map, it will
     /// return and replace the old key-value pair.
     ///
     /// # Examples
@@ -85,7 +85,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         }
     }
 
-    /// Removes a key-value pair from the treap. If the key exists in the treap, it will return
+    /// Removes a key-value pair from the map. If the key exists in the map, it will return
     /// the associated key-value pair. Otherwise it will return `None`.
     ///
     /// # Examples
@@ -106,7 +106,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         })
     }
 
-    /// Checks if a key exists in the treap.
+    /// Checks if a key exists in the map.
     ///
     /// # Examples
     /// ```
@@ -123,7 +123,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     }
 
     /// Returns an immutable reference to the value associated with a particular key. It will
-    /// return `None` if the key does not exist in the treap.
+    /// return `None` if the key does not exist in the map.
     ///
     /// # Examples
     /// ```
@@ -156,7 +156,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         tree::get_mut(tree, key).map(|entry| &mut entry.value)
     }
 
-    /// Returns the size of the treap.
+    /// Returns the size of the map.
     ///
     /// # Examples
     /// ```
@@ -171,8 +171,37 @@ impl<T: Ord, U> TreapMap<T, U> {
         *size
     }
 
+    /// Returns `true` if the map is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let t: TreapMap<u32, u32> = TreapMap::new();
+    /// assert!(t.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
 
-    /// Returns a key in the treap that is greater than or equal to a particular key. Returns
+    /// Clears the map, removing all values.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut t = TreapMap::new();
+    /// t.insert(1, 1);
+    /// t.insert(2, 2);
+    /// t.clear();
+    /// assert_eq!(t.is_empty(), true);
+    /// ```
+    pub fn clear(&mut self) {
+        self.tree = None;
+        self.size = 0;
+    }
+
+    /// Returns a key in the map that is greater than or equal to a particular key. Returns
     /// `None` if such a key does not exist.
     ///
     /// # Examples
@@ -190,7 +219,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     }
 
 
-    /// Returns a key in the treap that is less than or equal to a particular key. Returns
+    /// Returns a key in the map that is less than or equal to a particular key. Returns
     /// `None` if such a key does not exist.
     ///
     /// # Examples
@@ -207,7 +236,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         tree::floor(tree, key).map(|entry| &entry.key)
     }
 
-    /// Returns the minimum key of the treap. Returns `None` if the treap is empty.
+    /// Returns the minimum key of the map. Returns `None` if the treap is empty.
     ///
     /// # Examples
     /// ```
@@ -223,7 +252,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         tree::min(tree).map(|entry| &entry.key)
     }
 
-    /// Returns the maximum key of the treap. Returns `None` if the treap is empty.
+    /// Returns the maximum key of the map. Returns `None` if the treap is empty.
     ///
     /// # Examples
     /// ```
@@ -239,9 +268,9 @@ impl<T: Ord, U> TreapMap<T, U> {
         tree::max(tree).map(|entry| &entry.key)
     }
 
-    /// Returns the union of two treaps. If there is a key that is found in both `left` and
+    /// Returns the union of two maps. If there is a key that is found in both `left` and
     /// `right`, the union will contain the value associated with the key in `left`. The `+`
-    /// operator is implemented to take the union of two treaps.
+    /// operator is implemented to take the union of two maps.
     ///
     /// # Examples
     /// ```
@@ -268,8 +297,8 @@ impl<T: Ord, U> TreapMap<T, U> {
         TreapMap { tree, rng, size: left_size + right_size - dups }
     }
 
-    /// Returns the intersection of two treaps. If there is a key that is found in both `left` and
-    /// `right`, the union will contain the value associated with the key in `left`.
+    /// Returns the intersection of two maps. If there is a key that is found in both `left` and
+    /// `right`, the intersection will contain the value associated with the key in `left`.
     ///
     /// # Examples
     /// ```
@@ -296,9 +325,9 @@ impl<T: Ord, U> TreapMap<T, U> {
         TreapMap { tree, rng, size: dups }
     }
 
-    /// Returns `left` subtracted by `right`. The returned treap will contain all entries that do
+    /// Returns `left` subtracted by `right`. The returned map will contain all entries that do
     /// not have a key in `right`. The `-` operator is implemented to take the difference of two
-    /// treaps.
+    /// maps.
     ///
     /// # Examples
     /// ```
@@ -325,7 +354,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         TreapMap { tree, rng, size: size - dups }
     }
 
-    /// Returns an iterator over the treap. The iterator will yield key-value pairs using in-order
+    /// Returns an iterator over the map. The iterator will yield key-value pairs using in-order
     /// traversal.
     ///
     /// # Examples
@@ -334,22 +363,22 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
-    /// t.insert(3, 3);
+    /// t.insert(2, 2);
     ///
     /// let mut iterator = t.iter();
     /// assert_eq!(iterator.next(), Some((&1, &1)));
-    /// assert_eq!(iterator.next(), Some((&3, &3)));
+    /// assert_eq!(iterator.next(), Some((&2, &2)));
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter(&self) -> TreapMapIter<T, U> {
-        let &TreapMap { ref tree, .. } = self;
+        let TreapMap { ref tree, .. } = *self;
         TreapMapIter {
             current: tree,
             stack: Vec::new(),
         }
     }
 
-    /// Returns a mutable iterator over the treap. The iterator will yield key-value pairs using
+    /// Returns a mutable iterator over the map. The iterator will yield key-value pairs using
     /// in-order traversal.
     ///
     /// # Examples
@@ -358,7 +387,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
-    /// t.insert(3, 3);
+    /// t.insert(2, 2);
     ///
     /// for (key, value) in &mut t {
     ///   *value += 1;
@@ -366,7 +395,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// let mut iterator = t.iter_mut();
     /// assert_eq!(iterator.next(), Some((&1, &mut 2)));
-    /// assert_eq!(iterator.next(), Some((&3, &mut 4)));
+    /// assert_eq!(iterator.next(), Some((&2, &mut 3)));
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter_mut(&mut self) -> TreapMapIterMut<T, U> {
@@ -411,7 +440,7 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut TreapMap<T, U> {
 
 /// An owning iterator for `TreapMap<T, U>`
 ///
-/// This iterator traverses the elements of a treap in-order and yields owned entries.
+/// This iterator traverses the elements of a map in-order and yields owned entries.
 pub struct TreapMapIntoIter<T: Ord, U> {
     current: tree::Tree<T, U>,
     stack: Vec<Node<T, U>>,
@@ -439,7 +468,7 @@ impl<T: Ord, U> Iterator for TreapMapIntoIter<T, U> {
 
 /// An iterator for `TreapMap<T, U>`
 ///
-/// This iterator traverses the elements of a treap in-order and yields immutable references.
+/// This iterator traverses the elements of a map in-order and yields immutable references.
 pub struct TreapMapIter<'a, T: 'a + Ord, U: 'a> {
     current: &'a tree::Tree<T, U>,
     stack: Vec<&'a Node<T, U>>,
@@ -468,7 +497,7 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIter<'a, T, U> {
 
 /// A mutable iterator for `TreapMap<T, U>`
 ///
-/// This iterator traverses the elements of a treap in-order and yields mutable references.
+/// This iterator traverses the elements of a map in-order and yields mutable references.
 pub struct TreapMapIterMut<'a, T: 'a + Ord, U: 'a> {
     current: Option<&'a mut Node<T, U>>,
     stack: Vec<Option<(&'a mut Entry<T, U>, Option<&'a mut Node<T, U>>)>>,
@@ -529,6 +558,12 @@ mod tests {
     fn test_size_empty() {
         let tree: TreapMap<u32, u32> = TreapMap::new();
         assert_eq!(tree.size(), 0);
+    }
+
+    #[test]
+    fn test_is_empty() {
+        let tree: TreapMap<u32, u32> = TreapMap::new();
+        assert!(tree.is_empty());
     }
 
     #[test]

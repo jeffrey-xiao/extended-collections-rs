@@ -25,17 +25,18 @@ impl<T> ImplicitNode<T> {
 
     pub fn update(&mut self) {
         let ImplicitNode { ref mut size, ref left, ref right, .. } = *self;
-        if let Some(left_node) = *left {
+        *size = 1;
+        if let Some(ref left_node) = *left {
             *size += left_node.size();
         }
-        if let Some(right_node) = *right {
+        if let Some(ref right_node) = *right {
             *size += right_node.size();
         }
     }
 
     pub fn get_implicit_key(&self) -> usize {
         match self.left {
-            Some(left_node) => left_node.size() + 1,
+            Some(ref left_node) => left_node.size() + 1,
             None => 1
         }
     }

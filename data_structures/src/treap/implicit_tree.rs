@@ -26,7 +26,8 @@ pub fn merge<T>(l_tree: &mut Tree<T>, r_tree: Tree<T>) {
 pub fn split<T>(tree: &mut Tree<T>, index: usize, left_inclusive: bool) -> Tree<T> {
     match tree.take() {
         Some(mut node) => {
-            let cmp = index.cmp(&node.get_implicit_key());
+            let key = node.get_implicit_key();
+            let cmp = index.cmp(&key);
             let ret;
             if cmp == Ordering::Less || (cmp == Ordering::Equal && left_inclusive) {
                 let mut res = split(&mut node.left, index, left_inclusive);
@@ -35,8 +36,7 @@ pub fn split<T>(tree: &mut Tree<T>, index: usize, left_inclusive: bool) -> Tree<
                 node.update();
                 ret = Some(node);
             } else {
-                let next_index = index - node.get_implicit_key();
-                ret = split(&mut node.right, next_index, left_inclusive);
+                ret = split(&mut node.right, index - key, left_inclusive);
                 node.update();
                 *tree = Some(node);
             }
@@ -47,24 +47,30 @@ pub fn split<T>(tree: &mut Tree<T>, index: usize, left_inclusive: bool) -> Tree<
 }
 
 pub fn insert<T>(tree: &mut Tree<T>, index: usize, new_node: ImplicitNode<T>)  {
+    assert!(1 <= index && index <= size(tree) + 1);
     let right = split(tree, index, true);
     merge(tree, Some(Box::new(new_node)));
     merge(tree, right);
 }
 
 pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
+    assert!(1 <= index && index <= size(tree));
     let new_tree = {
         let node = tree.as_mut().unwrap();
         let key = node.get_implicit_key();
-        let &mut ImplicitNode { ref mut left, ref mut right, .. } = &mut **node;
         match index.cmp(&key) {
             Ordering::Less => {
-                return remove(left, index);
+                let ret = remove(&mut node.left, index);
+                node.update();
+                return ret;
             },
             Ordering::Greater => {
-                return remove(right, index);
+                let ret = remove(&mut node.right, index - key);
+                node.update();
+                return ret;
             },
             Ordering::Equal => {
+                let &mut ImplicitNode { ref mut left, ref mut right, .. } = &mut **node;
                 merge(left, right.take());
                 left.take()
             }
@@ -73,24 +79,26 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
     mem::replace(tree, new_tree).unwrap().value
 }
 
-pub fn get<'a, T>(tree: &'a Tree<T>, index: usize) -> &'a T {
-    let node = tree.as_ref().unwrap();
-    let key = node.get_implicit_key();
-    match index.cmp(&key) {
-        Ordering::Less => get(&node.left, index),
-        Ordering::Greater => get(&node.right, index - key),
-        Ordering::Equal => &node.value,
-    }
+pub fn get<'a, T>(tree: &'a Tree<T>, index: usize) -> Option<&'a T> {
+    tree.as_ref().and_then(|node| {
+        let key = node.get_implicit_key();
+        match index.cmp(&key) {
+            Ordering::Less => get(&node.left, index),
+            Ordering::Greater => get(&node.right, index - key),
+            Ordering::Equal => Some(&node.value),
+        }
+    })
 }
 
-pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, index: usize) -> &'a mut T {
-    let node = tree.as_mut().unwrap();
-    let key = node.get_implicit_key();
-    match index.cmp(&key) {
-        Ordering::Less => get_mut(&mut node.left, index),
-        Ordering::Greater => get_mut(&mut node.right, index - key),
-        Ordering::Equal => &mut node.value,
-    }
+pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, index: usize) -> Option<&'a mut T> {
+    tree.as_mut().and_then(|node| {
+        let key = node.get_implicit_key();
+        match index.cmp(&key) {
+            Ordering::Less => get_mut(&mut node.left, index),
+            Ordering::Greater => get_mut(&mut node.right, index - key),
+            Ordering::Equal => Some(&mut node.value),
+        }
+    })
 }
 
 pub fn size<T>(tree: &Tree<T>) -> usize {
