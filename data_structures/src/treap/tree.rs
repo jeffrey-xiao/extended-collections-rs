@@ -3,15 +3,9 @@ use std::mem;
 use treap::node::Node;
 use treap::entry::{Entry};
 
-pub type Tree<T> = Option<Box<Node<T>>>;
+pub type Tree<T, U> = Option<Box<Node<T, U>>>;
 
-enum RemovalCases {
-    RemoveNode,
-    RotateLeft,
-    RotateRight,
-}
-
-pub fn merge<T: Entry>(l_tree: &mut Tree<T>, r_tree: Tree<T>) {
+pub fn merge<T: Ord, U>(l_tree: &mut Tree<T, U>, r_tree: Tree<T, U>) {
     match (l_tree.take(), r_tree) {
         (Some(mut l_node), Some(mut r_node)) => {
             if l_node.priority > r_node.priority {
@@ -28,11 +22,11 @@ pub fn merge<T: Entry>(l_tree: &mut Tree<T>, r_tree: Tree<T>) {
     }
 }
 
-pub fn split<T: Entry>(tree: &mut Tree<T>, entry: &T::Output) -> (Tree<T>, Tree<T>) {
+pub fn split<T: Ord, U>(tree: &mut Tree<T, U>, entry: &T) -> (Tree<T, U>, Tree<T, U>) {
     match tree.take() {
         Some(mut node) => {
             let mut ret;
-            match entry.cmp(node.entry.get_key()) {
+            match entry.cmp(&node.entry.key) {
                 Ordering::Less => {
                     let mut res = split(&mut node.left, entry);
                     *tree = node.left.take();
@@ -55,87 +49,64 @@ pub fn split<T: Entry>(tree: &mut Tree<T>, entry: &T::Output) -> (Tree<T>, Tree<
     }
 }
 
-pub fn insert<T: Entry>(tree: &mut Tree<T>, new_node: Node<T>) -> Option<T> {
+pub fn insert<T: Ord, U>(tree: &mut Tree<T, U>, mut new_node: Node<T, U>) -> Option<Entry<T, U>> {
     match *tree {
         Some(ref mut node) => {
-            let ret;
-            match new_node.entry.get_key().cmp(node.entry.get_key()) {
-                Ordering::Less => {
-                    ret = insert(&mut node.left, new_node);
-                    if node.is_heap_property_violated(&node.left) {
-                        node.rotate_right();
-                    }
-                },
-                Ordering::Greater => {
-                    ret = insert(&mut node.right, new_node);
-                    if node.is_heap_property_violated(&node.right) {
-                        node.rotate_left();
-                    }
-                },
-                Ordering::Equal => {
-                    let &mut Node { ref mut entry, .. } = &mut **node;
-                    ret = Some(mem::replace(entry, new_node.entry));
-                },
+            if new_node.priority <= node.priority {
+                match new_node.entry.key.cmp(&node.entry.key) {
+                    Ordering::Less => {
+                        return insert(&mut node.left, new_node);
+                    },
+                    Ordering::Greater => {
+                        return insert(&mut node.right, new_node);
+                    },
+                    Ordering::Equal => {
+                        let &mut Node { ref mut entry, .. } = &mut **node;
+                        return Some(mem::replace(entry, new_node.entry));
+                    },
+                }
             }
-            ret
         }
         None => {
             *tree = Some(Box::new(new_node));
-            None
+            return None
         }
     }
+    new_node.left = tree.take();
+    let (dup_opt, right) = split(&mut new_node.left, &new_node.entry.key);
+    new_node.right = right;
+    *tree = Some(Box::new(new_node));
+    dup_opt.map(|node| node.entry)
 }
 
-fn get_removal_rotation_case<T: Entry>(tree: &Tree<T>) -> Option<RemovalCases> {
-    tree.as_ref().and_then(|node| {
-        let Node { ref left, ref right, .. } = **node;
-        match (left, right) {
-            (&Some(ref left_node), &Some(ref right_node)) => {
-                if left_node.priority > right_node.priority {
-                    Some(RemovalCases::RotateRight)
-                } else {
-                    Some(RemovalCases::RotateLeft)
+pub fn remove<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>> {
+    let mut new_tree;
+    match *tree {
+        Some(ref mut node) => {
+            match key.cmp(&node.entry.key) {
+                Ordering::Less => {
+                    return remove(&mut node.left, key);
+                },
+                Ordering::Greater => {
+                    return remove(&mut node.right, key);
+                },
+                Ordering::Equal => {
+                    new_tree = node.left.take();
+                    merge(&mut new_tree, node.right.take());
                 }
-            },
-            (&Some(_), &None) => Some(RemovalCases::RotateRight),
-            (&None, &Some(_)) => Some(RemovalCases::RotateLeft),
-            (&None, &None) => Some(RemovalCases::RemoveNode),
-        }
-    })
-}
-
-fn rotate_down<T: Entry>(tree: &mut Tree<T>) -> Option<T> {
-    get_removal_rotation_case(tree).and_then(|case| {
-        match case {
-            RemovalCases::RotateRight => tree.as_mut().and_then(|node| {
-                node.rotate_right();
-                rotate_down(&mut node.right)
-            }),
-            RemovalCases::RotateLeft => tree.as_mut().and_then(|node| {
-                node.rotate_left();
-                rotate_down(&mut node.left)
-            }),
-            RemovalCases::RemoveNode => tree.take().map(|node| node.entry),
-        }
-    })
-}
-
-pub fn remove<T: Entry>(mut tree: &mut Tree<T>, entry: &T::Output) -> Option<T> {
-    tree.as_mut()
-        .and_then(|node| Some(entry.cmp(node.entry.get_key())))
-        .and_then(|ordering| {
-            match ordering {
-                Ordering::Less => tree.as_mut().and_then(|node| remove(&mut node.left, entry)),
-                Ordering::Greater => tree.as_mut().and_then(|node| remove(&mut node.right, entry)),
-                Ordering::Equal => rotate_down(&mut tree),
             }
-        })
+        }
+        None => {
+            return None;
+        }
+    }
+    mem::replace(tree, new_tree).map(|node| node.entry)
 }
 
-pub fn contains<T: Entry>(tree: &Tree<T>, entry: &T::Output) -> bool {
+pub fn contains<T: Ord, U>(tree: &Tree<T, U>, entry: &T) -> bool {
     match *tree {
         Some(ref node) => {
-            match entry.cmp(node.entry.get_key()) {
+            match entry.cmp(&node.entry.key) {
                 Ordering::Less => contains(&node.left, entry),
                 Ordering::Greater => contains(&node.right, entry),
                 Ordering::Equal => true,
@@ -145,9 +116,9 @@ pub fn contains<T: Entry>(tree: &Tree<T>, entry: &T::Output) -> bool {
     }
 }
 
-pub fn get<'a, T: Entry>(tree: &'a Tree<T>, entry: &T::Output) -> Option<&'a T> {
+pub fn get<'a, T: Ord, U>(tree: &'a Tree<T, U>, entry: &T) -> Option<&'a Entry<T, U>> {
     tree.as_ref().and_then(|node| {
-        match entry.cmp(node.entry.get_key()) {
+        match entry.cmp(&node.entry.key) {
             Ordering::Less => get(&node.left, entry),
             Ordering::Greater => get(&node.right, entry),
             Ordering::Equal => Some(&node.entry),
@@ -155,9 +126,9 @@ pub fn get<'a, T: Entry>(tree: &'a Tree<T>, entry: &T::Output) -> Option<&'a T> 
     })
 }
 
-pub fn get_mut<'a, T: Entry>(tree: &'a mut Tree<T>, entry: &T::Output) -> Option<&'a mut T> {
+pub fn get_mut<'a, T: Ord, U>(tree: &'a mut Tree<T, U>, entry: &T) -> Option<&'a mut Entry<T, U>> {
     tree.as_mut().and_then(|node| {
-        match entry.cmp(node.entry.get_key()) {
+        match entry.cmp(&node.entry.key) {
             Ordering::Less => get_mut(&mut node.left, entry),
             Ordering::Greater => get_mut(&mut node.right, entry),
             Ordering::Equal => Some(&mut node.entry),
@@ -165,9 +136,9 @@ pub fn get_mut<'a, T: Entry>(tree: &'a mut Tree<T>, entry: &T::Output) -> Option
     })
 }
 
-pub fn ceil<'a, T: Entry>(tree: &'a Tree<T>, entry: &T::Output) -> Option<&'a T> {
+pub fn ceil<'a, T: Ord, U>(tree: &'a Tree<T, U>, entry: &T) -> Option<&'a Entry<T, U>> {
     tree.as_ref().and_then(|node| {
-        match entry.cmp(node.entry.get_key()) {
+        match entry.cmp(&node.entry.key) {
             Ordering::Greater => ceil(&node.right, entry),
             Ordering::Less => {
                 match ceil(&node.left, entry) {
@@ -180,9 +151,9 @@ pub fn ceil<'a, T: Entry>(tree: &'a Tree<T>, entry: &T::Output) -> Option<&'a T>
     })
 }
 
-pub fn floor<'a, T: Entry>(tree: &'a Tree<T>, entry: &T::Output) -> Option<&'a T> {
+pub fn floor<'a, T: Ord, U>(tree: &'a Tree<T, U>, entry: &T) -> Option<&'a Entry<T, U>> {
     tree.as_ref().and_then(|node| {
-        match entry.cmp(node.entry.get_key()) {
+        match entry.cmp(&node.entry.key) {
             Ordering::Less => floor(&node.left, entry),
             Ordering::Greater => {
                 match floor(&node.right, entry) {
@@ -195,7 +166,7 @@ pub fn floor<'a, T: Entry>(tree: &'a Tree<T>, entry: &T::Output) -> Option<&'a T
     })
 }
 
-pub fn min<T: Entry>(tree: &Tree<T>) -> Option<&T> {
+pub fn min<T: Ord, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>> {
     tree.as_ref().and_then(|node| {
         let mut curr = node;
         while let Some(ref left_node) = curr.left {
@@ -205,7 +176,7 @@ pub fn min<T: Entry>(tree: &Tree<T>) -> Option<&T> {
     })
 }
 
-pub fn max<T: Entry>(tree: &Tree<T>) -> Option<&T> {
+pub fn max<T: Ord, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>> {
     tree.as_ref().and_then(|node| {
         let mut curr = node;
         while let Some(ref right_node) = curr.right {
@@ -215,7 +186,7 @@ pub fn max<T: Entry>(tree: &Tree<T>) -> Option<&T> {
     })
 }
 
-pub fn union<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: bool) -> (Tree<T>, usize) {
+pub fn union<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {
             if left_node.priority < right_node.priority {
@@ -231,7 +202,7 @@ pub fn union<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: boo
                     ..
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
-                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, entry.get_key());
+                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
                 let (new_left_subtree, left_dups) = union(left_subtree.take(), right_left_subtree, swapped);
                 let (new_right_subtree, right_dups) = union(right_subtree.take(), right_right_subtree, swapped);
                 dups += left_dups + right_dups;
@@ -251,7 +222,7 @@ pub fn union<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: boo
     }
 }
 
-pub fn inter<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: bool) -> (Tree<T>, usize) {
+pub fn inter<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
     if let (Some(mut left_node), Some(mut right_node)) = (left_tree, right_tree) {
         let mut dups = 0;
         {
@@ -266,7 +237,7 @@ pub fn inter<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: boo
                 ..
             } = &mut *left_node;
             let mut right_left_subtree = Some(right_node);
-            let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, entry.get_key());
+            let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
             let (new_left_subtree, left_dups) = inter(left_subtree.take(), right_left_subtree, swapped);
             let (new_right_subtree, right_dups) = inter(right_subtree.take(), right_right_subtree, swapped);
             dups += left_dups + right_dups;
@@ -291,7 +262,7 @@ pub fn inter<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: boo
     }
 }
 
-pub fn subtract<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: bool) -> (Tree<T>, usize) {
+pub fn subtract<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {
             let mut dups = 0;
@@ -307,7 +278,7 @@ pub fn subtract<T: Entry>(left_tree: Tree<T>, right_tree: Tree<T>, mut swapped: 
                     ..
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
-                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, entry.get_key());
+                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
                 let (new_left_subtree, left_dups) = subtract(left_subtree.take(), right_left_subtree, swapped);
                 let (new_right_subtree, right_dups) = subtract(right_subtree.take(), right_right_subtree, swapped);
                 dups += left_dups + right_dups;

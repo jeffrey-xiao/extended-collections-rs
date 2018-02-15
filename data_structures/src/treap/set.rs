@@ -1,9 +1,5 @@
-use rand::Rng;
-use rand::XorShiftRng;
 use std::ops::{Add, Sub};
-use treap::entry::{SetEntry};
-use treap::node::Node;
-use treap::tree;
+use treap::map::{TreapMap, TreapMapIntoIter, TreapMapIter};
 
 /// An ordered set implemented by a treap.
 ///
@@ -30,9 +26,7 @@ use treap::tree;
 /// assert_eq!(t.remove(&1), None);
 /// ```
 pub struct TreapSet<T: Ord> {
-    root: tree::Tree<SetEntry<T>>,
-    rng: XorShiftRng,
-    size: usize,
+    map: TreapMap<T, ()>,
 }
 
 impl<T: Ord> TreapSet<T> {
@@ -46,9 +40,7 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     pub fn new() -> Self {
         TreapSet {
-            root: None,
-            rng: XorShiftRng::new_unseeded(),
-            size: 0,
+            map: TreapMap::new(),
         }
     }
 
@@ -65,20 +57,7 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(t.insert(1), Some(1));
     /// ```
     pub fn insert(&mut self, key: T) -> Option<T> {
-        let &mut TreapSet { ref mut root, ref mut rng, ref mut size } = self;
-        let new_node = Node {
-            entry: SetEntry(key),
-            priority: rng.next_u32(),
-            left: None,
-            right: None,
-        };
-        match tree::insert(root, new_node) {
-            Some(SetEntry(key)) => Some(key),
-            None => {
-                *size += 1;
-                None
-            },
-        }
+        self.map.insert(key, ()).map(|pair| pair.0)
     }
 
     /// Removes a key from the treap. If the key exists in the treap, it will return
@@ -94,11 +73,7 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(t.remove(&1), None);
     /// ```
     pub fn remove(&mut self, key: &T) -> Option<T> {
-        let &mut TreapSet { ref mut root, ref mut size, .. } = self;
-        tree::remove(root, key).and_then(|entry| {
-            *size -= 1;
-            Some(entry.0)
-        })
+        self.map.remove(key).map(|pair| pair.0)
     }
 
     /// Checks if a key exists in the treap.
@@ -113,8 +88,7 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(t.contains(&1), true);
     /// ```
     pub fn contains(&self, key: &T) -> bool {
-        let &TreapSet { ref root, .. } = self;
-        tree::contains(root, key)
+        self.map.contains(key)
     }
 
     /// Returns the size of the treap.
@@ -128,8 +102,7 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(t.size(), 1);
     /// ```
     pub fn size(&self) -> usize {
-        let &TreapSet { ref size, .. } = self;
-        *size
+        self.map.size()
     }
 
 
@@ -146,8 +119,7 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(t.ceil(&2), None);
     /// ```
     pub fn ceil(&self, key: &T) -> Option<&T> {
-        let &TreapSet { ref root, .. } = self;
-        tree::ceil(root, key).map(|entry| &entry.0)
+        self.map.ceil(key)
     }
 
 
@@ -164,8 +136,7 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(t.floor(&2), Some(&1));
     /// ```
     pub fn floor(&self, key: &T) -> Option<&T> {
-        let &TreapSet { ref root, .. } = self;
-        tree::floor(root, key).map(|entry| &entry.0)
+        self.map.floor(key)
     }
 
     /// Returns the minimum key of the treap. Returns `None` if the treap is empty.
@@ -180,8 +151,7 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(t.min(), Some(&1));
     /// ```
     pub fn min(&self) -> Option<&T> {
-        let &TreapSet { ref root, .. } = self;
-        tree::min(root).map(|entry| &entry.0)
+        self.map.min()
     }
 
     /// Returns the maximum key of the treap. Returns `None` if the treap is empty.
@@ -196,8 +166,7 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(t.max(), Some(&3));
     /// ```
     pub fn max(&self) -> Option<&T> {
-        let &TreapSet { ref root, .. } = self;
-        tree::max(root).map(|entry| &entry.0)
+        self.map.max()
     }
 
     /// Returns the union of two treaps. The `+` operator is implemented to take the union of two
@@ -222,10 +191,9 @@ impl<T: Ord> TreapSet<T> {
     /// );
     /// ```
     pub fn union(left: Self, right: Self) -> Self {
-        let TreapSet { root: left_tree, rng, size: left_size } = left;
-        let TreapSet { root: right_tree, size: right_size, .. } = right;
-        let (root, dups) = tree::union(left_tree, right_tree, false);
-        TreapSet { root, rng, size: left_size + right_size - dups }
+        TreapSet {
+            map: TreapMap::union(left.map, right.map)
+        }
     }
 
     /// Returns the intersection of two treaps.
@@ -249,10 +217,9 @@ impl<T: Ord> TreapSet<T> {
     /// );
     /// ```
     pub fn inter(left: Self, right: Self) -> Self {
-        let TreapSet { root: left_tree, rng, .. } = left;
-        let TreapSet { root: right_tree, .. } = right;
-        let (root, dups) = tree::inter(left_tree, right_tree, false);
-        TreapSet { root, rng, size: dups }
+        TreapSet {
+            map: TreapMap::inter(left.map, right.map)
+        }
     }
 
     /// Returns `left` subtracted by `right`. The `-` operator is implemented to take the
@@ -277,10 +244,9 @@ impl<T: Ord> TreapSet<T> {
     /// );
     /// ```
     pub fn subtract(left: Self, right: Self) -> Self {
-        let TreapSet { root: left_tree, rng, size } = left;
-        let TreapSet { root: right_tree, .. } = right;
-        let (root, dups) = tree::subtract(left_tree, right_tree, false);
-        TreapSet { root, rng, size: size - dups }
+        TreapSet {
+            map: TreapMap::sub(left.map, right.map)
+        }
     }
 
     /// Returns an iterator over the treap. The iterator will yield key-value pairs using in-order
@@ -300,10 +266,8 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter(&self) -> TreapSetIter<T> {
-        let &TreapSet { ref root, .. } = self;
         TreapSetIter {
-            current: root,
-            stack: Vec::new(),
+            map_iter: self.map.iter(),
         }
     }
 }
@@ -313,10 +277,8 @@ impl<T: Ord> IntoIterator for TreapSet<T> {
     type IntoIter = TreapSetIntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let TreapSet { root, .. } = self;
         TreapSetIntoIter {
-            current: root,
-            stack: Vec::new(),
+            map_iter: self.map.into_iter(),
         }
     }
 }
@@ -332,29 +294,16 @@ impl<'a, T: 'a + Ord> IntoIterator for &'a TreapSet<T> {
 
 /// An owning iterator for `TreapSet<T>`
 ///
-/// This iterator traverses the elements of a treap in-order and yields immutable references.
+/// This iterator traverses the elements of a treap in-order and yields owned keys.
 pub struct TreapSetIntoIter<T: Ord> {
-    current: tree::Tree<SetEntry<T>>,
-    stack: Vec<Node<SetEntry<T>>>,
+    map_iter: TreapMapIntoIter<T, ()>,
 }
 
 impl<T: Ord> Iterator for TreapSetIntoIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(mut node) = self.current.take() {
-            self.current = node.left.take();
-            self.stack.push(*node);
-        }
-        self.stack.pop().map(|node| {
-            let Node {
-                entry: SetEntry(key),
-                right,
-                ..
-            } = node;
-            self.current = right;
-            key
-        })
+        self.map_iter.next().map(|pair| pair.0)
     }
 }
 
@@ -362,27 +311,14 @@ impl<T: Ord> Iterator for TreapSetIntoIter<T> {
 ///
 /// This iterator traverses the elements of a treap in-order and yields immutable references.
 pub struct TreapSetIter<'a, T: 'a + Ord> {
-    current: &'a tree::Tree<SetEntry<T>>,
-    stack: Vec<&'a Node<SetEntry<T>>>,
+    map_iter: TreapMapIter<'a, T, ()>,
 }
 
 impl<'a, T: 'a + Ord> Iterator for TreapSetIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(ref node) = *self.current {
-            self.current = &node.left;
-            self.stack.push(node);
-        }
-        self.stack.pop().map(|node| {
-            let &Node {
-                entry: SetEntry(ref key),
-                ref right,
-                ..
-            } = node;
-            self.current = right;
-            key
-        })
+        self.map_iter.next().map(|pair| pair.0)
     }
 }
 

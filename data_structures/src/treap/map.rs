@@ -1,7 +1,7 @@
 use rand::Rng;
 use rand::XorShiftRng;
 use std::ops::{Add, Sub};
-use treap::entry::{MapEntry};
+use treap::entry::{Entry};
 use treap::node::Node;
 use treap::tree;
 
@@ -33,7 +33,7 @@ use treap::tree;
 /// assert_eq!(t.remove(&1), None);
 /// ```
 pub struct TreapMap<T: Ord, U> {
-    root: tree::Tree<MapEntry<T, U>>,
+    root: tree::Tree<T, U>,
     rng: XorShiftRng,
     size: usize,
 }
@@ -71,13 +71,13 @@ impl<T: Ord, U> TreapMap<T, U> {
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
         let &mut TreapMap { ref mut root, ref mut rng, ref mut size } = self;
         let new_node = Node {
-            entry: MapEntry { key, value },
+            entry: Entry { key, value },
             priority: rng.next_u32(),
             left: None,
             right: None,
         };
         match tree::insert(root, new_node) {
-            Some(MapEntry { key, value }) => Some((key, value)),
+            Some(Entry { key, value }) => Some((key, value)),
             None => {
                 *size += 1;
                 None
@@ -101,7 +101,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         let &mut TreapMap { ref mut root, ref mut size, .. } = self;
         tree::remove(root, key).and_then(|entry| {
             *size -= 1;
-            let MapEntry { key, value } = entry;
+            let Entry { key, value } = entry;
             Some((key, value))
         })
     }
@@ -411,10 +411,10 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut TreapMap<T, U> {
 
 /// An owning iterator for `TreapMap<T, U>`
 ///
-/// This iterator traverses the elements of a treap in-order and yields immutable references.
+/// This iterator traverses the elements of a treap in-order and yields owned entries.
 pub struct TreapMapIntoIter<T: Ord, U> {
-    current: tree::Tree<MapEntry<T, U>>,
-    stack: Vec<Node<MapEntry<T, U>>>,
+    current: tree::Tree<T, U>,
+    stack: Vec<Node<T, U>>,
 }
 
 impl<T: Ord, U> Iterator for TreapMapIntoIter<T, U> {
@@ -427,7 +427,7 @@ impl<T: Ord, U> Iterator for TreapMapIntoIter<T, U> {
         }
         self.stack.pop().map(|node| {
             let Node {
-                entry: MapEntry { key, value },
+                entry: Entry { key, value },
                 right,
                 ..
             } = node;
@@ -441,8 +441,8 @@ impl<T: Ord, U> Iterator for TreapMapIntoIter<T, U> {
 ///
 /// This iterator traverses the elements of a treap in-order and yields immutable references.
 pub struct TreapMapIter<'a, T: 'a + Ord, U: 'a> {
-    current: &'a tree::Tree<MapEntry<T, U>>,
-    stack: Vec<&'a Node<MapEntry<T, U>>>,
+    current: &'a tree::Tree<T, U>,
+    stack: Vec<&'a Node<T, U>>,
 }
 
 impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIter<'a, T, U> {
@@ -455,7 +455,7 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIter<'a, T, U> {
         }
         self.stack.pop().map(|node| {
             let &Node {
-                entry: MapEntry { ref key, ref value },
+                entry: Entry { ref key, ref value },
                 ref right,
                 ..
             } = node;
@@ -470,8 +470,8 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIter<'a, T, U> {
 ///
 /// This iterator traverses the elements of a treap in-order and yields mutable references.
 pub struct TreapMapIterMut<'a, T: 'a + Ord, U: 'a> {
-    current: Option<&'a mut Node<MapEntry<T, U>>>,
-    stack: Vec<Option<(&'a mut MapEntry<T, U>, Option<&'a mut Node<MapEntry<T, U>>>)>>,
+    current: Option<&'a mut Node<T, U>>,
+    stack: Vec<Option<(&'a mut Entry<T, U>, Option<&'a mut Node<T, U>>)>>,
 }
 
 impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIterMut<'a, T, U> {
@@ -489,7 +489,7 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIterMut<'a, T, U> {
             match pair_opt {
                 Some(pair) => {
                     let (entry, right) = pair;
-                    let &mut MapEntry { ref key, ref mut value } = entry;
+                    let &mut Entry { ref key, ref mut value } = entry;
                     *current = right;
                     Some((key, value))
                 },
