@@ -22,7 +22,7 @@ impl RoutingBucket {
     }
 
     fn update_node(&mut self, node_data: NodeData) {
-        *self.last_updating_time = SteadyTime::new();
+        self.last_update_time = SteadyTime::now();
         if let Some(index) = self.nodes.iter().position(|data| *data == node_data) {
             self.nodes.remove(index);
         }

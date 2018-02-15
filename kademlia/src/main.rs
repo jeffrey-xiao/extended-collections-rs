@@ -37,7 +37,7 @@ fn main() {
     };
     CombinedLogger::init(
         vec![
-            TermLogger::new(LevelFilter::Error, logger_config).unwrap(),
+            TermLogger::new(LevelFilter::Info, logger_config).unwrap(),
         ],
     ).unwrap();
 
