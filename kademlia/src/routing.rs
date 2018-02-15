@@ -10,18 +10,19 @@ use key::Key;
 #[derive(Clone, Debug)]
 struct RoutingBucket {
     nodes: Vec<NodeData>,
-    last_access_time: SteadyTime,
+    last_update_time: SteadyTime,
 }
 
 impl RoutingBucket {
     fn new() -> Self {
         RoutingBucket {
             nodes: Vec::new(),
-            last_access_time: SteadyTime::now(),
+            last_update_time: SteadyTime::now(),
         }
     }
 
     fn update_node(&mut self, node_data: NodeData) {
+        *self.last_updating_time = SteadyTime::new();
         if let Some(index) = self.nodes.iter().position(|data| *data == node_data) {
             self.nodes.remove(index);
         }
@@ -42,7 +43,7 @@ impl RoutingBucket {
         mem::replace(&mut self.nodes, old_bucket);
         RoutingBucket {
             nodes: new_bucket,
-            last_access_time: self.last_access_time,
+            last_update_time: self.last_update_time,
         }
     }
 
@@ -67,7 +68,7 @@ impl RoutingBucket {
     }
 
     pub fn is_stale(&self) -> bool {
-        return SteadyTime::now() - self.last_access_time > Duration::seconds(BUCKET_REFRESH_INTERVAL as i64);
+        return SteadyTime::now() - self.last_update_time > Duration::seconds(BUCKET_REFRESH_INTERVAL as i64);
     }
 
     pub fn size(&self) -> usize {
