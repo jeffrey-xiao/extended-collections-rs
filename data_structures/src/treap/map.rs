@@ -33,7 +33,7 @@ use treap::tree;
 /// assert_eq!(t.remove(&1), None);
 /// ```
 pub struct TreapMap<T: Ord, U> {
-    root: tree::Tree<T, U>,
+    tree: tree::Tree<T, U>,
     rng: XorShiftRng,
     size: usize,
 }
@@ -49,7 +49,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// ```
     pub fn new() -> Self {
         TreapMap {
-            root: None,
+            tree: None,
             rng: XorShiftRng::new_unseeded(),
             size: 0,
         }
@@ -69,14 +69,14 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.get(&1), Some(&2));
     /// ```
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
-        let &mut TreapMap { ref mut root, ref mut rng, ref mut size } = self;
+        let &mut TreapMap { ref mut tree, ref mut rng, ref mut size } = self;
         let new_node = Node {
             entry: Entry { key, value },
             priority: rng.next_u32(),
             left: None,
             right: None,
         };
-        match tree::insert(root, new_node) {
+        match tree::insert(tree, new_node) {
             Some(Entry { key, value }) => Some((key, value)),
             None => {
                 *size += 1;
@@ -98,8 +98,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.remove(&1), None);
     /// ```
     pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
-        let &mut TreapMap { ref mut root, ref mut size, .. } = self;
-        tree::remove(root, key).and_then(|entry| {
+        let &mut TreapMap { ref mut tree, ref mut size, .. } = self;
+        tree::remove(tree, key).and_then(|entry| {
             *size -= 1;
             let Entry { key, value } = entry;
             Some((key, value))
@@ -118,8 +118,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.contains(&1), true);
     /// ```
     pub fn contains(&self, key: &T) -> bool {
-        let &TreapMap { ref root, .. } = self;
-        tree::contains(root, key)
+        let &TreapMap { ref tree, .. } = self;
+        tree::contains(tree, key)
     }
 
     /// Returns an immutable reference to the value associated with a particular key. It will
@@ -135,8 +135,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.get(&1), Some(&1));
     /// ```
     pub fn get(&self, key: &T) -> Option<&U> {
-        let &TreapMap { ref root, .. } = self;
-        tree::get(root, key).map(|entry| &entry.value)
+        let &TreapMap { ref tree, .. } = self;
+        tree::get(tree, key).map(|entry| &entry.value)
     }
 
     /// Returns a mutable reference to the value associated with a particular key. Returns `None`
@@ -152,8 +152,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.get(&1), Some(&2));
     /// ```
     pub fn get_mut(&mut self, key: &T) -> Option<&mut U> {
-        let &mut TreapMap { ref mut root, .. } = self;
-        tree::get_mut(root, key).map(|entry| &mut entry.value)
+        let &mut TreapMap { ref mut tree, .. } = self;
+        tree::get_mut(tree, key).map(|entry| &mut entry.value)
     }
 
     /// Returns the size of the treap.
@@ -185,8 +185,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.ceil(&2), None);
     /// ```
     pub fn ceil(&self, key: &T) -> Option<&T> {
-        let &TreapMap { ref root, .. } = self;
-        tree::ceil(root, key).map(|entry| &entry.key)
+        let &TreapMap { ref tree, .. } = self;
+        tree::ceil(tree, key).map(|entry| &entry.key)
     }
 
 
@@ -203,8 +203,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.floor(&2), Some(&1));
     /// ```
     pub fn floor(&self, key: &T) -> Option<&T> {
-        let &TreapMap { ref root, .. } = self;
-        tree::floor(root, key).map(|entry| &entry.key)
+        let &TreapMap { ref tree, .. } = self;
+        tree::floor(tree, key).map(|entry| &entry.key)
     }
 
     /// Returns the minimum key of the treap. Returns `None` if the treap is empty.
@@ -219,8 +219,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.min(), Some(&1));
     /// ```
     pub fn min(&self) -> Option<&T> {
-        let &TreapMap { ref root, .. } = self;
-        tree::min(root).map(|entry| &entry.key)
+        let &TreapMap { ref tree, .. } = self;
+        tree::min(tree).map(|entry| &entry.key)
     }
 
     /// Returns the maximum key of the treap. Returns `None` if the treap is empty.
@@ -235,8 +235,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.max(), Some(&3));
     /// ```
     pub fn max(&self) -> Option<&T> {
-        let &TreapMap { ref root, .. } = self;
-        tree::max(root).map(|entry| &entry.key)
+        let &TreapMap { ref tree, .. } = self;
+        tree::max(tree).map(|entry| &entry.key)
     }
 
     /// Returns the union of two treaps. If there is a key that is found in both `left` and
@@ -262,10 +262,10 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// );
     /// ```
     pub fn union(left: Self, right: Self) -> Self {
-        let TreapMap { root: left_tree, rng, size: left_size } = left;
-        let TreapMap { root: right_tree, size: right_size, .. } = right;
-        let (root, dups) = tree::union(left_tree, right_tree, false);
-        TreapMap { root, rng, size: left_size + right_size - dups }
+        let TreapMap { tree: left_tree, rng, size: left_size } = left;
+        let TreapMap { tree: right_tree, size: right_size, .. } = right;
+        let (tree, dups) = tree::union(left_tree, right_tree, false);
+        TreapMap { tree, rng, size: left_size + right_size - dups }
     }
 
     /// Returns the intersection of two treaps. If there is a key that is found in both `left` and
@@ -290,10 +290,10 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// );
     /// ```
     pub fn inter(left: Self, right: Self) -> Self {
-        let TreapMap { root: left_tree, rng, .. } = left;
-        let TreapMap { root: right_tree, .. } = right;
-        let (root, dups) = tree::inter(left_tree, right_tree, false);
-        TreapMap { root, rng, size: dups }
+        let TreapMap { tree: left_tree, rng, .. } = left;
+        let TreapMap { tree: right_tree, .. } = right;
+        let (tree, dups) = tree::inter(left_tree, right_tree, false);
+        TreapMap { tree, rng, size: dups }
     }
 
     /// Returns `left` subtracted by `right`. The returned treap will contain all entries that do
@@ -319,10 +319,10 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// );
     /// ```
     pub fn subtract(left: Self, right: Self) -> Self {
-        let TreapMap { root: left_tree, rng, size } = left;
-        let TreapMap { root: right_tree, .. } = right;
-        let (root, dups) = tree::subtract(left_tree, right_tree, false);
-        TreapMap { root, rng, size: size - dups }
+        let TreapMap { tree: left_tree, rng, size } = left;
+        let TreapMap { tree: right_tree, .. } = right;
+        let (tree, dups) = tree::subtract(left_tree, right_tree, false);
+        TreapMap { tree, rng, size: size - dups }
     }
 
     /// Returns an iterator over the treap. The iterator will yield key-value pairs using in-order
@@ -342,9 +342,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter(&self) -> TreapMapIter<T, U> {
-        let &TreapMap { ref root, .. } = self;
+        let &TreapMap { ref tree, .. } = self;
         TreapMapIter {
-            current: root,
+            current: tree,
             stack: Vec::new(),
         }
     }
@@ -370,9 +370,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter_mut(&mut self) -> TreapMapIterMut<T, U> {
-        let &mut TreapMap { ref mut root, .. } = self;
+        let &mut TreapMap { ref mut tree, .. } = self;
         TreapMapIterMut {
-            current: root.as_mut().map(|node| &mut **node),
+            current: tree.as_mut().map(|node| &mut **node),
             stack: Vec::new(),
         }
     }
@@ -383,9 +383,9 @@ impl<T: Ord, U> IntoIterator for TreapMap<T, U> {
     type IntoIter = TreapMapIntoIter<T, U>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let TreapMap { root, .. } = self;
+        let TreapMap { tree, .. } = self;
         TreapMapIntoIter {
-            current: root,
+            current: tree,
             stack: Vec::new(),
         }
     }

@@ -22,19 +22,19 @@ pub fn merge<T: Ord, U>(l_tree: &mut Tree<T, U>, r_tree: Tree<T, U>) {
     }
 }
 
-pub fn split<T: Ord, U>(tree: &mut Tree<T, U>, entry: &T) -> (Tree<T, U>, Tree<T, U>) {
+pub fn split<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> (Tree<T, U>, Tree<T, U>) {
     match tree.take() {
         Some(mut node) => {
             let mut ret;
-            match entry.cmp(&node.entry.key) {
+            match key.cmp(&node.entry.key) {
                 Ordering::Less => {
-                    let mut res = split(&mut node.left, entry);
+                    let mut res = split(&mut node.left, key);
                     *tree = node.left.take();
                     node.left = res.1;
                     ret = (res.0, Some(node));
                 },
                 Ordering::Greater => {
-                    ret = split(&mut node.right, entry);
+                    ret = split(&mut node.right, key);
                     *tree = Some(node);
                 },
                 Ordering::Equal => {
@@ -103,12 +103,12 @@ pub fn remove<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>> 
     mem::replace(tree, new_tree).map(|node| node.entry)
 }
 
-pub fn contains<T: Ord, U>(tree: &Tree<T, U>, entry: &T) -> bool {
+pub fn contains<T: Ord, U>(tree: &Tree<T, U>, key: &T) -> bool {
     match *tree {
         Some(ref node) => {
-            match entry.cmp(&node.entry.key) {
-                Ordering::Less => contains(&node.left, entry),
-                Ordering::Greater => contains(&node.right, entry),
+            match key.cmp(&node.entry.key) {
+                Ordering::Less => contains(&node.left, key),
+                Ordering::Greater => contains(&node.right, key),
                 Ordering::Equal => true,
             }
         },
@@ -116,32 +116,32 @@ pub fn contains<T: Ord, U>(tree: &Tree<T, U>, entry: &T) -> bool {
     }
 }
 
-pub fn get<'a, T: Ord, U>(tree: &'a Tree<T, U>, entry: &T) -> Option<&'a Entry<T, U>> {
+pub fn get<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>> {
     tree.as_ref().and_then(|node| {
-        match entry.cmp(&node.entry.key) {
-            Ordering::Less => get(&node.left, entry),
-            Ordering::Greater => get(&node.right, entry),
+        match key.cmp(&node.entry.key) {
+            Ordering::Less => get(&node.left, key),
+            Ordering::Greater => get(&node.right, key),
             Ordering::Equal => Some(&node.entry),
         }
     })
 }
 
-pub fn get_mut<'a, T: Ord, U>(tree: &'a mut Tree<T, U>, entry: &T) -> Option<&'a mut Entry<T, U>> {
+pub fn get_mut<'a, T: Ord, U>(tree: &'a mut Tree<T, U>, key: &T) -> Option<&'a mut Entry<T, U>> {
     tree.as_mut().and_then(|node| {
-        match entry.cmp(&node.entry.key) {
-            Ordering::Less => get_mut(&mut node.left, entry),
-            Ordering::Greater => get_mut(&mut node.right, entry),
+        match key.cmp(&node.entry.key) {
+            Ordering::Less => get_mut(&mut node.left, key),
+            Ordering::Greater => get_mut(&mut node.right, key),
             Ordering::Equal => Some(&mut node.entry),
         }
     })
 }
 
-pub fn ceil<'a, T: Ord, U>(tree: &'a Tree<T, U>, entry: &T) -> Option<&'a Entry<T, U>> {
+pub fn ceil<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>> {
     tree.as_ref().and_then(|node| {
-        match entry.cmp(&node.entry.key) {
-            Ordering::Greater => ceil(&node.right, entry),
+        match key.cmp(&node.entry.key) {
+            Ordering::Greater => ceil(&node.right, key),
             Ordering::Less => {
-                match ceil(&node.left, entry) {
+                match ceil(&node.left, key) {
                     None => Some(&node.entry),
                     res => res
                 }
@@ -151,12 +151,12 @@ pub fn ceil<'a, T: Ord, U>(tree: &'a Tree<T, U>, entry: &T) -> Option<&'a Entry<
     })
 }
 
-pub fn floor<'a, T: Ord, U>(tree: &'a Tree<T, U>, entry: &T) -> Option<&'a Entry<T, U>> {
+pub fn floor<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>> {
     tree.as_ref().and_then(|node| {
-        match entry.cmp(&node.entry.key) {
-            Ordering::Less => floor(&node.left, entry),
+        match key.cmp(&node.entry.key) {
+            Ordering::Less => floor(&node.left, key),
             Ordering::Greater => {
-                match floor(&node.right, entry) {
+                match floor(&node.right, key) {
                     None => Some(&node.entry),
                     res => res
                 }
