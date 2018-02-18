@@ -4,3 +4,4 @@
 extern crate rand;
 
 pub mod treap;
+pub mod arena;
