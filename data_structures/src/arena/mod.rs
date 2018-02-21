@@ -2,7 +2,7 @@ use std::mem;
 use std::ops::{Index, IndexMut};
 use std::vec::Vec;
 
-/// An struct representing an entry to `TypedArena<T>`
+/// A struct representing an entry to `TypedArena<T>`
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Entry {
     chunk_index: usize,
@@ -14,12 +14,13 @@ enum Block<T> {
     Vacant(Option<Entry>),
 }
 
-/// An fast, but limited allocator that only allocates a single type of object. All objects inside
-/// the arena will be destroyed when the typed arena is destroyed. This typed arena also supports
-/// deallocation of objects once they are allocated and yields both mutable and immutable references
-/// to objects. Additionally, the underlying container is simply a `Vec` so the code itself is very
-/// simple and uses no unsafe code. When the typed arena is full, it will allocate another chunk of
-/// objects so no memory is reallocated.
+/// A fast, but limited allocator that only allocates a single type of object.
+///
+/// All objects inside the arena will be destroyed when the typed arena is destroyed. This typed
+/// arena also supports deallocation of objects once they are allocated and yields both mutable and
+/// immutable references to objects. Additionally, the underlying container is simply a `Vec` so
+/// the code itself is very simple and uses no unsafe code. When the typed arena is full, it will
+/// allocate another chunk of objects so no memory is reallocated.
 ///
 /// # Examples
 /// ```
