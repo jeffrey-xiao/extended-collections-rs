@@ -43,6 +43,10 @@ pub struct TypedArena<T> {
 }
 
 impl<T> TypedArena<T> {
+    fn is_valid_entry(&self, entry: &Entry) -> bool {
+        entry.chunk_index < self.chunks.len() && entry.block_index < self.chunks[entry.chunk_index].len()
+    }
+
     /// Constructs a new, empty `TypedArena<T>` with a specific number of objects per chunk.
     ///
     /// # Examples
@@ -109,6 +113,9 @@ impl<T> TypedArena<T> {
 
     /// Deallocates an object in the typed arena and returns the object.
     ///
+    /// # Panics
+    /// Panics if entry corresponds to an invalid or vacant value.
+    ///
     /// # Examples
     /// ```
     /// use data_structures::arena::TypedArena;
@@ -118,9 +125,12 @@ impl<T> TypedArena<T> {
     /// assert_eq!(arena.free(&x), 0);
     /// ```
     pub fn free(&mut self, entry: &Entry) -> T {
+        if !self.is_valid_entry(entry) {
+            panic!("Attempting to free invalid block.");
+        }
         let old_block = mem::replace(&mut self.chunks[entry.chunk_index][entry.block_index], Block::Vacant(self.head.take()));
         match old_block {
-            Block::Vacant(_) => panic!("Attemping to free vacant block"),
+            Block::Vacant(_) => panic!("Attempting to free vacant block."),
             Block::Occupied(value) => {
                 self.size -= 1;
                 self.head = Some(Entry {
@@ -144,6 +154,9 @@ impl<T> TypedArena<T> {
     /// assert_eq!(arena.get(&x), Some(&0));
     /// ```
     pub fn get(&self, entry: &Entry) -> Option<&T> {
+        if !self.is_valid_entry(entry) {
+            return None
+        }
         match self.chunks[entry.chunk_index][entry.block_index] {
             Block::Occupied(ref value) => Some(value),
             Block::Vacant(_) => None,
@@ -162,6 +175,9 @@ impl<T> TypedArena<T> {
     /// assert_eq!(arena.get_mut(&x), Some(&mut 0));
     /// ```
     pub fn get_mut(&mut self, entry: &Entry) -> Option<&mut T> {
+        if !self.is_valid_entry(entry) {
+            return None
+        }
         match self.chunks[entry.chunk_index][entry.block_index] {
             Block::Occupied(ref mut value) => Some(value),
             Block::Vacant(_) => None,
@@ -173,6 +189,21 @@ impl<T> TypedArena<T> {
 mod tests {
     use super::TypedArena;
     use super::Entry;
+
+    #[test]
+    #[should_panic]
+    fn test_free_invalid_block() {
+        let mut arena: TypedArena<u32> = TypedArena::new(1024);
+        arena.free(&Entry { chunk_index: 0, block_index: 0 });
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_free_vacant_block() {
+        let mut arena = TypedArena::new(1024);
+        arena.allocate(0);
+        arena.free(&Entry { chunk_index: 0, block_index: 1 });
+    }
 
     #[test]
     fn test_insert() {
@@ -191,7 +222,7 @@ mod tests {
     }
 
     #[test]
-    fn test_remove() {
+    fn test_free() {
         let mut pool = TypedArena::new(1024);
         let entry = pool.allocate(0);
         assert_eq!(entry, Entry { chunk_index: 0, block_index: 0 });
@@ -207,10 +238,36 @@ mod tests {
     }
 
     #[test]
+    fn test_get_invalid_block() {
+        let pool: TypedArena<u32> = TypedArena::new(1024);
+        assert_eq!(pool.get(&Entry { chunk_index: 0, block_index: 0 }), None);
+    }
+
+    #[test]
+    fn test_get_vacant_block() {
+        let mut pool = TypedArena::new(1024);
+        pool.allocate(0);
+        assert_eq!(pool.get(&Entry { chunk_index: 0, block_index: 1 }), None);
+    }
+
+    #[test]
     fn test_get_mut() {
         let mut pool = TypedArena::new(1024);
         let entry = pool.allocate(0);
         *pool.get_mut(&entry).unwrap() = 1;
         assert_eq!(pool.get(&entry), Some(&1));
+    }
+
+    #[test]
+    fn test_get_mut_invalid_block() {
+        let mut pool: TypedArena<u32> = TypedArena::new(1024);
+        assert_eq!(pool.get_mut(&Entry { chunk_index: 0, block_index: 0 }), None);
+    }
+
+    #[test]
+    fn test_get_mut_vacant_block() {
+        let mut pool = TypedArena::new(1024);
+        pool.allocate(0);
+        assert_eq!(pool.get_mut(&Entry { chunk_index: 0, block_index: 1 }), None);
     }
 }
