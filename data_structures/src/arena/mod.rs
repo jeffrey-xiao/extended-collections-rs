@@ -1,6 +1,7 @@
 use std::mem;
 use std::vec::Vec;
 
+/// An struct representing an entry to `TypedArena<T>`
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Entry {
     chunk_index: usize,
@@ -12,6 +13,27 @@ enum Block<T> {
     Vacant(Option<Entry>),
 }
 
+/// An fast, but limited allocator that only allocates a single type of object. All objects inside
+/// the arena will be destroyed when the typed arena is destroyed. This typed arena also supports
+/// deallocation of objects once they are allocated and yields both mutable and immutable references
+/// to objects. Additionally, the underlying container is simply a `Vec` so the code itself is very
+/// simple and uses no unsafe code. When the typed arena is full, it will allocate another chunk of
+/// objects so no memory is reallocated.
+///
+/// # Examples
+/// ```
+/// use data_structures::arena::TypedArena;
+///
+/// let mut arena = TypedArena::new(1024);
+///
+/// let x = arena.allocate(1);
+/// assert_eq!(arena.get(&x), Some(&1));
+///
+/// *arena.get_mut(&x).unwrap() += 1;
+/// assert_eq!(arena.get(&x), Some(&2));
+///
+/// assert_eq!(arena.free(&x), 2);
+/// ```
 pub struct TypedArena<T> {
     head: Option<Entry>,
     chunks: Vec<Vec<Block<T>>>,
@@ -21,6 +43,15 @@ pub struct TypedArena<T> {
 }
 
 impl<T> TypedArena<T> {
+    /// Constructs a new, empty `TypedArena<T>` with a specific number of objects per chunk.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::arena::TypedArena;
+    ///
+    /// // creates a new TypedArena<T> that contains a maximum of 1024 u32's per chunk
+    /// let arena: TypedArena<u32> = TypedArena::new(1024);
+    /// ```
     pub fn new(chunk_size: usize) -> Self {
         TypedArena {
             head: None,
@@ -31,6 +62,16 @@ impl<T> TypedArena<T> {
         }
     }
 
+    /// Allocates an object in the typed arena and returns an Entry. The Entry can later be used to
+    /// index retrieve mutable and immutable references to the object, and dellocate the object.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::arena::TypedArena;
+    ///
+    /// let mut arena = TypedArena::new(1024);
+    /// let x = arena.allocate(0);
+    /// ```
     pub fn allocate(&mut self, value: T) -> Entry {
         if self.size == self.capacity {
             self.chunks.push(Vec::with_capacity(self.chunk_size));
@@ -66,6 +107,16 @@ impl<T> TypedArena<T> {
         }
     }
 
+    /// Deallocates an object in the typed arena and returns the object.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::arena::TypedArena;
+    ///
+    /// let mut arena = TypedArena::new(1024);
+    /// let x = arena.allocate(0);
+    /// assert_eq!(arena.free(&x), 0);
+    /// ```
     pub fn free(&mut self, entry: &Entry) -> T {
         let old_block = mem::replace(&mut self.chunks[entry.chunk_index][entry.block_index], Block::Vacant(self.head.take()));
         match old_block {
@@ -81,17 +132,39 @@ impl<T> TypedArena<T> {
         }
     }
 
-    pub fn get(&self, entry: &Entry) -> &T {
+    /// Returns an immutable reference to an object in the typed arena. Returns `None` if the entry
+    /// does not correspond to a valid object.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::arena::TypedArena;
+    ///
+    /// let mut arena = TypedArena::new(1024);
+    /// let x = arena.allocate(0);
+    /// assert_eq!(arena.get(&x), Some(&0));
+    /// ```
+    pub fn get(&self, entry: &Entry) -> Option<&T> {
         match self.chunks[entry.chunk_index][entry.block_index] {
-            Block::Occupied(ref value) => value,
-            Block::Vacant(_) => panic!("Value does not exist"),
+            Block::Occupied(ref value) => Some(value),
+            Block::Vacant(_) => None,
         }
     }
 
-    pub fn get_mut(&mut self, entry: &Entry) -> &mut T {
+    /// Returns a mutable reference to an object in the typed arena. Returns `None` if the entry
+    /// does not correspond to a valid object.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::arena::TypedArena;
+    ///
+    /// let mut arena = TypedArena::new(1024);
+    /// let x = arena.allocate(0);
+    /// assert_eq!(arena.get_mut(&x), Some(&mut 0));
+    /// ```
+    pub fn get_mut(&mut self, entry: &Entry) -> Option<&mut T> {
         match self.chunks[entry.chunk_index][entry.block_index] {
-            Block::Occupied(ref mut value) => value,
-            Block::Vacant(_) => panic!("Value does not exist"),
+            Block::Occupied(ref mut value) => Some(value),
+            Block::Vacant(_) => None,
         }
     }
 }
@@ -130,14 +203,14 @@ mod tests {
     fn test_get() {
         let mut pool = TypedArena::new(1024);
         let entry = pool.allocate(0);
-        assert_eq!(pool.get(&entry), &0);
+        assert_eq!(pool.get(&entry), Some(&0));
     }
 
     #[test]
     fn test_get_mut() {
         let mut pool = TypedArena::new(1024);
         let entry = pool.allocate(0);
-        *pool.get_mut(&entry) = 1;
-        assert_eq!(pool.get(&entry), &1);
+        *pool.get_mut(&entry).unwrap() = 1;
+        assert_eq!(pool.get(&entry), Some(&1));
     }
 }
