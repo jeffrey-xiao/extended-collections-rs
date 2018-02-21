@@ -1,4 +1,5 @@
 use std::mem;
+use std::ops::{Index, IndexMut};
 use std::vec::Vec;
 
 /// An struct representing an entry to `TypedArena<T>`
@@ -27,10 +28,10 @@ enum Block<T> {
 /// let mut arena = TypedArena::new(1024);
 ///
 /// let x = arena.allocate(1);
-/// assert_eq!(arena.get(&x), Some(&1));
+/// assert_eq!(arena[x], 1);
 ///
-/// *arena.get_mut(&x).unwrap() += 1;
-/// assert_eq!(arena.get(&x), Some(&2));
+/// arena[x] += 1;
+/// assert_eq!(arena[x], 2);
 ///
 /// assert_eq!(arena.free(&x), 2);
 /// ```
@@ -182,6 +183,19 @@ impl<T> TypedArena<T> {
             Block::Occupied(ref mut value) => Some(value),
             Block::Vacant(_) => None,
         }
+    }
+}
+
+impl<T> Index<Entry> for TypedArena<T> {
+    type Output = T;
+    fn index(&self, entry: Entry) -> &Self::Output {
+        self.get(&entry).unwrap()
+    }
+}
+
+impl<T> IndexMut<Entry> for TypedArena<T> {
+    fn index_mut(&mut self, entry: Entry) -> &mut Self::Output {
+        self.get_mut(&entry).unwrap()
     }
 }
 

@@ -1,5 +1,6 @@
 use rand::Rng;
 use rand::XorShiftRng;
+use std::ops::{Add, Index, IndexMut};
 use treap::implicit_tree;
 use treap::node::ImplicitNode;
 
@@ -401,6 +402,31 @@ impl<'a, T: 'a> Iterator for TreapListIterMut<'a, T> {
     }
 }
 
+impl<T> Add for TreapList<T> {
+    type Output = TreapList<T>;
+
+    fn add(mut self, other: TreapList<T>) -> TreapList<T> {
+        implicit_tree::merge(&mut self.tree, other.tree);
+        TreapList {
+            tree: self.tree.take(),
+            rng: self.rng,
+        }
+    }
+}
+
+impl<T> Index<usize> for TreapList<T> {
+    type Output = T;
+    fn index(&self, key: usize) -> &Self::Output {
+        self.get(key).unwrap()
+    }
+}
+
+impl<T> IndexMut<usize> for TreapList<T> {
+    fn index_mut(&mut self, key: usize) -> &mut Self::Output {
+        self.get_mut(key).unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::TreapList;
@@ -474,6 +500,27 @@ mod tests {
         tree.insert(0, 1);
         tree.insert(1, 2);
         assert_eq!(tree.pop_back(), 2);
+    }
+
+    #[test]
+    fn test_add() {
+        let mut n = TreapList::new();
+        n.insert(0, 1);
+        n.insert(0, 2);
+        n.insert(1, 3);
+
+        let mut m = TreapList::new();
+        m.insert(0, 4);
+        m.insert(0, 5);
+        m.insert(1, 6);
+
+        let res = n + m;
+
+        assert_eq!(
+            res.iter().collect::<Vec<&u32>>(),
+            vec![&2, &3, &1, &5, &6, &4],
+        );
+        assert_eq!(res.size(), 6);
     }
 
     #[test]

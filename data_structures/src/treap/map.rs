@@ -1,6 +1,6 @@
 use rand::Rng;
 use rand::XorShiftRng;
-use std::ops::{Add, Sub};
+use std::ops::{Add, Sub, Index, IndexMut};
 use treap::entry::{Entry};
 use treap::node::Node;
 use treap::tree;
@@ -21,14 +21,14 @@ use treap::tree;
 /// t.insert(0, 1);
 /// t.insert(3, 4);
 ///
-/// assert_eq!(t.get(&0), Some(&1));
+/// assert_eq!(t[0], 1);
 /// assert_eq!(t.get(&1), None);
 /// assert_eq!(t.size(), 2);
 ///
 /// assert_eq!(t.min(), Some(&0));
 /// assert_eq!(t.ceil(&2), Some(&3));
 ///
-/// *t.get_mut(&0).unwrap() = 2;
+/// t[0] = 2;
 /// assert_eq!(t.remove(&0), Some((0, 2)));
 /// assert_eq!(t.remove(&1), None);
 /// ```
@@ -547,6 +547,19 @@ impl<T: Ord, U> Sub for TreapMap<T, U> {
 
     fn sub(self, other: TreapMap<T, U>) -> TreapMap<T, U> {
         Self::subtract(self, other)
+    }
+}
+
+impl<T: Ord, U> Index<T> for TreapMap<T, U> {
+    type Output = U;
+    fn index(&self, key: T) -> &Self::Output {
+        self.get(&key).unwrap()
+    }
+}
+
+impl<T: Ord, U> IndexMut<T> for TreapMap<T, U> {
+    fn index_mut(&mut self, key: T) -> &mut Self::Output {
+        self.get_mut(&key).unwrap()
     }
 }
 
