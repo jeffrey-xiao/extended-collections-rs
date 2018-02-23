@@ -9,9 +9,9 @@ use std::fmt::Debug;
 #[repr(C)]
 #[derive(Debug)]
 struct Node<T: Ord + Debug, U: Debug> {
-    key: T,
-    value: U,
     height: usize,
+    value: U,
+    key: T,
     data: [*mut Node<T, U>; 0],
 }
 
@@ -75,26 +75,20 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
         }
     }
 
+    fn get_starting_height(&self) -> usize {
+        MAX_HEIGHT - self.size.leading_zeros() as usize
+    }
+
     fn gen_random_height(&mut self) -> usize {
-        let mut n = self.rng.next_u64();
-        n &= (-(n as i64)) as u64;
-        let mut ret = 64;
-        if n != 0 { ret -= 1; }
-        if n & 0x00000000FFFFFFFF != 0 { ret -= 32; }
-        if n & 0x0000FFFF0000FFFF != 0 { ret -= 16; }
-        if n & 0x00FF00FF00FF00FF != 0 { ret -=  8; }
-        if n & 0x0F0F0F0F0F0F0F0F != 0 { ret -=  4; }
-        if n & 0x3333333333333333 != 0 { ret -=  2; }
-        if n & 0x5555555555555555 != 0 { ret -=  1; }
-        ret
+        self.rng.next_u64().leading_zeros() as usize
     }
 
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
         self.size += 1;
         let new_height = self.gen_random_height();
         let new_node = Node::new(key, value, new_height + 1);
+        let mut curr_height = self.get_starting_height();
         let mut curr_node = &mut self.head;
-        let mut curr_height = MAX_HEIGHT;
         let mut ret = None;
 
         unsafe {
@@ -129,8 +123,8 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
     }
 
     pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
+        let mut curr_height = self.get_starting_height();
         let mut curr_node = &mut self.head;
-        let mut curr_height = MAX_HEIGHT;
         let mut ret = None;
 
         unsafe {
@@ -161,8 +155,8 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
     }
 
     pub fn contains(&self, key: &T) -> bool {
+        let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
-        let mut curr_height = MAX_HEIGHT;
 
         unsafe {
             loop {
@@ -186,8 +180,8 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
     }
 
     pub fn get(&self, key: &T) -> Option<&U> {
+        let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
-        let mut curr_height = MAX_HEIGHT;
 
         unsafe {
             loop {
@@ -211,8 +205,8 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
     }
 
     pub fn get_mut(&mut self, key: &T) -> Option<&mut U> {
+        let mut curr_height = self.get_starting_height();
         let mut curr_node = &mut self.head;
-        let mut curr_height = MAX_HEIGHT;
 
         unsafe {
             loop {
@@ -257,8 +251,8 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
     }
 
     pub fn ceil(&self, key: &T) -> Option<&T> {
+        let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
-        let mut curr_height = MAX_HEIGHT;
 
         unsafe {
             loop {
@@ -280,8 +274,8 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
     }
 
     pub fn floor(&self, key: &T) -> Option<&T> {
+        let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
-        let mut curr_height = MAX_HEIGHT;
 
         unsafe {
             loop {
@@ -313,8 +307,8 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
     }
 
     pub fn max(&self) -> Option<&T> {
+        let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
-        let mut curr_height = MAX_HEIGHT;
 
         unsafe {
             loop {

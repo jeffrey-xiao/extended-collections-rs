@@ -11,8 +11,8 @@ use test::Bencher;
 #[bench]
 fn bench_arena(b: &mut Bencher) {
     struct Test {
-        val: i32,
-        next: Option<Entry>,
+        pub val: i32,
+        pub next: Option<Entry>,
     }
 
     b.iter(|| {
@@ -28,8 +28,8 @@ fn bench_arena(b: &mut Bencher) {
 #[bench]
 fn bench_box(b: &mut Bencher) {
     struct Test {
-        val: i32,
-        next: Option<Box<Test>>,
+        pub val: i32,
+        pub next: Option<Box<Test>>,
     }
 
     b.iter(|| {
