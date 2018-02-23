@@ -3,5 +3,6 @@
 
 extern crate rand;
 
-pub mod treap;
 pub mod arena;
+pub mod skiplist;
+pub mod treap;

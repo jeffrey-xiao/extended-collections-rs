@@ -89,8 +89,7 @@ impl<T> TreapList<T> {
     /// assert_eq!(t.remove(0), 1);
     /// ```
     pub fn remove(&mut self, index: usize) -> T {
-        let TreapList { ref mut tree, .. } = *self;
-        implicit_tree::remove(tree, index + 1)
+        implicit_tree::remove(&mut self.tree, index + 1)
     }
 
     /// Inserts a value at the front of the list.
@@ -174,8 +173,7 @@ impl<T> TreapList<T> {
     /// assert_eq!(t.get(1), None);
     /// ```
     pub fn get<'a>(&'a self, index: usize) -> Option<&'a T> {
-        let TreapList { ref tree, .. } = *self;
-        implicit_tree::get(tree, index + 1)
+        implicit_tree::get(&self.tree, index + 1)
     }
 
     /// Returns a mutable reference to the value at a particular index. Returns `None` if the
@@ -191,8 +189,7 @@ impl<T> TreapList<T> {
     /// assert_eq!(t.get(0), Some(&2));
     /// ```
     pub fn get_mut<'a>(&'a mut self, index: usize) -> Option<&'a mut T> {
-        let TreapList { ref mut tree, .. } = *self;
-        implicit_tree::get_mut(tree, index + 1)
+        implicit_tree::get_mut(&mut self.tree, index + 1)
     }
 
     /// Returns the size of the list.
@@ -206,8 +203,7 @@ impl<T> TreapList<T> {
     /// assert_eq!(t.size(), 1);
     /// ```
     pub fn size(&self) -> usize {
-        let TreapList { ref tree, .. } = *self;
-        implicit_tree::size(tree)
+        implicit_tree::size(&self.tree)
     }
 
     /// Returns `true` if the list is empty.
@@ -255,9 +251,8 @@ impl<T> TreapList<T> {
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter(&self) -> TreapListIter<T> {
-        let TreapList { ref tree, .. } = *self;
         TreapListIter {
-            current: tree,
+            current: &self.tree,
             stack: Vec::new(),
         }
     }
@@ -282,9 +277,8 @@ impl<T> TreapList<T> {
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter_mut(&mut self) -> TreapListIterMut<T> {
-        let TreapList { ref mut tree, .. } = *self;
         TreapListIterMut {
-            current: tree.as_mut().map(|node| &mut **node),
+            current: self.tree.as_mut().map(|node| &mut **node),
             stack: Vec::new(),
         }
     }
@@ -295,9 +289,8 @@ impl<T> IntoIterator for TreapList<T> {
     type IntoIter = TreapListIntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let TreapList { tree, .. } = self;
         TreapListIntoIter {
-            current: tree,
+            current: self.tree,
             stack: Vec::new(),
         }
     }

@@ -1,14 +1,14 @@
 extern crate data_structures;
 extern crate rand;
 
-use data_structures::treap::TreapMap;
+use data_structures::skiplist::SkipMap;
 use std::vec::Vec;
 use self::rand::{thread_rng, Rng};
 
 #[test]
-fn int_test_treap() {
+fn int_test_skiplist() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
-    let mut map = TreapMap::new();
+    let mut map = SkipMap::new();
     let mut expected = Vec::new();
     for _ in 0..100_000 {
         let key = rng.gen::<u32>();
