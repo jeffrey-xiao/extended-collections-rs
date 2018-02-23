@@ -336,16 +336,6 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
     pub fn iter_mut(&self) -> SkipMapIterMut<T, U> {
         unsafe { SkipMapIterMut { current: &mut *(*self.head).get_pointer_mut(0) } }
     }
-
-    pub fn print(&self) {
-        unsafe {
-            let mut curr_node = (*self.head).get_pointer(0);
-            while !curr_node.is_null() {
-                println!("{:?} {:?}", (**curr_node).key, (**curr_node).value);
-                curr_node = (**curr_node).get_pointer(0);
-            }
-        }
-    }
 }
 
 impl<T: Ord + Debug, U: Debug> Drop for SkipMap<T, U> {
@@ -406,7 +396,6 @@ impl<T: Ord + Debug, U: Debug> Iterator for SkipMapIntoIter<T, U> {
                     ptr::read(&(*self.current).key),
                     ptr::read(&(*self.current).value),
                 );
-                println!("FREEING BT READING");
                 Node::free(mem::replace(&mut self.current, *(*self.current).get_pointer(0)));
                 Some(ret)
             },
