@@ -114,10 +114,10 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// let mut t = TreapMap::new();
     /// t.insert(1, 1);
-    /// assert_eq!(t.contains(&0), false);
-    /// assert_eq!(t.contains(&1), true);
+    /// assert_eq!(t.contains_key(&0), false);
+    /// assert_eq!(t.contains_key(&1), true);
     /// ```
-    pub fn contains(&self, key: &T) -> bool {
+    pub fn contains_key(&self, key: &T) -> bool {
         tree::contains(&self.tree, key)
     }
 
@@ -304,20 +304,20 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// m.insert(2, 3);
     /// m.insert(3, 3);
     ///
-    /// let inter = TreapMap::inter(n, m);
+    /// let intersection = TreapMap::intersection(n, m);
     /// assert_eq!(
-    ///     inter.iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     intersection.iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&2, &2)],
     /// );
     /// ```
-    pub fn inter(left: Self, right: Self) -> Self {
+    pub fn intersection(left: Self, right: Self) -> Self {
         let TreapMap { tree: left_tree, rng, .. } = left;
-        let (tree, dups) = tree::inter(left_tree, right.tree, false);
+        let (tree, dups) = tree::intersection(left_tree, right.tree, false);
         TreapMap { tree, rng, size: dups }
     }
 
-    /// Returns `left` subtracted by `right`. The returned map will contain all entries that do
-    /// not have a key in `right`. The `-` operator is implemented to take the difference of two
+    /// Returns the difference of `left` and `right`. The returned map will contain all entries that
+    /// do not have a key in `right`. The `-` operator is implemented to take the difference of two
     /// maps.
     ///
     /// # Examples
@@ -332,16 +332,44 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// m.insert(2, 3);
     /// m.insert(3, 3);
     ///
-    /// let subtract = TreapMap::subtract(n, m);
+    /// let difference = TreapMap::difference(n, m);
     /// assert_eq!(
-    ///     subtract.iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     difference.iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&1, &1)],
     /// );
     /// ```
-    pub fn subtract(left: Self, right: Self) -> Self {
+    pub fn difference(left: Self, right: Self) -> Self {
         let TreapMap { tree: left_tree, rng, size } = left;
-        let (tree, dups) = tree::subtract(left_tree, right.tree, false);
+        let (tree, dups) = tree::difference(left_tree, right.tree, false, false);
         TreapMap { tree, rng, size: size - dups }
+    }
+
+    /// Returns the symmetric difference of `left` and `right`. The returned map will contain all
+    /// entries that exist in one map, but not both maps.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut n = TreapMap::new();
+    /// n.insert(1, 1);
+    /// n.insert(2, 2);
+    ///
+    /// let mut m = TreapMap::new();
+    /// m.insert(2, 3);
+    /// m.insert(3, 3);
+    ///
+    /// let symmetric_difference = TreapMap::symmetric_difference(n, m);
+    /// assert_eq!(
+    ///     symmetric_difference.iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     vec![(&1, &1), (&3, &3)],
+    /// );
+    /// ```
+    pub fn symmetric_difference(left: Self, right:Self) -> Self {
+        let TreapMap { tree: left_tree, rng, size: left_size } = left;
+        let TreapMap { tree: right_tree, size: right_size, .. } = right;
+        let (tree, dups) = tree::difference(left_tree, right_tree, false, true);
+        TreapMap { tree, rng, size: left_size + right_size - dups * 2 }
     }
 
     /// Returns an iterator over the map. The iterator will yield key-value pairs using in-order
@@ -533,7 +561,7 @@ impl<T: Ord, U> Sub for TreapMap<T, U> {
     type Output = TreapMap<T, U>;
 
     fn sub(self, other: TreapMap<T, U>) -> TreapMap<T, U> {
-        Self::subtract(self, other)
+        Self::difference(self, other)
     }
 }
 
@@ -577,7 +605,7 @@ mod tests {
     fn test_insert() {
         let mut tree = TreapMap::new();
         tree.insert(1, 1);
-        assert!(tree.contains(&1));
+        assert!(tree.contains_key(&1));
         assert_eq!(tree.get(&1), Some(&1));
     }
 
@@ -596,7 +624,7 @@ mod tests {
         let mut tree = TreapMap::new();
         tree.insert(1, 1);
         let ret = tree.remove(&1);
-        assert!(!tree.contains(&1));
+        assert!(!tree.contains_key(&1));
         assert_eq!(ret, Some((1, 1)));
     }
 
@@ -662,7 +690,7 @@ mod tests {
     }
 
     #[test]
-    fn test_inter() {
+    fn test_intersection() {
         let mut n = TreapMap::new();
         n.insert(1, 1);
         n.insert(2, 2);
@@ -673,17 +701,17 @@ mod tests {
         m.insert(4, 4);
         m.insert(5, 5);
 
-        let inter = TreapMap::inter(n, m);
+        let intersection = TreapMap::intersection(n, m);
 
         assert_eq!(
-            inter.iter().collect::<Vec<(&u32, &u32)>>(),
+            intersection.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&3, &3)],
         );
-        assert_eq!(inter.size(), 1);
+        assert_eq!(intersection.size(), 1);
     }
 
     #[test]
-    fn test_subtract() {
+    fn test_difference() {
         let mut n = TreapMap::new();
         n.insert(1, 1);
         n.insert(2, 2);
@@ -694,13 +722,34 @@ mod tests {
         m.insert(4, 4);
         m.insert(5, 5);
 
-        let sub = n - m;
+        let difference = n - m;
 
         assert_eq!(
-            sub.iter().collect::<Vec<(&u32, &u32)>>(),
+            difference.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2)],
         );
-        assert_eq!(sub.size(), 2);
+        assert_eq!(difference.size(), 2);
+    }
+
+    #[test]
+    fn test_symmetric_difference() {
+        let mut n = TreapMap::new();
+        n.insert(1, 1);
+        n.insert(2, 2);
+        n.insert(3, 3);
+
+        let mut m = TreapMap::new();
+        m.insert(3, 5);
+        m.insert(4, 4);
+        m.insert(5, 5);
+
+        let symmetric_difference = TreapMap::symmetric_difference(n, m);
+
+        assert_eq!(
+            symmetric_difference.iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&1, &1), (&2, &2), (&4, &4), (&5, &5)],
+        );
+        assert_eq!(symmetric_difference.size(), 4);
     }
 
     #[test]

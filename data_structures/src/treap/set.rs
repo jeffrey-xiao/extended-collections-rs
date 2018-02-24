@@ -88,7 +88,7 @@ impl<T: Ord> TreapSet<T> {
     /// assert_eq!(t.contains(&1), true);
     /// ```
     pub fn contains(&self, key: &T) -> bool {
-        self.map.contains(key)
+        self.map.contains_key(key)
     }
 
     /// Returns the size of the set.
@@ -239,20 +239,20 @@ impl<T: Ord> TreapSet<T> {
     /// m.insert(2);
     /// m.insert(3);
     ///
-    /// let inter = TreapSet::inter(n, m);
+    /// let intersection = TreapSet::intersection(n, m);
     /// assert_eq!(
-    ///     inter.iter().collect::<Vec<&u32>>(),
+    ///     intersection.iter().collect::<Vec<&u32>>(),
     ///     vec![&2],
     /// );
     /// ```
-    pub fn inter(left: Self, right: Self) -> Self {
+    pub fn intersection(left: Self, right: Self) -> Self {
         TreapSet {
-            map: TreapMap::inter(left.map, right.map)
+            map: TreapMap::intersection(left.map, right.map)
         }
     }
 
-    /// Returns `left` subtracted by `right`. The `-` operator is implemented to take the
-    /// difference of two sets.
+    /// Returns the difference of `left` and `right`. The `-` operator is implemented to take the
+    /// difference of two maps.
     ///
     /// # Examples
     /// ```
@@ -266,15 +266,42 @@ impl<T: Ord> TreapSet<T> {
     /// m.insert(2);
     /// m.insert(3);
     ///
-    /// let subtract = TreapSet::subtract(n, m);
+    /// let difference = TreapSet::difference(n, m);
     /// assert_eq!(
-    ///     subtract.iter().collect::<Vec<&u32>>(),
+    ///     difference.iter().collect::<Vec<&u32>>(),
     ///     vec![&1],
     /// );
     /// ```
-    pub fn subtract(left: Self, right: Self) -> Self {
+    pub fn difference(left: Self, right: Self) -> Self {
         TreapSet {
-            map: TreapMap::sub(left.map, right.map)
+            map: TreapMap::difference(left.map, right.map)
+        }
+    }
+
+    /// Returns the symmetric difference of `left` and `right`. The returned set will contain all
+    /// keys that exist in one set, but not both sets.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapSet;
+    ///
+    /// let mut n = TreapSet::new();
+    /// n.insert(1);
+    /// n.insert(2);
+    ///
+    /// let mut m = TreapSet::new();
+    /// m.insert(2);
+    /// m.insert(3);
+    ///
+    /// let symmetric_difference = TreapSet::symmetric_difference(n, m);
+    /// assert_eq!(
+    ///     symmetric_difference.iter().collect::<Vec<&u32>>(),
+    ///     vec![&1, &3],
+    /// );
+    /// ```
+    pub fn symmetric_difference(left: Self, right: Self) -> Self {
+        TreapSet {
+            map: TreapMap::symmetric_difference(left.map, right.map)
         }
     }
 
@@ -369,7 +396,7 @@ impl<T: Ord> Sub for TreapSet<T> {
     type Output = TreapSet<T>;
 
     fn sub(self, other: TreapSet<T>) -> TreapSet<T> {
-        Self::subtract(self, other)
+        Self::difference(self, other)
     }
 }
 
@@ -472,7 +499,7 @@ mod tests {
     }
 
     #[test]
-    fn test_inter() {
+    fn test_intersection() {
         let mut n = TreapSet::new();
         n.insert(1);
         n.insert(2);
@@ -483,17 +510,17 @@ mod tests {
         m.insert(4);
         m.insert(5);
 
-        let inter = TreapSet::inter(n, m);
+        let intersection = TreapSet::intersection(n, m);
 
         assert_eq!(
-            inter.iter().collect::<Vec<&u32>>(),
+            intersection.iter().collect::<Vec<&u32>>(),
             vec![&3],
         );
-        assert_eq!(inter.size(), 1);
+        assert_eq!(intersection.size(), 1);
     }
 
     #[test]
-    fn test_subtract() {
+    fn test_difference() {
         let mut n = TreapSet::new();
         n.insert(1);
         n.insert(2);
@@ -504,13 +531,34 @@ mod tests {
         m.insert(4);
         m.insert(5);
 
-        let sub = n - m;
+        let difference = n - m;
 
         assert_eq!(
-            sub.iter().collect::<Vec<&u32>>(),
+            difference.iter().collect::<Vec<&u32>>(),
             vec![&1, &2],
         );
-        assert_eq!(sub.size(), 2);
+        assert_eq!(difference.size(), 2);
+    }
+
+    #[test]
+    fn test_symmetric_difference() {
+        let mut n = TreapSet::new();
+        n.insert(1);
+        n.insert(2);
+        n.insert(3);
+
+        let mut m = TreapSet::new();
+        m.insert(3);
+        m.insert(4);
+        m.insert(5);
+
+        let symmetric_difference = TreapSet::symmetric_difference(n, m);
+
+        assert_eq!(
+            symmetric_difference.iter().collect::<Vec<&u32>>(),
+            vec![&1, &2, &4, &5],
+        );
+        assert_eq!(symmetric_difference.size(), 4);
     }
 
     #[test]

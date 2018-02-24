@@ -28,7 +28,7 @@ fn int_test_treap() {
     assert_eq!(map.max(), Some(&expected[expected.len() - 1].0));
 
     for entry in &expected {
-        assert!(map.contains(&entry.0));
+        assert!(map.contains_key(&entry.0));
         assert_eq!(map.get(&entry.0), Some(&entry.1));
         assert_eq!(map.ceil(&entry.0), Some(&entry.0));
         assert_eq!(map.floor(&entry.0), Some(&entry.0));

@@ -222,7 +222,7 @@ pub fn union<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapp
     }
 }
 
-pub fn inter<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
+pub fn intersection<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
     if let (Some(mut left_node), Some(mut right_node)) = (left_tree, right_tree) {
         let mut dups = 0;
         {
@@ -238,8 +238,8 @@ pub fn inter<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapp
             } = &mut *left_node;
             let mut right_left_subtree = Some(right_node);
             let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
-            let (new_left_subtree, left_dups) = inter(left_subtree.take(), right_left_subtree, swapped);
-            let (new_right_subtree, right_dups) = inter(right_subtree.take(), right_right_subtree, swapped);
+            let (new_left_subtree, left_dups) = intersection(left_subtree.take(), right_left_subtree, swapped);
+            let (new_right_subtree, right_dups) = intersection(right_subtree.take(), right_right_subtree, swapped);
             dups += left_dups + right_dups;
             *left_subtree = new_left_subtree;
             *right_subtree = new_right_subtree;
@@ -262,7 +262,7 @@ pub fn inter<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapp
     }
 }
 
-pub fn subtract<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
+pub fn difference<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool, symmetric: bool) -> (Tree<T, U>, usize) {
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {
             let mut dups = 0;
@@ -279,20 +279,23 @@ pub fn subtract<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut sw
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
                 let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
-                let (new_left_subtree, left_dups) = subtract(left_subtree.take(), right_left_subtree, swapped);
-                let (new_right_subtree, right_dups) = subtract(right_subtree.take(), right_right_subtree, swapped);
+                let (new_left_subtree, left_dups) = difference(left_subtree.take(), right_left_subtree, swapped, symmetric);
+                let (new_right_subtree, right_dups) = difference(right_subtree.take(), right_right_subtree, swapped, symmetric);
                 dups += left_dups + right_dups;
                 *left_subtree = new_left_subtree;
                 *right_subtree = new_right_subtree;
-                if duplicate_opt.is_some() || swapped {
+                if duplicate_opt.is_some() || (swapped && !symmetric) {
                     merge(left_subtree, right_subtree.take());
                     return (left_subtree.take(), dups + 1);
                 }
             }
             (Some(left_node), dups)
         },
-        (left_tree, right_tree) => {
-            if swapped {
+        (mut left_tree, right_tree) => {
+            if symmetric {
+                merge(&mut left_tree, right_tree);
+                (left_tree, 0)
+            } else if swapped {
                 (right_tree, 0)
             } else {
                 (left_tree, 0)
