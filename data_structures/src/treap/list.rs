@@ -20,18 +20,18 @@ use treap::node::ImplicitNode;
 /// ```
 /// use data_structures::treap::TreapList;
 ///
-/// let mut t = TreapList::new();
-/// t.insert(0, 1);
-/// t.push_back(2);
-/// t.push_front(3);
+/// let mut list = TreapList::new();
+/// list.insert(0, 1);
+/// list.push_back(2);
+/// list.push_front(3);
 ///
-/// assert_eq!(t.get(0), Some(&3));
-/// assert_eq!(t.get(3), None);
-/// assert_eq!(t.size(), 3);
+/// assert_eq!(list.get(0), Some(&3));
+/// assert_eq!(list.get(3), None);
+/// assert_eq!(list.size(), 3);
 ///
-/// *t.get_mut(0).unwrap() += 1;
-/// assert_eq!(t.pop_front(), 4);
-/// assert_eq!(t.pop_back(), 2);
+/// *list.get_mut(0).unwrap() += 1;
+/// assert_eq!(list.pop_front(), 4);
+/// assert_eq!(list.pop_back(), 2);
 /// ```
 pub struct TreapList<T> {
     tree: implicit_tree::Tree<T>,
@@ -45,7 +45,7 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let t: TreapList<u32> = TreapList::new();
+    /// let list: TreapList<u32> = TreapList::new();
     /// ```
     pub fn new() -> Self {
         TreapList {
@@ -61,11 +61,11 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.insert(0, 1);
-    /// t.insert(0, 2);
-    /// assert_eq!(t.get(0), Some(&2));
-    /// assert_eq!(t.get(1), Some(&1));
+    /// let mut list = TreapList::new();
+    /// list.insert(0, 1);
+    /// list.insert(0, 2);
+    /// assert_eq!(list.get(0), Some(&2));
+    /// assert_eq!(list.get(1), Some(&1));
     /// ```
     pub fn insert(&mut self, index: usize, value: T) {
         let TreapList { ref mut tree, ref mut rng } = *self;
@@ -84,9 +84,9 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.insert(0, 1);
-    /// assert_eq!(t.remove(0), 1);
+    /// let mut list = TreapList::new();
+    /// list.insert(0, 1);
+    /// assert_eq!(list.remove(0), 1);
     /// ```
     pub fn remove(&mut self, index: usize) -> T {
         implicit_tree::remove(&mut self.tree, index + 1)
@@ -98,10 +98,10 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.push_front(1);
-    /// t.push_front(2);
-    /// assert_eq!(t.get(0), Some(&2));
+    /// let mut list = TreapList::new();
+    /// list.push_front(1);
+    /// list.push_front(2);
+    /// assert_eq!(list.get(0), Some(&2));
     /// ```
     pub fn push_front(&mut self, value: T) {
         self.insert(0, value);
@@ -113,10 +113,10 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.push_back(1);
-    /// t.push_back(2);
-    /// assert_eq!(t.get(0), Some(&1));
+    /// let mut list = TreapList::new();
+    /// list.push_back(1);
+    /// list.push_back(2);
+    /// assert_eq!(list.get(0), Some(&1));
     /// ```
     pub fn push_back(&mut self, value: T) {
         let index = self.size();
@@ -132,10 +132,10 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.push_back(1);
-    /// t.push_back(2);
-    /// assert_eq!(t.pop_front(), 1);
+    /// let mut list = TreapList::new();
+    /// list.push_back(1);
+    /// list.push_back(2);
+    /// assert_eq!(list.pop_front(), 1);
     /// ```
     pub fn pop_front(&mut self) -> T {
         self.remove(0)
@@ -150,10 +150,10 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.push_back(1);
-    /// t.push_back(2);
-    /// assert_eq!(t.pop_back(), 2);
+    /// let mut list = TreapList::new();
+    /// list.push_back(1);
+    /// list.push_back(2);
+    /// assert_eq!(list.pop_back(), 2);
     /// ```
     pub fn pop_back(&mut self) -> T {
         let index = self.size() - 1;
@@ -167,10 +167,10 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.insert(0, 1);
-    /// assert_eq!(t.get(0), Some(&1));
-    /// assert_eq!(t.get(1), None);
+    /// let mut list = TreapList::new();
+    /// list.insert(0, 1);
+    /// assert_eq!(list.get(0), Some(&1));
+    /// assert_eq!(list.get(1), None);
     /// ```
     pub fn get(&self, index: usize) -> Option<&T> {
         implicit_tree::get(&self.tree, index + 1)
@@ -183,10 +183,10 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.insert(0, 1);
-    /// *t.get_mut(0).unwrap() = 2;
-    /// assert_eq!(t.get(0), Some(&2));
+    /// let mut list = TreapList::new();
+    /// list.insert(0, 1);
+    /// *list.get_mut(0).unwrap() = 2;
+    /// assert_eq!(list.get(0), Some(&2));
     /// ```
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         implicit_tree::get_mut(&mut self.tree, index + 1)
@@ -198,9 +198,9 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.insert(0, 1);
-    /// assert_eq!(t.size(), 1);
+    /// let mut list = TreapList::new();
+    /// list.insert(0, 1);
+    /// assert_eq!(list.size(), 1);
     /// ```
     pub fn size(&self) -> usize {
         implicit_tree::size(&self.tree)
@@ -212,8 +212,8 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let t: TreapList<u32> = TreapList::new();
-    /// assert!(t.is_empty());
+    /// let list: TreapList<u32> = TreapList::new();
+    /// assert!(list.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
         self.tree.is_none()
@@ -225,11 +225,11 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.insert(0, 1);
-    /// t.insert(1, 2);
-    /// t.clear();
-    /// assert_eq!(t.is_empty(), true);
+    /// let mut list = TreapList::new();
+    /// list.insert(0, 1);
+    /// list.insert(1, 2);
+    /// list.clear();
+    /// assert_eq!(list.is_empty(), true);
     /// ```
     pub fn clear(&mut self) {
         self.tree = None;
@@ -241,11 +241,11 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.insert(0, 1);
-    /// t.insert(1, 2);
+    /// let mut list = TreapList::new();
+    /// list.insert(0, 1);
+    /// list.insert(1, 2);
     ///
-    /// let mut iterator = t.iter();
+    /// let mut iterator = list.iter();
     /// assert_eq!(iterator.next(), Some(&1));
     /// assert_eq!(iterator.next(), Some(&2));
     /// assert_eq!(iterator.next(), None);
@@ -263,15 +263,15 @@ impl<T> TreapList<T> {
     /// ```
     /// use data_structures::treap::TreapList;
     ///
-    /// let mut t = TreapList::new();
-    /// t.insert(0, 1);
-    /// t.insert(1, 2);
+    /// let mut list = TreapList::new();
+    /// list.insert(0, 1);
+    /// list.insert(1, 2);
     ///
-    /// for value in &mut t {
+    /// for value in &mut list {
     ///   *value += 1;
     /// }
     ///
-    /// let mut iterator = t.iter();
+    /// let mut iterator = list.iter();
     /// assert_eq!(iterator.next(), Some(&2));
     /// assert_eq!(iterator.next(), Some(&3));
     /// assert_eq!(iterator.next(), None);
@@ -432,73 +432,73 @@ mod tests {
 
     #[test]
     fn test_size_empty() {
-        let tree: TreapList<u32> = TreapList::new();
-        assert_eq!(tree.size(), 0);
+        let list: TreapList<u32> = TreapList::new();
+        assert_eq!(list.size(), 0);
     }
 
     #[test]
     fn test_is_empty() {
-        let tree: TreapList<u32> = TreapList::new();
-        assert!(tree.is_empty());
+        let list: TreapList<u32> = TreapList::new();
+        assert!(list.is_empty());
     }
 
     #[test]
     fn test_insert() {
-        let mut tree = TreapList::new();
-        tree.insert(0, 1);
-        assert_eq!(tree.get(0), Some(&1));
+        let mut list = TreapList::new();
+        list.insert(0, 1);
+        assert_eq!(list.get(0), Some(&1));
     }
 
     #[test]
     fn test_remove() {
-        let mut tree = TreapList::new();
-        tree.insert(0, 1);
-        let ret = tree.remove(0);
-        assert_eq!(tree.get(0), None);
+        let mut list = TreapList::new();
+        list.insert(0, 1);
+        let ret = list.remove(0);
+        assert_eq!(list.get(0), None);
         assert_eq!(ret, 1);
     }
 
     #[test]
     fn test_get_mut() {
-        let mut tree = TreapList::new();
-        tree.insert(0, 1);
+        let mut list = TreapList::new();
+        list.insert(0, 1);
         {
-            let value = tree.get_mut(0);
+            let value = list.get_mut(0);
             *value.unwrap() = 3;
         }
-        assert_eq!(tree.get(0), Some(&3));
+        assert_eq!(list.get(0), Some(&3));
     }
 
     #[test]
     fn test_push_front() {
-        let mut tree = TreapList::new();
-        tree.insert(0, 1);
-        tree.push_front(2);
-        assert_eq!(tree.get(0), Some(&2));
+        let mut list = TreapList::new();
+        list.insert(0, 1);
+        list.push_front(2);
+        assert_eq!(list.get(0), Some(&2));
     }
 
     #[test]
     fn test_push_back() {
-        let mut tree = TreapList::new();
-        tree.insert(0, 1);
-        tree.push_back(2);
-        assert_eq!(tree.get(1), Some(&2));
+        let mut list = TreapList::new();
+        list.insert(0, 1);
+        list.push_back(2);
+        assert_eq!(list.get(1), Some(&2));
     }
 
     #[test]
     fn test_pop_front() {
-        let mut tree = TreapList::new();
-        tree.insert(0, 1);
-        tree.insert(1, 2);
-        assert_eq!(tree.pop_front(), 1);
+        let mut list = TreapList::new();
+        list.insert(0, 1);
+        list.insert(1, 2);
+        assert_eq!(list.pop_front(), 1);
     }
 
     #[test]
     fn test_pop_back() {
-        let mut tree = TreapList::new();
-        tree.insert(0, 1);
-        tree.insert(1, 2);
-        assert_eq!(tree.pop_back(), 2);
+        let mut list = TreapList::new();
+        list.insert(0, 1);
+        list.insert(1, 2);
+        assert_eq!(list.pop_back(), 2);
     }
 
     #[test]
@@ -524,43 +524,43 @@ mod tests {
 
     #[test]
     fn test_into_iter() {
-        let mut tree = TreapList::new();
-        tree.insert(0, 1);
-        tree.insert(0, 2);
-        tree.insert(1, 3);
+        let mut list = TreapList::new();
+        list.insert(0, 1);
+        list.insert(0, 2);
+        list.insert(1, 3);
 
         assert_eq!(
-            tree.into_iter().collect::<Vec<u32>>(),
+            list.into_iter().collect::<Vec<u32>>(),
             vec![2, 3, 1],
         );
     }
 
     #[test]
     fn test_iter() {
-        let mut tree = TreapList::new();
-        tree.insert(0, 1);
-        tree.insert(0, 2);
-        tree.insert(1, 3);
+        let mut list = TreapList::new();
+        list.insert(0, 1);
+        list.insert(0, 2);
+        list.insert(1, 3);
 
         assert_eq!(
-            tree.iter().collect::<Vec<&u32>>(),
+            list.iter().collect::<Vec<&u32>>(),
             vec![&2, &3, &1],
         );
     }
 
     #[test]
     fn test_iter_mut() {
-        let mut tree = TreapList::new();
-        tree.insert(0, 1);
-        tree.insert(0, 2);
-        tree.insert(1, 3);
+        let mut list = TreapList::new();
+        list.insert(0, 1);
+        list.insert(0, 2);
+        list.insert(1, 3);
 
-        for value in &mut tree {
+        for value in &mut list {
             *value += 1;
         }
 
         assert_eq!(
-            tree.iter().collect::<Vec<&u32>>(),
+            list.iter().collect::<Vec<&u32>>(),
             vec![&3, &4, &2],
         );
     }

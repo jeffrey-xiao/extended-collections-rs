@@ -3,6 +3,7 @@ extern crate rand;
 use rand::Rng;
 use rand::XorShiftRng;
 use std::mem;
+use std::ops::{Add, Sub, Index, IndexMut};
 use std::ptr;
 
 #[repr(C)]
@@ -153,7 +154,7 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
-    pub fn contains(&self, key: &T) -> bool {
+    pub fn contains_key(&self, key: &T) -> bool {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
 
@@ -472,135 +473,148 @@ impl<T: Ord, U> Default for SkipMap<T, U> {
     }
 }
 
+impl<'a, T: Ord, U> Index<&'a T> for SkipMap<T, U> {
+    type Output = U;
+    fn index(&self, key: &T) -> &Self::Output {
+        self.get(key).unwrap()
+    }
+}
+
+impl<'a, T: Ord, U> IndexMut<&'a T> for SkipMap<T, U> {
+    fn index_mut(&mut self, key: &T) -> &mut Self::Output {
+        self.get_mut(key).unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::SkipMap;
 
     #[test]
     fn test_size_empty() {
-        let tree: SkipMap<u32, u32> = SkipMap::new();
-        assert_eq!(tree.size(), 0);
+        let map: SkipMap<u32, u32> = SkipMap::new();
+        assert_eq!(map.size(), 0);
     }
 
     #[test]
     fn test_is_empty() {
-        let tree: SkipMap<u32, u32> = SkipMap::new();
-        assert!(tree.is_empty());
+        let map: SkipMap<u32, u32> = SkipMap::new();
+        assert!(map.is_empty());
     }
 
     #[test]
     fn test_min_max_empty() {
-        let tree: SkipMap<u32, u32> = SkipMap::new();
-        assert_eq!(tree.min(), None);
-        assert_eq!(tree.max(), None);
+        let map: SkipMap<u32, u32> = SkipMap::new();
+        assert_eq!(map.min(), None);
+        assert_eq!(map.max(), None);
     }
 
     #[test]
     fn test_insert() {
-        let mut tree = SkipMap::new();
-        tree.insert(1, 1);
-        assert!(tree.contains(&1));
-        assert_eq!(tree.get(&1), Some(&1));
+        let mut map = SkipMap::new();
+        map.insert(1, 1);
+        assert!(map.contains_key(&1));
+        assert_eq!(map.get(&1), Some(&1));
     }
 
     #[test]
     fn test_insert_replace() {
-        let mut tree = SkipMap::new();
-        let ret_1 = tree.insert(1, 1);
-        let ret_2 = tree.insert(1, 3);
-        assert_eq!(tree.get(&1), Some(&3));
+        let mut map = SkipMap::new();
+        let ret_1 = map.insert(1, 1);
+        let ret_2 = map.insert(1, 3);
+        assert_eq!(map.get(&1), Some(&3));
         assert_eq!(ret_1, None);
         assert_eq!(ret_2, Some((1, 1)));
     }
 
     #[test]
     fn test_remove() {
-        let mut tree = SkipMap::new();
-        tree.insert(1, 1);
-        let ret = tree.remove(&1);
-        assert!(!tree.contains(&1));
+        let mut map = SkipMap::new();
+        map.insert(1, 1);
+        let ret = map.remove(&1);
+        assert!(!map.contains_key(&1));
         assert_eq!(ret, Some((1, 1)));
     }
 
     #[test]
     fn test_min_max() {
-        let mut tree = SkipMap::new();
-        tree.insert(1, 1);
-        tree.insert(3, 3);
-        tree.insert(5, 5);
+        let mut map = SkipMap::new();
+        map.insert(1, 1);
+        map.insert(3, 3);
+        map.insert(5, 5);
 
-        assert_eq!(tree.min(), Some(&1));
-        assert_eq!(tree.max(), Some(&5));
+        assert_eq!(map.min(), Some(&1));
+        assert_eq!(map.max(), Some(&5));
     }
 
     #[test]
     fn test_get_mut() {
-        let mut tree = SkipMap::new();
-        tree.insert(1, 1);
+        let mut map = SkipMap::new();
+        map.insert(1, 1);
         {
-            let value = tree.get_mut(&1);
+            let value = map.get_mut(&1);
             *value.unwrap() = 3;
         }
-        assert_eq!(tree.get(&1), Some(&3));
+        assert_eq!(map.get(&1), Some(&3));
     }
 
     #[test]
     fn test_floor_ceil() {
-        let mut tree = SkipMap::new();
-        tree.insert(1, 1);
-        tree.insert(3, 3);
-        tree.insert(5, 5);
+        let mut map = SkipMap::new();
+        map.insert(1, 1);
+        map.insert(3, 3);
+        map.insert(5, 5);
 
-        assert_eq!(tree.floor(&0), None);
-        assert_eq!(tree.floor(&2), Some(&1));
-        assert_eq!(tree.floor(&4), Some(&3));
-        assert_eq!(tree.floor(&6), Some(&5));
+        assert_eq!(map.floor(&0), None);
+        assert_eq!(map.floor(&2), Some(&1));
+        assert_eq!(map.floor(&4), Some(&3));
+        assert_eq!(map.floor(&6), Some(&5));
 
-        assert_eq!(tree.ceil(&0), Some(&1));
-        assert_eq!(tree.ceil(&2), Some(&3));
-        assert_eq!(tree.ceil(&4), Some(&5));
-        assert_eq!(tree.ceil(&6), None);
+        assert_eq!(map.ceil(&0), Some(&1));
+        assert_eq!(map.ceil(&2), Some(&3));
+        assert_eq!(map.ceil(&4), Some(&5));
+        assert_eq!(map.ceil(&6), None);
     }
 
     #[test]
     fn test_into_iter() {
-        let mut tree = SkipMap::new();
-        tree.insert(1, 2);
-        tree.insert(5, 6);
-        tree.insert(3, 4);
+        let mut map = SkipMap::new();
+        map.insert(1, 2);
+        map.insert(5, 6);
+        map.insert(3, 4);
 
         assert_eq!(
-            tree.into_iter().collect::<Vec<(u32, u32)>>(),
+            map.into_iter().collect::<Vec<(u32, u32)>>(),
             vec![(1, 2), (3, 4), (5, 6)],
         );
     }
 
     #[test]
     fn test_iter() {
-        let mut tree = SkipMap::new();
-        tree.insert(1, 2);
-        tree.insert(5, 6);
-        tree.insert(3, 4);
+        let mut map = SkipMap::new();
+        map.insert(1, 2);
+        map.insert(5, 6);
+        map.insert(3, 4);
 
         assert_eq!(
-            tree.iter().collect::<Vec<(&u32, &u32)>>(),
+            map.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &2), (&3, &4), (&5, &6)],
         );
     }
 
     #[test]
     fn test_iter_mut() {
-        let mut tree = SkipMap::new();
-        tree.insert(1, 2);
-        tree.insert(5, 6);
-        tree.insert(3, 4);
+        let mut map = SkipMap::new();
+        map.insert(1, 2);
+        map.insert(5, 6);
+        map.insert(3, 4);
 
-        for (_, value) in &mut tree {
+        for (_, value) in &mut map {
             *value += 1;
         }
 
         assert_eq!(
-            tree.iter().collect::<Vec<(&u32, &u32)>>(),
+            map.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &3), (&3, &5), (&5, &7)],
         );
     }

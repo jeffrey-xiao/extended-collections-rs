@@ -109,7 +109,7 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
             let new_hash = util::combine_hash(util::gen_hash(&id_ref), util::gen_hash(&i));
 
             // replaces another node
-            if self.nodes.contains(&new_hash) {
+            if self.nodes.contains_key(&new_hash) {
                 new_node.points = self.nodes.remove(&new_hash).unwrap().1.points;
             }
             // could take some of another node

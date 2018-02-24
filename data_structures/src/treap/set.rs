@@ -13,17 +13,17 @@ use treap::map::{TreapMap, TreapMapIntoIter, TreapMapIter};
 /// ```
 /// use data_structures::treap::TreapSet;
 ///
-/// let mut t = TreapSet::new();
-/// t.insert(0);
-/// t.insert(3);
+/// let mut set = TreapSet::new();
+/// set.insert(0);
+/// set.insert(3);
 ///
-/// assert_eq!(t.size(), 2);
+/// assert_eq!(set.size(), 2);
 ///
-/// assert_eq!(t.min(), Some(&0));
-/// assert_eq!(t.ceil(&2), Some(&3));
+/// assert_eq!(set.min(), Some(&0));
+/// assert_eq!(set.ceil(&2), Some(&3));
 ///
-/// assert_eq!(t.remove(&0), Some(0));
-/// assert_eq!(t.remove(&1), None);
+/// assert_eq!(set.remove(&0), Some(0));
+/// assert_eq!(set.remove(&1), None);
 /// ```
 pub struct TreapSet<T: Ord> {
     map: TreapMap<T, ()>,
@@ -36,7 +36,7 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let t: TreapSet<u32> = TreapSet::new();
+    /// let set: TreapSet<u32> = TreapSet::new();
     /// ```
     pub fn new() -> Self {
         TreapSet {
@@ -44,33 +44,33 @@ impl<T: Ord> TreapSet<T> {
         }
     }
 
-    /// Inserts a key into the set. If the key already exists in the set, it will
-    /// return and replace the key.
+    /// Inserts a key into the set. If the key already exists in the set, it will return and
+    /// replace the key.
     ///
     /// # Examples
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t = TreapSet::new();
-    /// assert_eq!(t.insert(1), None);
-    /// assert_eq!(t.contains(&1), true);
-    /// assert_eq!(t.insert(1), Some(1));
+    /// let mut set = TreapSet::new();
+    /// assert_eq!(set.insert(1), None);
+    /// assert_eq!(set.contains(&1), true);
+    /// assert_eq!(set.insert(1), Some(1));
     /// ```
     pub fn insert(&mut self, key: T) -> Option<T> {
         self.map.insert(key, ()).map(|pair| pair.0)
     }
 
-    /// Removes a key from the set. If the key exists in the set, it will return
-    /// the associated key. Otherwise it will return `None`.
+    /// Removes a key from the set. If the key exists in the set, it will return the associated
+    /// key. Otherwise it will return `None`.
     ///
     /// # Examples
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t = TreapSet::new();
-    /// t.insert(1);
-    /// assert_eq!(t.remove(&1), Some(1));
-    /// assert_eq!(t.remove(&1), None);
+    /// let mut set = TreapSet::new();
+    /// set.insert(1);
+    /// assert_eq!(set.remove(&1), Some(1));
+    /// assert_eq!(set.remove(&1), None);
     /// ```
     pub fn remove(&mut self, key: &T) -> Option<T> {
         self.map.remove(key).map(|pair| pair.0)
@@ -82,10 +82,10 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t = TreapSet::new();
-    /// t.insert(1);
-    /// assert_eq!(t.contains(&0), false);
-    /// assert_eq!(t.contains(&1), true);
+    /// let mut set = TreapSet::new();
+    /// set.insert(1);
+    /// assert_eq!(set.contains(&0), false);
+    /// assert_eq!(set.contains(&1), true);
     /// ```
     pub fn contains(&self, key: &T) -> bool {
         self.map.contains_key(key)
@@ -97,9 +97,9 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t = TreapSet::new();
-    /// t.insert(1);
-    /// assert_eq!(t.size(), 1);
+    /// let mut set = TreapSet::new();
+    /// set.insert(1);
+    /// assert_eq!(set.size(), 1);
     /// ```
     pub fn size(&self) -> usize {
         self.map.size()
@@ -111,8 +111,8 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let t: TreapSet<u32> = TreapSet::new();
-    /// assert!(t.is_empty());
+    /// let set: TreapSet<u32> = TreapSet::new();
+    /// assert!(set.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
         self.map.size() == 0
@@ -124,45 +124,45 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t = TreapSet::new();
-    /// t.insert(1);
-    /// t.insert(2);
-    /// t.clear();
-    /// assert_eq!(t.is_empty(), true);
+    /// let mut set = TreapSet::new();
+    /// set.insert(1);
+    /// set.insert(2);
+    /// set.clear();
+    /// assert_eq!(set.is_empty(), true);
     /// ```
     pub fn clear(&mut self) {
         self.map.clear();
     }
 
 
-    /// Returns a key in the set that is greater than or equal to a particular key. Returns
-    /// `None` if such a key does not exist.
+    /// Returns a key in the set that is greater than or equal to a particular key. Returns `None`
+    /// if such a key does not exist.
     ///
     /// # Examples
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t = TreapSet::new();
-    /// t.insert(1);
-    /// assert_eq!(t.ceil(&0), Some(&1));
-    /// assert_eq!(t.ceil(&2), None);
+    /// let mut set = TreapSet::new();
+    /// set.insert(1);
+    /// assert_eq!(set.ceil(&0), Some(&1));
+    /// assert_eq!(set.ceil(&2), None);
     /// ```
     pub fn ceil(&self, key: &T) -> Option<&T> {
         self.map.ceil(key)
     }
 
 
-    /// Returns a key in the set that is less than or equal to a particular key. Returns
-    /// `None` if such a key does not exist.
+    /// Returns a key in the set that is less than or equal to a particular key. Returns `None` if
+    /// such a key does not exist.
     ///
     /// # Examples
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t = TreapSet::new();
-    /// t.insert(1);
-    /// assert_eq!(t.floor(&0), None);
-    /// assert_eq!(t.floor(&2), Some(&1));
+    /// let mut set = TreapSet::new();
+    /// set.insert(1);
+    /// assert_eq!(set.floor(&0), None);
+    /// assert_eq!(set.floor(&2), Some(&1));
     /// ```
     pub fn floor(&self, key: &T) -> Option<&T> {
         self.map.floor(key)
@@ -174,10 +174,10 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t = TreapSet::new();
-    /// t.insert(1);
-    /// t.insert(3);
-    /// assert_eq!(t.min(), Some(&1));
+    /// let mut set = TreapSet::new();
+    /// set.insert(1);
+    /// set.insert(3);
+    /// assert_eq!(set.min(), Some(&1));
     /// ```
     pub fn min(&self) -> Option<&T> {
         self.map.min()
@@ -189,13 +189,35 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t = TreapSet::new();
-    /// t.insert(1);
-    /// t.insert(3);
-    /// assert_eq!(t.max(), Some(&3));
+    /// let mut set = TreapSet::new();
+    /// set.insert(1);
+    /// set.insert(3);
+    /// assert_eq!(set.max(), Some(&3));
     /// ```
     pub fn max(&self) -> Option<&T> {
         self.map.max()
+    }
+
+    /// Splits the set and returns the right part of the set. If `inclusive` is true, then the set
+    /// will retain the given key if it exists. Otherwise, the right part of the set will contain
+    /// the key if it exists.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapSet;
+    ///
+    /// let mut set = TreapSet::new();
+    /// set.insert(1);
+    /// set.insert(2);
+    /// set.insert(3);
+    ///
+    /// let split = set.split_off(&2, true);
+    /// assert!(set.contains(&1));
+    /// assert!(set.contains(&2));
+    /// assert!(split.contains(&3));
+    /// ```
+    pub fn split_off(&mut self, key: &T, inclusive: bool) -> Self {
+        TreapSet { map: self.map.split_off(key, inclusive) }
     }
 
     /// Returns the union of two set. The `+` operator is implemented to take the union of two
@@ -312,11 +334,11 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     /// use data_structures::treap::TreapSet;
     ///
-    /// let mut t = TreapSet::new();
-    /// t.insert(1);
-    /// t.insert(3);
+    /// let mut set = TreapSet::new();
+    /// set.insert(1);
+    /// set.insert(3);
     ///
-    /// let mut iterator = t.iter();
+    /// let mut iterator = set.iter();
     /// assert_eq!(iterator.next(), Some(&1));
     /// assert_eq!(iterator.next(), Some(&3));
     /// assert_eq!(iterator.next(), None);
@@ -406,75 +428,111 @@ mod tests {
 
     #[test]
     fn test_size_empty() {
-        let tree: TreapSet<u32> = TreapSet::new();
-        assert_eq!(tree.size(), 0);
+        let set: TreapSet<u32> = TreapSet::new();
+        assert_eq!(set.size(), 0);
     }
 
     #[test]
     fn test_is_empty() {
-        let tree: TreapSet<u32> = TreapSet::new();
-        assert!(tree.is_empty());
+        let set: TreapSet<u32> = TreapSet::new();
+        assert!(set.is_empty());
     }
 
     #[test]
     fn test_min_max_empty() {
-        let tree: TreapSet<u32> = TreapSet::new();
-        assert_eq!(tree.min(), None);
-        assert_eq!(tree.max(), None);
+        let set: TreapSet<u32> = TreapSet::new();
+        assert_eq!(set.min(), None);
+        assert_eq!(set.max(), None);
     }
 
     #[test]
     fn test_insert() {
-        let mut tree = TreapSet::new();
-        tree.insert(1);
-        assert!(tree.contains(&1));
+        let mut set = TreapSet::new();
+        set.insert(1);
+        assert!(set.contains(&1));
     }
 
     #[test]
     fn test_insert_replace() {
-        let mut tree = TreapSet::new();
-        let ret_1 = tree.insert(1);
-        let ret_2 = tree.insert(1);
+        let mut set = TreapSet::new();
+        let ret_1 = set.insert(1);
+        let ret_2 = set.insert(1);
         assert_eq!(ret_1, None);
         assert_eq!(ret_2, Some(1));
     }
 
     #[test]
     fn test_remove() {
-        let mut tree = TreapSet::new();
-        tree.insert(1);
-        let ret = tree.remove(&1);
-        assert!(!tree.contains(&1));
+        let mut set = TreapSet::new();
+        set.insert(1);
+        let ret = set.remove(&1);
+        assert!(!set.contains(&1));
         assert_eq!(ret, Some(1));
     }
 
     #[test]
     fn test_min_max() {
-        let mut tree = TreapSet::new();
-        tree.insert(1);
-        tree.insert(3);
-        tree.insert(5);
+        let mut set = TreapSet::new();
+        set.insert(1);
+        set.insert(3);
+        set.insert(5);
 
-        assert_eq!(tree.min(), Some(&1));
-        assert_eq!(tree.max(), Some(&5));
+        assert_eq!(set.min(), Some(&1));
+        assert_eq!(set.max(), Some(&5));
     }
 
     #[test]
     fn test_floor_ceil() {
-        let mut tree = TreapSet::new();
-        tree.insert(1);
-        tree.insert(3);
-        tree.insert(5);
+        let mut set = TreapSet::new();
+        set.insert(1);
+        set.insert(3);
+        set.insert(5);
 
-        assert_eq!(tree.floor(&0), None);
-        assert_eq!(tree.floor(&2), Some(&1));
-        assert_eq!(tree.floor(&4), Some(&3));
-        assert_eq!(tree.floor(&6), Some(&5));
+        assert_eq!(set.floor(&0), None);
+        assert_eq!(set.floor(&2), Some(&1));
+        assert_eq!(set.floor(&4), Some(&3));
+        assert_eq!(set.floor(&6), Some(&5));
 
-        assert_eq!(tree.ceil(&0), Some(&1));
-        assert_eq!(tree.ceil(&2), Some(&3));
-        assert_eq!(tree.ceil(&4), Some(&5));
-        assert_eq!(tree.ceil(&6), None);
+        assert_eq!(set.ceil(&0), Some(&1));
+        assert_eq!(set.ceil(&2), Some(&3));
+        assert_eq!(set.ceil(&4), Some(&5));
+        assert_eq!(set.ceil(&6), None);
+    }
+
+    #[test]
+    fn test_split_off_inclusive() {
+        let mut set = TreapSet::new();
+        set.insert(1);
+        set.insert(2);
+        set.insert(3);
+
+        let split = set.split_off(&2, true);
+        assert_eq!(
+            set.iter().collect::<Vec<&u32>>(),
+            vec![&1, &2],
+        );
+        assert_eq!(
+            split.iter().collect::<Vec<&u32>>(),
+            vec![&3],
+        );
+    }
+
+    #[test]
+    fn test_split_off_not_inclusive() {
+        let mut set = TreapSet::new();
+        set.insert(1);
+        set.insert(2);
+        set.insert(3);
+
+        let split = set.split_off(&2, false);
+        assert_eq!(
+            set.iter().collect::<Vec<&u32>>(),
+            vec![&1],
+        );
+        assert_eq!(
+            split.iter().collect::<Vec<&u32>>(),
+            vec![&2, &3],
+        );
     }
 
     #[test]
@@ -563,26 +621,26 @@ mod tests {
 
     #[test]
     fn test_into_iter() {
-        let mut tree = TreapSet::new();
-        tree.insert(1);
-        tree.insert(5);
-        tree.insert(3);
+        let mut set = TreapSet::new();
+        set.insert(1);
+        set.insert(5);
+        set.insert(3);
 
         assert_eq!(
-            tree.into_iter().collect::<Vec<u32>>(),
+            set.into_iter().collect::<Vec<u32>>(),
             vec![1, 3, 5]
         );
     }
 
     #[test]
     fn test_iter() {
-        let mut tree = TreapSet::new();
-        tree.insert(1);
-        tree.insert(5);
-        tree.insert(3);
+        let mut set = TreapSet::new();
+        set.insert(1);
+        set.insert(5);
+        set.insert(3);
 
         assert_eq!(
-            tree.iter().collect::<Vec<&u32>>(),
+            set.iter().collect::<Vec<&u32>>(),
             vec![&1, &3, &5],
         );
     }
