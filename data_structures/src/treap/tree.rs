@@ -10,11 +10,13 @@ pub fn merge<T: Ord, U>(l_tree: &mut Tree<T, U>, r_tree: Tree<T, U>) {
         (Some(mut l_node), Some(mut r_node)) => {
             if l_node.priority > r_node.priority {
                 merge(&mut l_node.right, Some(r_node));
+                l_node.update();
                 *l_tree = Some(l_node);
             } else {
                 let mut new_tree = Some(l_node);
                 merge(&mut new_tree, r_node.left.take());
                 r_node.left = new_tree;
+                r_node.update();
                 *l_tree = Some(r_node);
             }
         },
@@ -31,15 +33,18 @@ pub fn split<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> (Tree<T, U>, Tree<T, 
                     let mut res = split(&mut node.left, key);
                     *tree = node.left.take();
                     node.left = res.1;
+                    node.update();
                     ret = (res.0, Some(node));
                 },
                 Ordering::Greater => {
                     ret = split(&mut node.right, key);
+                    node.update();
                     *tree = Some(node);
                 },
                 Ordering::Equal => {
                     *tree = node.left.take();
                     let right = node.right.take();
+                    node.update();
                     ret = (Some(node), right);
                 },
             }
@@ -55,10 +60,14 @@ pub fn insert<T: Ord, U>(tree: &mut Tree<T, U>, mut new_node: Node<T, U>) -> Opt
             if new_node.priority <= node.priority {
                 match new_node.entry.key.cmp(&node.entry.key) {
                     Ordering::Less => {
-                        return insert(&mut node.left, new_node);
+                        let ret = insert(&mut node.left, new_node);
+                        node.update();
+                        return ret;
                     },
                     Ordering::Greater => {
-                        return insert(&mut node.right, new_node);
+                        let ret = insert(&mut node.right, new_node);
+                        node.update();
+                        return ret;
                     },
                     Ordering::Equal => {
                         let &mut Node { ref mut entry, .. } = &mut **node;
@@ -75,6 +84,7 @@ pub fn insert<T: Ord, U>(tree: &mut Tree<T, U>, mut new_node: Node<T, U>) -> Opt
     new_node.left = tree.take();
     let (dup_opt, right) = split(&mut new_node.left, &new_node.entry.key);
     new_node.right = right;
+    new_node.update();
     *tree = Some(Box::new(new_node));
     dup_opt.map(|node| node.entry)
 }
@@ -85,10 +95,14 @@ pub fn remove<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>> 
         Some(ref mut node) => {
             match key.cmp(&node.entry.key) {
                 Ordering::Less => {
-                    return remove(&mut node.left, key);
+                    let ret = remove(&mut node.left, key);
+                    node.update();
+                    return ret;
                 },
                 Ordering::Greater => {
-                    return remove(&mut node.right, key);
+                    let ret = remove(&mut node.right, key);
+                    node.update();
+                    return ret;
                 },
                 Ordering::Equal => {
                     new_tree = node.left.take();
@@ -186,14 +200,13 @@ pub fn max<T: Ord, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>> {
     })
 }
 
-pub fn union<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
+pub fn union<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> Tree<T, U> {
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {
             if left_node.priority < right_node.priority {
                 mem::swap(&mut left_node, &mut right_node);
                 swapped = !swapped;
             }
-            let mut dups = 0;
             {
                 let &mut Node {
                     left: ref mut left_subtree,
@@ -203,69 +216,27 @@ pub fn union<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapp
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
                 let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
-                let (new_left_subtree, left_dups) = union(left_subtree.take(), right_left_subtree, swapped);
-                let (new_right_subtree, right_dups) = union(right_subtree.take(), right_right_subtree, swapped);
-                dups += left_dups + right_dups;
+                let new_left_subtree = union(left_subtree.take(), right_left_subtree, swapped);
+                let new_right_subtree = union(right_subtree.take(), right_right_subtree, swapped);
                 *left_subtree = new_left_subtree;
                 *right_subtree = new_right_subtree;
                 if let Some(duplicate_node) = duplicate_opt {
                     if swapped {
                         *entry = duplicate_node.entry;
                     }
-                    dups += 1;
                 }
             }
-            (Some(left_node), dups)
+            left_node.update();
+            Some(left_node)
         },
-        (None, right_tree) => (right_tree, 0),
-        (left_tree, None) => (left_tree, 0),
+        (None, right_tree) => right_tree,
+        (left_tree, None) => left_tree,
     }
 }
 
-pub fn intersection<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> (Tree<T, U>, usize) {
-    if let (Some(mut left_node), Some(mut right_node)) = (left_tree, right_tree) {
-        let mut dups = 0;
-        {
-            if left_node.priority < right_node.priority {
-                mem::swap(&mut left_node, &mut right_node);
-                swapped = !swapped;
-            }
-            let &mut Node {
-                left: ref mut left_subtree,
-                right: ref mut right_subtree,
-                ref mut entry,
-                ..
-            } = &mut *left_node;
-            let mut right_left_subtree = Some(right_node);
-            let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
-            let (new_left_subtree, left_dups) = intersection(left_subtree.take(), right_left_subtree, swapped);
-            let (new_right_subtree, right_dups) = intersection(right_subtree.take(), right_right_subtree, swapped);
-            dups += left_dups + right_dups;
-            *left_subtree = new_left_subtree;
-            *right_subtree = new_right_subtree;
-            match duplicate_opt {
-                Some(duplicate_node) => {
-                    if swapped {
-                        *entry = duplicate_node.entry;
-                    }
-                    dups += 1;
-                },
-                None => {
-                    merge(left_subtree, right_subtree.take());
-                    return (left_subtree.take(), dups);
-                },
-            }
-        }
-        (Some(left_node), dups)
-    } else {
-        (None, 0)
-    }
-}
-
-pub fn difference<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool, symmetric: bool) -> (Tree<T, U>, usize) {
+pub fn intersection<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> Tree<T, U> {
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {
-            let mut dups = 0;
             {
                 if left_node.priority < right_node.priority {
                     mem::swap(&mut left_node, &mut right_node);
@@ -279,26 +250,65 @@ pub fn difference<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut 
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
                 let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
-                let (new_left_subtree, left_dups) = difference(left_subtree.take(), right_left_subtree, swapped, symmetric);
-                let (new_right_subtree, right_dups) = difference(right_subtree.take(), right_right_subtree, swapped, symmetric);
-                dups += left_dups + right_dups;
+                let new_left_subtree = intersection(left_subtree.take(), right_left_subtree, swapped);
+                let new_right_subtree = intersection(right_subtree.take(), right_right_subtree, swapped);
+                *left_subtree = new_left_subtree;
+                *right_subtree = new_right_subtree;
+                match duplicate_opt {
+                    Some(duplicate_node) => {
+                        if swapped {
+                            *entry = duplicate_node.entry;
+                        }
+                    },
+                    None => {
+                        merge(left_subtree, right_subtree.take());
+                        return left_subtree.take();
+                    },
+                }
+            }
+            left_node.update();
+            Some(left_node)
+        },
+        _ => None,
+    }
+}
+
+pub fn difference<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool, symmetric: bool) -> Tree<T, U> {
+    match (left_tree, right_tree) {
+        (Some(mut left_node), Some(mut right_node)) => {
+            {
+                if left_node.priority < right_node.priority {
+                    mem::swap(&mut left_node, &mut right_node);
+                    swapped = !swapped;
+                }
+                let &mut Node {
+                    left: ref mut left_subtree,
+                    right: ref mut right_subtree,
+                    ref mut entry,
+                    ..
+                } = &mut *left_node;
+                let mut right_left_subtree = Some(right_node);
+                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
+                let new_left_subtree = difference(left_subtree.take(), right_left_subtree, swapped, symmetric);
+                let new_right_subtree = difference(right_subtree.take(), right_right_subtree, swapped, symmetric);
                 *left_subtree = new_left_subtree;
                 *right_subtree = new_right_subtree;
                 if duplicate_opt.is_some() || (swapped && !symmetric) {
                     merge(left_subtree, right_subtree.take());
-                    return (left_subtree.take(), dups + 1);
+                    return left_subtree.take();
                 }
             }
-            (Some(left_node), dups)
+            left_node.update();
+            Some(left_node)
         },
         (mut left_tree, right_tree) => {
             if symmetric {
                 merge(&mut left_tree, right_tree);
-                (left_tree, 0)
+                left_tree
             } else if swapped {
-                (right_tree, 0)
+                right_tree
             } else {
-                (left_tree, 0)
+                left_tree
             }
         },
     }

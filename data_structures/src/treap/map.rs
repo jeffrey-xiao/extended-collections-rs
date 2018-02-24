@@ -35,7 +35,6 @@ use treap::tree;
 pub struct TreapMap<T: Ord, U> {
     tree: tree::Tree<T, U>,
     rng: XorShiftRng,
-    size: usize,
 }
 
 impl<T: Ord, U> TreapMap<T, U> {
@@ -51,7 +50,6 @@ impl<T: Ord, U> TreapMap<T, U> {
         TreapMap {
             tree: None,
             rng: XorShiftRng::new_unseeded(),
-            size: 0,
         }
     }
 
@@ -69,20 +67,18 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.get(&1), Some(&2));
     /// ```
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
-        let &mut TreapMap { ref mut tree, ref mut rng, ref mut size } = self;
+        let &mut TreapMap { ref mut tree, ref mut rng } = self;
         let new_node = Node {
             entry: Entry { key, value },
             priority: rng.next_u32(),
+            size: 1,
             left: None,
             right: None,
         };
-        match tree::insert(tree, new_node) {
-            Some(Entry { key, value }) => Some((key, value)),
-            None => {
-                *size += 1;
-                None
-            },
-        }
+        tree::insert(tree, new_node).and_then(|entry| {
+            let Entry { key, value } = entry;
+            Some((key, value))
+        })
     }
 
     /// Removes a key-value pair from the map. If the key exists in the map, it will return
@@ -98,9 +94,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.remove(&1), None);
     /// ```
     pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
-        let &mut TreapMap { ref mut tree, ref mut size, .. } = self;
+        let &mut TreapMap { ref mut tree, .. } = self;
         tree::remove(tree, key).and_then(|entry| {
-            *size -= 1;
             let Entry { key, value } = entry;
             Some((key, value))
         })
@@ -164,7 +159,10 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(t.size(), 1);
     /// ```
     pub fn size(&self) -> usize {
-        self.size
+        match self.tree {
+            None => 0,
+            Some(ref node) => node.size(),
+        }
     }
 
     /// Returns `true` if the map is empty.
@@ -177,7 +175,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert!(t.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.size == 0
+        self.size() == 0
     }
 
     /// Clears the map, removing all values.
@@ -194,7 +192,6 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// ```
     pub fn clear(&mut self) {
         self.tree = None;
-        self.size = 0;
     }
 
     /// Returns a key in the map that is greater than or equal to a particular key. Returns
@@ -283,10 +280,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// );
     /// ```
     pub fn union(left: Self, right: Self) -> Self {
-        let TreapMap { tree: left_tree, rng, size: left_size } = left;
-        let TreapMap { tree: right_tree, size: right_size, .. } = right;
-        let (tree, dups) = tree::union(left_tree, right_tree, false);
-        TreapMap { tree, rng, size: left_size + right_size - dups }
+        let TreapMap { tree: left_tree, rng } = left;
+        let TreapMap { tree: right_tree, .. } = right;
+        TreapMap { tree: tree::union(left_tree, right_tree, false), rng }
     }
 
     /// Returns the intersection of two maps. If there is a key that is found in both `left` and
@@ -311,9 +307,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// );
     /// ```
     pub fn intersection(left: Self, right: Self) -> Self {
-        let TreapMap { tree: left_tree, rng, .. } = left;
-        let (tree, dups) = tree::intersection(left_tree, right.tree, false);
-        TreapMap { tree, rng, size: dups }
+        let TreapMap { tree: left_tree, rng } = left;
+        TreapMap { tree: tree::intersection(left_tree, right.tree, false), rng }
     }
 
     /// Returns the difference of `left` and `right`. The returned map will contain all entries that
@@ -339,9 +334,8 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// );
     /// ```
     pub fn difference(left: Self, right: Self) -> Self {
-        let TreapMap { tree: left_tree, rng, size } = left;
-        let (tree, dups) = tree::difference(left_tree, right.tree, false, false);
-        TreapMap { tree, rng, size: size - dups }
+        let TreapMap { tree: left_tree, rng } = left;
+        TreapMap { tree: tree::difference(left_tree, right.tree, false, false), rng }
     }
 
     /// Returns the symmetric difference of `left` and `right`. The returned map will contain all
@@ -366,10 +360,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// );
     /// ```
     pub fn symmetric_difference(left: Self, right:Self) -> Self {
-        let TreapMap { tree: left_tree, rng, size: left_size } = left;
-        let TreapMap { tree: right_tree, size: right_size, .. } = right;
-        let (tree, dups) = tree::difference(left_tree, right_tree, false, true);
-        TreapMap { tree, rng, size: left_size + right_size - dups * 2 }
+        let TreapMap { tree: left_tree, rng } = left;
+        let TreapMap { tree: right_tree, .. } = right;
+        TreapMap { tree: tree::difference(left_tree, right_tree, false, true), rng }
     }
 
     /// Returns an iterator over the map. The iterator will yield key-value pairs using in-order

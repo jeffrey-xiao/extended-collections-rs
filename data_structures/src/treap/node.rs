@@ -5,6 +5,7 @@ use treap::entry::Entry;
 pub struct Node<T: Ord, U> {
     pub entry: Entry<T, U>,
     pub priority: u32,
+    pub size: usize,
     pub left: tree::Tree<T, U>,
     pub right: tree::Tree<T, U>,
 }
@@ -16,6 +17,23 @@ pub struct ImplicitNode<T> {
     pub size: usize,
     pub left: implicit_tree::Tree<T>,
     pub right: implicit_tree::Tree<T>,
+}
+
+impl<T: Ord, U> Node<T, U> {
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
+    pub fn update(&mut self) {
+        let Node { ref mut size, ref left, ref right, .. } = *self;
+        *size = 1;
+        if let Some(ref left_node) = *left {
+            *size += left_node.size();
+        }
+        if let Some(ref right_node) = *right {
+            *size += right_node.size();
+        }
+    }
 }
 
 impl<T> ImplicitNode<T> {
