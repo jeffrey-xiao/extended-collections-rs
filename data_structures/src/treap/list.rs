@@ -172,7 +172,7 @@ impl<T> TreapList<T> {
     /// assert_eq!(t.get(0), Some(&1));
     /// assert_eq!(t.get(1), None);
     /// ```
-    pub fn get<'a>(&'a self, index: usize) -> Option<&'a T> {
+    pub fn get(&self, index: usize) -> Option<&T> {
         implicit_tree::get(&self.tree, index + 1)
     }
 
@@ -188,7 +188,7 @@ impl<T> TreapList<T> {
     /// *t.get_mut(0).unwrap() = 2;
     /// assert_eq!(t.get(0), Some(&2));
     /// ```
-    pub fn get_mut<'a>(&'a mut self, index: usize) -> Option<&'a mut T> {
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         implicit_tree::get_mut(&mut self.tree, index + 1)
     }
 
@@ -392,6 +392,12 @@ impl<'a, T: 'a> Iterator for TreapListIterMut<'a, T> {
                 None => None,
             }
         })
+    }
+}
+
+impl<T> Default for TreapList<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

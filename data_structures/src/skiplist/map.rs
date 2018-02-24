@@ -4,11 +4,10 @@ use rand::Rng;
 use rand::XorShiftRng;
 use std::mem;
 use std::ptr;
-use std::fmt::Debug;
 
 #[repr(C)]
 #[derive(Debug)]
-struct Node<T: Ord + Debug, U: Debug> {
+struct Node<T: Ord, U> {
     height: usize,
     value: U,
     key: T,
@@ -17,7 +16,7 @@ struct Node<T: Ord + Debug, U: Debug> {
 
 const MAX_HEIGHT: usize = 64;
 
-impl<T: Ord + Debug, U: Debug> Node<T, U> {
+impl<T: Ord, U> Node<T, U> {
     pub fn new(key: T, value: U, height: usize) -> *mut Self {
         let ptr = unsafe { Self::allocate(height) };
         unsafe {
@@ -60,13 +59,13 @@ impl<T: Ord + Debug, U: Debug> Node<T, U> {
     }
 }
 
-pub struct SkipMap<T: Ord + Debug, U: Debug> {
+pub struct SkipMap<T: Ord, U> {
     head: *mut Node<T, U>,
     rng: XorShiftRng,
     size: usize,
 }
 
-impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
+impl<T: Ord, U> SkipMap<T, U> {
     pub fn new() -> Self {
         SkipMap {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
@@ -262,10 +261,11 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
                 }
 
                 if curr_height == 0 {
-                    return match next_node.is_null() {
-                        false => Some(&(**next_node).key),
-                        true => None,
-                    };
+                    if next_node.is_null() {
+                        return None
+                    } else {
+                        return Some(&(**next_node).key)
+                    }
                 }
 
                 curr_height -= 1;
@@ -285,10 +285,11 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
                 }
 
                 if curr_height == 0 {
-                    return match curr_node == &self.head {
-                        false => Some(&(**curr_node).key),
-                        true => None,
-                    };
+                    if curr_node == &self.head {
+                        return None;
+                    } else {
+                        return Some(&(**curr_node).key);
+                    }
                 }
 
                 curr_height -= 1;
@@ -299,9 +300,10 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
     pub fn min(&self) -> Option<&T> {
         unsafe {
             let min_node = (*self.head).get_pointer(0);
-            match min_node.is_null() {
-                false => Some(&(**min_node).key),
-                true => None,
+            if min_node.is_null() {
+                None
+            } else {
+                Some(&(**min_node).key)
             }
         }
     }
@@ -318,9 +320,10 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
                 }
 
                 if curr_height == 0 {
-                    return match curr_node == &self.head {
-                        false => Some(&(**curr_node).key),
-                        true => None,
+                    if curr_node == &self.head {
+                        return None;
+                    } else {
+                        return Some(&(**curr_node).key);
                     };
                 }
 
@@ -338,7 +341,7 @@ impl<T: Ord + Debug, U: Debug> SkipMap<T, U> {
     }
 }
 
-impl<T: Ord + Debug, U: Debug> Drop for SkipMap<T, U> {
+impl<T: Ord, U> Drop for SkipMap<T, U> {
     fn drop(&mut self) {
         unsafe {
             Node::free(mem::replace(&mut self.head, *(*self.head).get_pointer(0)));
@@ -351,7 +354,7 @@ impl<T: Ord + Debug, U: Debug> Drop for SkipMap<T, U> {
     }
 }
 
-impl<T: Ord + Debug, U: Debug> IntoIterator for SkipMap<T, U> {
+impl<T: Ord, U> IntoIterator for SkipMap<T, U> {
     type Item = (T, U);
     type IntoIter = SkipMapIntoIter<T, U>;
 
@@ -364,7 +367,7 @@ impl<T: Ord + Debug, U: Debug> IntoIterator for SkipMap<T, U> {
     }
 }
 
-impl<'a, T: 'a + Ord + Debug, U: 'a + Debug> IntoIterator for &'a SkipMap<T, U> {
+impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a SkipMap<T, U> {
     type Item = (&'a T, &'a U);
     type IntoIter = SkipMapIter<'a, T, U>;
 
@@ -373,7 +376,7 @@ impl<'a, T: 'a + Ord + Debug, U: 'a + Debug> IntoIterator for &'a SkipMap<T, U> 
     }
 }
 
-impl<'a, T: 'a + Ord + Debug, U: 'a + Debug> IntoIterator for &'a mut SkipMap<T, U> {
+impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut SkipMap<T, U> {
     type Item = (&'a T, &'a mut U);
     type IntoIter = SkipMapIterMut<'a, T, U>;
 
@@ -382,29 +385,30 @@ impl<'a, T: 'a + Ord + Debug, U: 'a + Debug> IntoIterator for &'a mut SkipMap<T,
     }
 }
 
-pub struct SkipMapIntoIter<T: Ord + Debug, U: Debug> {
+pub struct SkipMapIntoIter<T: Ord, U> {
     current: *mut Node<T, U>,
 }
 
-impl<T: Ord + Debug, U: Debug> Iterator for SkipMapIntoIter<T, U> {
+impl<T: Ord, U> Iterator for SkipMapIntoIter<T, U> {
     type Item = (T, U);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.current.is_null() {
-            false => unsafe {
+        if self.current.is_null() {
+            None
+        } else {
+            unsafe {
                 let ret = (
                     ptr::read(&(*self.current).key),
                     ptr::read(&(*self.current).value),
                 );
                 Node::free(mem::replace(&mut self.current, *(*self.current).get_pointer(0)));
                 Some(ret)
-            },
-            true => None,
+            }
         }
     }
 }
 
-impl<T: Ord + Debug, U: Debug> Drop for SkipMapIntoIter<T, U> {
+impl<T: Ord, U> Drop for SkipMapIntoIter<T, U> {
     fn drop(&mut self) {
         unsafe {
             while !self.current.is_null() {
@@ -416,47 +420,55 @@ impl<T: Ord + Debug, U: Debug> Drop for SkipMapIntoIter<T, U> {
     }
 }
 
-pub struct SkipMapIter<'a, T: 'a + Ord + Debug, U: 'a + Debug> {
+pub struct SkipMapIter<'a, T: 'a + Ord, U: 'a> {
     current: &'a *mut Node<T, U>,
 }
 
-impl<'a, T: 'a + Ord + Debug, U: 'a + Debug> Iterator for SkipMapIter<'a, T, U> {
+impl<'a, T: 'a + Ord, U: 'a> Iterator for SkipMapIter<'a, T, U> {
     type Item = (&'a T, &'a U);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.current.is_null() {
-            false => unsafe {
+        if self.current.is_null() {
+            None
+        } else {
+            unsafe {
                 let ret = (
                     &(**self.current).key,
                     &(**self.current).value,
                 );
                 mem::replace(&mut self.current, &*(**self.current).get_pointer(0));
                 Some(ret)
-            },
-            true => None,
+            }
         }
     }
 }
 
-pub struct SkipMapIterMut<'a, T: 'a + Ord + Debug, U: 'a + Debug> {
+pub struct SkipMapIterMut<'a, T: 'a + Ord, U: 'a> {
     current: &'a mut *mut Node<T, U>,
 }
 
-impl<'a, T: 'a + Ord + Debug, U: 'a + Debug> Iterator for SkipMapIterMut<'a, T, U> {
+impl<'a, T: 'a + Ord, U: 'a> Iterator for SkipMapIterMut<'a, T, U> {
     type Item = (&'a T, &'a mut U);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.current.is_null() {
-            false => unsafe {
+        if self.current.is_null() {
+            None
+        } else {
+            unsafe {
                 let ret = (
                     &(**self.current).key,
                     &mut (**self.current).value,
                 );
                 mem::replace(&mut self.current, &mut *(**self.current).get_pointer_mut(0));
                 Some(ret)
-            },
-            true => None,
+            }
         }
+    }
+}
+
+impl<T: Ord, U> Default for SkipMap<T, U> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

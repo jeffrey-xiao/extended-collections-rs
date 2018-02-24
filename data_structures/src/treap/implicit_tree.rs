@@ -79,7 +79,7 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
     mem::replace(tree, new_tree).unwrap().value
 }
 
-pub fn get<'a, T>(tree: &'a Tree<T>, index: usize) -> Option<&'a T> {
+pub fn get<T>(tree: &Tree<T>, index: usize) -> Option<&T> {
     tree.as_ref().and_then(|node| {
         let key = node.get_implicit_key();
         match index.cmp(&key) {
@@ -90,7 +90,7 @@ pub fn get<'a, T>(tree: &'a Tree<T>, index: usize) -> Option<&'a T> {
     })
 }
 
-pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, index: usize) -> Option<&'a mut T> {
+pub fn get_mut<T>(tree: &mut Tree<T>, index: usize) -> Option<&mut T> {
     tree.as_mut().and_then(|node| {
         let key = node.get_implicit_key();
         match index.cmp(&key) {
