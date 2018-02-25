@@ -2,12 +2,12 @@ extern crate rand;
 
 use rand::Rng;
 use rand::XorShiftRng;
+use std::cmp;
 use std::mem;
 use std::ops::{Add, Sub, Index, IndexMut};
 use std::ptr;
 
 #[repr(C)]
-#[derive(Debug)]
 struct Node<T: Ord, U> {
     height: usize,
     value: U,
@@ -15,7 +15,7 @@ struct Node<T: Ord, U> {
     data: [*mut Node<T, U>; 0],
 }
 
-const MAX_HEIGHT: usize = 64;
+const MAX_HEIGHT: usize = 32;
 
 impl<T: Ord, U> Node<T, U> {
     pub fn new(key: T, value: U, height: usize) -> *mut Self {
@@ -53,13 +53,47 @@ impl<T: Ord, U> Node<T, U> {
         ptr
     }
 
-    unsafe fn free(ptr: *mut Self) {
+    unsafe fn deallocate(ptr: *mut Self) {
         let height = (*ptr).height;
         let cap = Self::get_size_in_u64s(height);
         drop(Vec::from_raw_parts(ptr as *mut u64, 0, cap));
     }
+
+    unsafe fn free(ptr: *mut Self) {
+        ptr::drop_in_place(&mut (*ptr).key);
+        ptr::drop_in_place(&mut (*ptr).value);
+        Self::deallocate(ptr);
+    }
 }
 
+/// An ordered map implemented by a skiplist.
+///
+/// A skiplist is a probabilistic data structure that allows for binary search tree operations by
+/// maintaining a linked hierarchy of subsequences. The first subsequence is essentially a sorted
+/// linked list of all the elements that it contains. Each successive subsequence contains
+/// approximately half the elements of the previous subsequence. Using the sparser subsequences,
+/// elements can be skipped and searching, insertion, and deletion of entries can be done in
+/// approximately logarithm time.
+///
+/// # Examples
+/// ```
+/// use data_structures::treap::TreapMap;
+///
+/// let mut map = TreapMap::new();
+/// map.insert(0, 1);
+/// map.insert(3, 4);
+///
+/// assert_eq!(map[&0], 1);
+/// assert_eq!(map.get(&1), None);
+/// assert_eq!(map.size(), 2);
+///
+/// assert_eq!(map.min(), Some(&0));
+/// assert_eq!(map.ceil(&2), Some(&3));
+///
+/// map[&0] = 2;
+/// assert_eq!(map.remove(&0), Some((0, 2)));
+/// assert_eq!(map.remove(&1), None);
+/// ```
 pub struct SkipMap<T: Ord, U> {
     head: *mut Node<T, U>,
     rng: XorShiftRng,
@@ -67,6 +101,14 @@ pub struct SkipMap<T: Ord, U> {
 }
 
 impl<T: Ord, U> SkipMap<T, U> {
+    /// Constructs a new, empty `TreapMap<T, U>`
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let map: TreapMap<u32, u32> = TreapMap::new();
+    /// ```
     pub fn new() -> Self {
         SkipMap {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
@@ -76,18 +118,31 @@ impl<T: Ord, U> SkipMap<T, U> {
     }
 
     fn get_starting_height(&self) -> usize {
-        MAX_HEIGHT - self.size.leading_zeros() as usize
+        MAX_HEIGHT - (self.size as u32).leading_zeros() as usize
     }
 
     fn gen_random_height(&mut self) -> usize {
         self.rng.next_u64().leading_zeros() as usize
     }
 
+    /// Inserts a key-value pair into the map. If the key already exists in the map, it will return
+    /// and replace the old key-value pair.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// assert_eq!(map.insert(1, 1), None);
+    /// assert_eq!(map.get(&1), Some(&1));
+    /// assert_eq!(map.insert(1, 2), Some((1, 1)));
+    /// assert_eq!(map.get(&1), Some(&2));
+    /// ```
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
         self.size += 1;
         let new_height = self.gen_random_height();
         let new_node = Node::new(key, value, new_height + 1);
-        let mut curr_height = self.get_starting_height();
+        let mut curr_height = MAX_HEIGHT;
         let mut curr_node = &mut self.head;
         let mut ret = None;
 
@@ -103,7 +158,7 @@ impl<T: Ord, U> SkipMap<T, U> {
                     *(**curr_node).get_pointer_mut(curr_height) = *(**next_node).get_pointer_mut(curr_height);
                     if curr_height == 0 {
                         ret = Some((ptr::read(&(*temp).key), ptr::read(&(*temp).value)));
-                        Node::free(temp);
+                        Node::deallocate(temp);
                         self.size -= 1;
                     }
                 }
@@ -122,8 +177,20 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
+    /// Removes a key-value pair from the map. If the key exists in the map, it will return the
+    /// associated key-value pair. Otherwise it will return `None`.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.remove(&1), Some((1, 1)));
+    /// assert_eq!(map.remove(&1), None);
+    /// ```
     pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
-        let mut curr_height = self.get_starting_height();
+        let mut curr_height = MAX_HEIGHT;
         let mut curr_node = &mut self.head;
         let mut ret = None;
 
@@ -139,7 +206,7 @@ impl<T: Ord, U> SkipMap<T, U> {
                     *(**curr_node).get_pointer_mut(curr_height) = *(**next_node).get_pointer_mut(curr_height);
                     if curr_height == 0 {
                         ret = Some((ptr::read(&(*temp).key), ptr::read(&(*temp).value)));
-                        Node::free(temp);
+                        Node::deallocate(temp);
                         self.size -= 1;
                     }
                 }
@@ -154,6 +221,17 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
+    /// Checks if a key exists in the map.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.contains_key(&0), false);
+    /// assert_eq!(map.contains_key(&1), true);
+    /// ```
     pub fn contains_key(&self, key: &T) -> bool {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
@@ -179,6 +257,18 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
+    /// Returns an immutable reference to the value associated with a particular key. It will
+    /// return `None` if the key does not exist in the map.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.get(&0), None);
+    /// assert_eq!(map.get(&1), Some(&1));
+    /// ```
     pub fn get(&self, key: &T) -> Option<&U> {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
@@ -204,6 +294,18 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
+    /// Returns a mutable reference to the value associated with a particular key. Returns `None`
+    /// if such a key does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// *map.get_mut(&1).unwrap() = 2;
+    /// assert_eq!(map.get(&1), Some(&2));
+    /// ```
     pub fn get_mut(&mut self, key: &T) -> Option<&mut U> {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &mut self.head;
@@ -229,27 +331,68 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
+    /// Returns the size of the map.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.size(), 1);
+    /// ```
     pub fn size(&self) -> usize {
         self.size
     }
 
+    /// Returns `true` if the map is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let map: TreapMap<u32, u32> = TreapMap::new();
+    /// assert!(map.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.size == 0
     }
 
+    /// Clears the map, removing all values.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// map.insert(2, 2);
+    /// map.clear();
+    /// assert_eq!(map.is_empty(), true);
+    /// ```
     pub fn clear(&mut self) {
         self.size = 0;
         unsafe {
             let mut curr_node = *(*self.head).get_pointer(0);
             while !curr_node.is_null() {
-                ptr::drop_in_place(&mut (*curr_node).key);
-                ptr::drop_in_place(&mut (*curr_node).value);
                 Node::free(mem::replace(&mut curr_node, *(*curr_node).get_pointer(0)));
             }
             ptr::write_bytes((*self.head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
         }
     }
 
+    /// Returns a key in the map that is greater than or equal to a particular key. Returns `None`
+    /// if such a key does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.ceil(&0), Some(&1));
+    /// assert_eq!(map.ceil(&2), None);
+    /// ```
     pub fn ceil(&self, key: &T) -> Option<&T> {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
@@ -274,6 +417,18 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
+    /// Returns a key in the map that is less than or equal to a particular key. Returns `None` if
+    /// such a key does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.floor(&0), None);
+    /// assert_eq!(map.floor(&2), Some(&1));
+    /// ```
     pub fn floor(&self, key: &T) -> Option<&T> {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
@@ -298,6 +453,17 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
+    /// Returns the minimum key of the map. Returns `None` if the treap is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// map.insert(3, 3);
+    /// assert_eq!(map.min(), Some(&1));
+    /// ```
     pub fn min(&self) -> Option<&T> {
         unsafe {
             let min_node = (*self.head).get_pointer(0);
@@ -309,6 +475,17 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
+    /// Returns the maximum key of the map. Returns `None` if the treap is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// map.insert(3, 3);
+    /// assert_eq!(map.max(), Some(&3));
+    /// ```
     pub fn max(&self) -> Option<&T> {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
@@ -333,10 +510,307 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
+    /// Returns the union of two maps. If there is a key that is found in both `left` and `right`,
+    /// the union will contain the value associated with the key in `left`. The `+`
+    /// operator is implemented to take the union of two maps.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut n = TreapMap::new();
+    /// n.insert(1, 1);
+    /// n.insert(2, 2);
+    ///
+    /// let mut m = TreapMap::new();
+    /// m.insert(2, 3);
+    /// m.insert(3, 3);
+    ///
+    /// let union = TreapMap::union(n, m);
+    /// assert_eq!(
+    ///     union.iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     vec![(&1, &1), (&2, &2), (&3, &3)],
+    /// );
+    /// ```
+    pub fn union(mut left: Self, mut right: Self) -> Self {
+        let mut ret = SkipMap {
+            head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
+            rng: XorShiftRng::new_unseeded(),
+            size: 0,
+        };
+        let mut curr_nodes = [ret.head; MAX_HEIGHT + 1];
+
+        unsafe {
+            let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
+            let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
+            ptr::write_bytes((*left_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*right_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+
+            loop {
+                let next_node;
+                match (left.head.is_null(), right.head.is_null()) {
+                    (true, true) => break,
+                    (false, false) => {
+                        let cmp = (*left.head).key.cmp(&(*right.head).key);
+                        match cmp {
+                            cmp::Ordering::Equal => {
+                                Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
+                                continue;
+                            },
+                            cmp::Ordering::Less => next_node = mem::replace(&mut left.head, *(*left.head).get_pointer(0)),
+                            cmp::Ordering::Greater => next_node = mem::replace(&mut right.head, *(*right.head).get_pointer(0)),
+                        }
+                    },
+                    (true, false) => next_node = mem::replace(&mut right.head, *(*right.head).get_pointer(0)),
+                    (false, true) => next_node = mem::replace(&mut left.head, *(*left.head).get_pointer(0)),
+                }
+                ret.size += 1;
+
+                ptr::write_bytes((*next_node).data.get_unchecked_mut(0), 0, (*next_node).height);
+                for i in 0..(*next_node).height + 1 {
+                    *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
+                    curr_nodes[i] = next_node;
+                }
+            }
+            left.head = left_head;
+            right.head = right_head;
+        }
+        ret
+    }
+
+    /// Returns the intersection of two maps. If there is a key that is found in both `left` and
+    /// `right`, the intersection will contain the value associated with the key in `left`.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut n = TreapMap::new();
+    /// n.insert(1, 1);
+    /// n.insert(2, 2);
+    ///
+    /// let mut m = TreapMap::new();
+    /// m.insert(2, 3);
+    /// m.insert(3, 3);
+    ///
+    /// let intersection = TreapMap::intersection(n, m);
+    /// assert_eq!(
+    ///     intersection.iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     vec![(&2, &2)],
+    /// );
+    /// ```
+    pub fn intersection(mut left: Self, mut right: Self) -> Self {
+        let mut ret = SkipMap {
+            head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
+            rng: XorShiftRng::new_unseeded(),
+            size: 0,
+        };
+        let mut curr_nodes = [ret.head; MAX_HEIGHT + 1];
+
+        unsafe {
+            let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
+            let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
+            ptr::write_bytes((*left_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*right_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+
+            loop {
+                let next_node;
+                match (left.head.is_null(), right.head.is_null()) {
+                    (true, true) => break,
+                    (false, false) => {
+                        let cmp = (*left.head).key.cmp(&(*right.head).key);
+                        match cmp {
+                            cmp::Ordering::Equal => {
+                                next_node = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
+                                Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
+                            },
+                            cmp::Ordering::Less => {
+                                Node::free(mem::replace(&mut left.head, *(*left.head).get_pointer(0)));
+                                continue;
+                            },
+                            cmp::Ordering::Greater => {
+                                Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
+                                continue;
+                            },
+                        }
+                    },
+                    (true, false) => {
+                        Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
+                        continue;
+                    },
+                    (false, true) => {
+                        Node::free(mem::replace(&mut left.head, *(*left.head).get_pointer(0)));
+                        continue;
+                    },
+                }
+                ret.size += 1;
+
+                ptr::write_bytes((*next_node).data.get_unchecked_mut(0), 0, (*next_node).height);
+                for i in 0..(*next_node).height + 1 {
+                    *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
+                    curr_nodes[i] = next_node;
+                }
+            }
+            left.head = left_head;
+            right.head = right_head;
+        }
+        ret
+    }
+
+    fn map_difference(mut left: Self, mut right: Self, symmetric: bool) -> Self {
+        let mut ret = SkipMap {
+            head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
+            rng: XorShiftRng::new_unseeded(),
+            size: 0,
+        };
+        let mut curr_nodes = [ret.head; MAX_HEIGHT + 1];
+
+        unsafe {
+            let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
+            let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
+            ptr::write_bytes((*left_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*right_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+
+            loop {
+                let next_node;
+                match (left.head.is_null(), right.head.is_null()) {
+                    (true, true) => break,
+                    (false, false) => {
+                        let cmp = (*left.head).key.cmp(&(*right.head).key);
+                        match cmp {
+                            cmp::Ordering::Equal => {
+                                Node::free(mem::replace(&mut left.head, *(*left.head).get_pointer(0)));
+                                Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
+                                continue;
+                            },
+                            cmp::Ordering::Less => next_node = mem::replace(&mut left.head, *(*left.head).get_pointer(0)),
+                            cmp::Ordering::Greater => {
+                                if symmetric {
+                                    next_node = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
+                                } else {
+                                    Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
+                                    continue;
+                                }
+                            }
+                        }
+                    },
+                    (true, false) => {
+                        if symmetric {
+                            next_node = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
+                        } else {
+                            Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
+                            continue;
+                        }
+                    },
+                    (false, true) => {
+                        next_node = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
+                    },
+                }
+                ret.size += 1;
+
+                ptr::write_bytes((*next_node).data.get_unchecked_mut(0), 0, (*next_node).height);
+                for i in 0..(*next_node).height + 1 {
+                    *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
+                    curr_nodes[i] = next_node;
+                }
+            }
+            left.head = left_head;
+            right.head = right_head;
+        }
+        ret
+    }
+
+    /// Returns the difference of `left` and `right`. The returned map will contain all entries
+    /// that do not have a key in `right`. The `-` operator is implemented to take the difference
+    /// of two maps.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut n = TreapMap::new();
+    /// n.insert(1, 1);
+    /// n.insert(2, 2);
+    ///
+    /// let mut m = TreapMap::new();
+    /// m.insert(2, 3);
+    /// m.insert(3, 3);
+    ///
+    /// let difference = TreapMap::difference(n, m);
+    /// assert_eq!(
+    ///     difference.iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     vec![(&1, &1)],
+    /// );
+    /// ```
+    pub fn difference(left: Self, right: Self) -> Self {
+        Self::map_difference(left, right, false)
+    }
+
+    /// Returns the symmetric difference of `left` and `right`. The returned map will contain all
+    /// entries that exist in one map, but not both maps.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut n = TreapMap::new();
+    /// n.insert(1, 1);
+    /// n.insert(2, 2);
+    ///
+    /// let mut m = TreapMap::new();
+    /// m.insert(2, 3);
+    /// m.insert(3, 3);
+    ///
+    /// let symmetric_difference = TreapMap::symmetric_difference(n, m);
+    /// assert_eq!(
+    ///     symmetric_difference.iter().collect::<Vec<(&u32, &u32)>>(),
+    ///     vec![(&1, &1), (&3, &3)],
+    /// );
+    /// ```
+    pub fn symmetric_difference(left: Self, right: Self) -> Self {
+        Self::map_difference(left, right, true)
+    }
+
+    /// Returns an iterator over the map. The iterator will yield key-value pairs using in-order
+    /// traversal.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// map.insert(2, 2);
+    ///
+    /// let mut iterator = map.iter();
+    /// assert_eq!(iterator.next(), Some((&1, &1)));
+    /// assert_eq!(iterator.next(), Some((&2, &2)));
+    /// assert_eq!(iterator.next(), None);
+    /// ```
     pub fn iter(&self) -> SkipMapIter<T, U> {
         unsafe { SkipMapIter { current: &*(*self.head).get_pointer(0) } }
     }
 
+    /// Returns a mutable iterator over the map. The iterator will yield key-value pairs using
+    /// in-order traversal.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// map.insert(2, 2);
+    ///
+    /// for (key, value) in &mut map {
+    ///   *value += 1;
+    /// }
+    ///
+    /// let mut iterator = map.iter_mut();
+    /// assert_eq!(iterator.next(), Some((&1, &mut 2)));
+    /// assert_eq!(iterator.next(), Some((&2, &mut 3)));
+    /// assert_eq!(iterator.next(), None);
+    /// ```
     pub fn iter_mut(&self) -> SkipMapIterMut<T, U> {
         unsafe { SkipMapIterMut { current: &mut *(*self.head).get_pointer_mut(0) } }
     }
@@ -345,10 +819,8 @@ impl<T: Ord, U> SkipMap<T, U> {
 impl<T: Ord, U> Drop for SkipMap<T, U> {
     fn drop(&mut self) {
         unsafe {
-            Node::free(mem::replace(&mut self.head, *(*self.head).get_pointer(0)));
+            Node::deallocate(mem::replace(&mut self.head, *(*self.head).get_pointer(0)));
             while !self.head.is_null() {
-                ptr::drop_in_place(&mut (*self.head).key);
-                ptr::drop_in_place(&mut (*self.head).value);
                 Node::free(mem::replace(&mut self.head, *(*self.head).get_pointer(0)));
             }
         }
@@ -386,6 +858,9 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut SkipMap<T, U> {
     }
 }
 
+/// An owning iterator for `TreapMap<T, U>`
+///
+/// This iterator traverses the elements of a map in-order and yields owned entries.
 pub struct SkipMapIntoIter<T: Ord, U> {
     current: *mut Node<T, U>,
 }
@@ -402,7 +877,7 @@ impl<T: Ord, U> Iterator for SkipMapIntoIter<T, U> {
                     ptr::read(&(*self.current).key),
                     ptr::read(&(*self.current).value),
                 );
-                Node::free(mem::replace(&mut self.current, *(*self.current).get_pointer(0)));
+                Node::deallocate(mem::replace(&mut self.current, *(*self.current).get_pointer(0)));
                 Some(ret)
             }
         }
@@ -413,14 +888,16 @@ impl<T: Ord, U> Drop for SkipMapIntoIter<T, U> {
     fn drop(&mut self) {
         unsafe {
             while !self.current.is_null() {
-                ptr::drop_in_place(&mut (*self.current).key);
-                ptr::drop_in_place(&mut (*self.current).value);
+                ptr::drop_in_place(&mut (*self.current).key); ptr::drop_in_place(&mut (*self.current).value);
                 Node::free(mem::replace(&mut self.current, *(*self.current).get_pointer(0)));
             }
         }
     }
 }
 
+/// An iterator for `TreapMap<T, U>`
+///
+/// This iterator traverses the elements of a map in-order and yields immutable references.
 pub struct SkipMapIter<'a, T: 'a + Ord, U: 'a> {
     current: &'a *mut Node<T, U>,
 }
@@ -444,6 +921,9 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for SkipMapIter<'a, T, U> {
     }
 }
 
+/// A mutable iterator for `TreapMap<T, U>`
+///
+/// This iterator traverses the elements of a map in-order and yields mutable references.
 pub struct SkipMapIterMut<'a, T: 'a + Ord, U: 'a> {
     current: &'a mut *mut Node<T, U>,
 }
@@ -470,6 +950,22 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for SkipMapIterMut<'a, T, U> {
 impl<T: Ord, U> Default for SkipMap<T, U> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<T: Ord, U> Add for SkipMap<T, U> {
+    type Output = SkipMap<T, U>;
+
+    fn add(self, other: SkipMap<T, U>) -> SkipMap<T, U> {
+        Self::union(self, other)
+    }
+}
+
+impl<T: Ord, U> Sub for SkipMap<T, U> {
+    type Output = SkipMap<T, U>;
+
+    fn sub(self, other: SkipMap<T, U>) -> SkipMap<T, U> {
+        Self::difference(self, other)
     }
 }
 
@@ -574,6 +1070,90 @@ mod tests {
         assert_eq!(map.ceil(&2), Some(&3));
         assert_eq!(map.ceil(&4), Some(&5));
         assert_eq!(map.ceil(&6), None);
+    }
+
+    #[test]
+    fn test_union() {
+        let mut n = SkipMap::new();
+        n.insert(1, 1);
+        n.insert(2, 2);
+        n.insert(3, 3);
+
+        let mut m = SkipMap::new();
+        m.insert(3, 5);
+        m.insert(4, 4);
+        m.insert(5, 5);
+
+        let union = n + m;
+
+        assert_eq!(
+            union.iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&1, &1), (&2, &2), (&3, &3), (&4, &4), (&5, &5)],
+        );
+        assert_eq!(union.size(), 5);
+    }
+
+    #[test]
+    fn test_intersection() {
+        let mut n = SkipMap::new();
+        n.insert(1, 1);
+        n.insert(2, 2);
+        n.insert(3, 3);
+
+        let mut m = SkipMap::new();
+        m.insert(3, 5);
+        m.insert(4, 4);
+        m.insert(5, 5);
+
+        let intersection = SkipMap::intersection(n, m);
+
+        assert_eq!(
+            intersection.iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&3, &3)],
+        );
+        assert_eq!(intersection.size(), 1);
+    }
+
+    #[test]
+    fn test_difference() {
+        let mut n = SkipMap::new();
+        n.insert(1, 1);
+        n.insert(2, 2);
+        n.insert(3, 3);
+
+        let mut m = SkipMap::new();
+        m.insert(3, 5);
+        m.insert(4, 4);
+        m.insert(5, 5);
+
+        let difference = n - m;
+
+        assert_eq!(
+            difference.iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&1, &1), (&2, &2)],
+        );
+        assert_eq!(difference.size(), 2);
+    }
+
+    #[test]
+    fn test_symmetric_difference() {
+        let mut n = SkipMap::new();
+        n.insert(1, 1);
+        n.insert(2, 2);
+        n.insert(3, 3);
+
+        let mut m = SkipMap::new();
+        m.insert(3, 5);
+        m.insert(4, 4);
+        m.insert(5, 5);
+
+        let symmetric_difference = SkipMap::symmetric_difference(n, m);
+
+        assert_eq!(
+            symmetric_difference.iter().collect::<Vec<(&u32, &u32)>>(),
+            vec![(&1, &1), (&2, &2), (&4, &4), (&5, &5)],
+        );
+        assert_eq!(symmetric_difference.size(), 4);
     }
 
     #[test]
