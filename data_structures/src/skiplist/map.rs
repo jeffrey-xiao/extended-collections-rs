@@ -77,9 +77,9 @@ impl<T: Ord, U> Node<T, U> {
 ///
 /// # Examples
 /// ```
-/// use data_structures::treap::TreapMap;
+/// use data_structures::skiplist::SkipMap;
 ///
-/// let mut map = TreapMap::new();
+/// let mut map = SkipMap::new();
 /// map.insert(0, 1);
 /// map.insert(3, 4);
 ///
@@ -101,13 +101,13 @@ pub struct SkipMap<T: Ord, U> {
 }
 
 impl<T: Ord, U> SkipMap<T, U> {
-    /// Constructs a new, empty `TreapMap<T, U>`
+    /// Constructs a new, empty `SkipMap<T, U>`
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let map: TreapMap<u32, u32> = TreapMap::new();
+    /// let map: SkipMap<u32, u32> = SkipMap::new();
     /// ```
     pub fn new() -> Self {
         SkipMap {
@@ -130,9 +130,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// assert_eq!(map.insert(1, 1), None);
     /// assert_eq!(map.get(&1), Some(&1));
     /// assert_eq!(map.insert(1, 2), Some((1, 1)));
@@ -182,9 +182,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// assert_eq!(map.remove(&1), Some((1, 1)));
     /// assert_eq!(map.remove(&1), None);
@@ -225,9 +225,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// assert_eq!(map.contains_key(&0), false);
     /// assert_eq!(map.contains_key(&1), true);
@@ -262,9 +262,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// assert_eq!(map.get(&0), None);
     /// assert_eq!(map.get(&1), Some(&1));
@@ -299,9 +299,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// *map.get_mut(&1).unwrap() = 2;
     /// assert_eq!(map.get(&1), Some(&2));
@@ -335,9 +335,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// assert_eq!(map.size(), 1);
     /// ```
@@ -349,9 +349,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let map: TreapMap<u32, u32> = TreapMap::new();
+    /// let map: SkipMap<u32, u32> = SkipMap::new();
     /// assert!(map.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
@@ -362,9 +362,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// map.insert(2, 2);
     /// map.clear();
@@ -386,9 +386,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// assert_eq!(map.ceil(&0), Some(&1));
     /// assert_eq!(map.ceil(&2), None);
@@ -422,9 +422,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// assert_eq!(map.floor(&0), None);
     /// assert_eq!(map.floor(&2), Some(&1));
@@ -453,13 +453,13 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
-    /// Returns the minimum key of the map. Returns `None` if the treap is empty.
+    /// Returns the minimum key of the map. Returns `None` if the skiplist is empty.
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// map.insert(3, 3);
     /// assert_eq!(map.min(), Some(&1));
@@ -475,13 +475,13 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
-    /// Returns the maximum key of the map. Returns `None` if the treap is empty.
+    /// Returns the maximum key of the map. Returns `None` if the skiplist is empty.
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// map.insert(3, 3);
     /// assert_eq!(map.max(), Some(&3));
@@ -516,17 +516,17 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut n = TreapMap::new();
+    /// let mut n = SkipMap::new();
     /// n.insert(1, 1);
     /// n.insert(2, 2);
     ///
-    /// let mut m = TreapMap::new();
+    /// let mut m = SkipMap::new();
     /// m.insert(2, 3);
     /// m.insert(3, 3);
     ///
-    /// let union = TreapMap::union(n, m);
+    /// let union = SkipMap::union(n, m);
     /// assert_eq!(
     ///     union.iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&1, &1), (&2, &2), (&3, &3)],
@@ -583,17 +583,17 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut n = TreapMap::new();
+    /// let mut n = SkipMap::new();
     /// n.insert(1, 1);
     /// n.insert(2, 2);
     ///
-    /// let mut m = TreapMap::new();
+    /// let mut m = SkipMap::new();
     /// m.insert(2, 3);
     /// m.insert(3, 3);
     ///
-    /// let intersection = TreapMap::intersection(n, m);
+    /// let intersection = SkipMap::intersection(n, m);
     /// assert_eq!(
     ///     intersection.iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&2, &2)],
@@ -726,17 +726,17 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut n = TreapMap::new();
+    /// let mut n = SkipMap::new();
     /// n.insert(1, 1);
     /// n.insert(2, 2);
     ///
-    /// let mut m = TreapMap::new();
+    /// let mut m = SkipMap::new();
     /// m.insert(2, 3);
     /// m.insert(3, 3);
     ///
-    /// let difference = TreapMap::difference(n, m);
+    /// let difference = SkipMap::difference(n, m);
     /// assert_eq!(
     ///     difference.iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&1, &1)],
@@ -751,17 +751,17 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut n = TreapMap::new();
+    /// let mut n = SkipMap::new();
     /// n.insert(1, 1);
     /// n.insert(2, 2);
     ///
-    /// let mut m = TreapMap::new();
+    /// let mut m = SkipMap::new();
     /// m.insert(2, 3);
     /// m.insert(3, 3);
     ///
-    /// let symmetric_difference = TreapMap::symmetric_difference(n, m);
+    /// let symmetric_difference = SkipMap::symmetric_difference(n, m);
     /// assert_eq!(
     ///     symmetric_difference.iter().collect::<Vec<(&u32, &u32)>>(),
     ///     vec![(&1, &1), (&3, &3)],
@@ -776,9 +776,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// map.insert(2, 2);
     ///
@@ -796,9 +796,9 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::treap::TreapMap;
+    /// use data_structures::skiplist::SkipMap;
     ///
-    /// let mut map = TreapMap::new();
+    /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
     /// map.insert(2, 2);
     ///
@@ -858,7 +858,7 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut SkipMap<T, U> {
     }
 }
 
-/// An owning iterator for `TreapMap<T, U>`
+/// An owning iterator for `SkipMap<T, U>`
 ///
 /// This iterator traverses the elements of a map in-order and yields owned entries.
 pub struct SkipMapIntoIter<T: Ord, U> {
@@ -895,7 +895,7 @@ impl<T: Ord, U> Drop for SkipMapIntoIter<T, U> {
     }
 }
 
-/// An iterator for `TreapMap<T, U>`
+/// An iterator for `SkipMap<T, U>`
 ///
 /// This iterator traverses the elements of a map in-order and yields immutable references.
 pub struct SkipMapIter<'a, T: 'a + Ord, U: 'a> {
@@ -921,7 +921,7 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for SkipMapIter<'a, T, U> {
     }
 }
 
-/// A mutable iterator for `TreapMap<T, U>`
+/// A mutable iterator for `SkipMap<T, U>`
 ///
 /// This iterator traverses the elements of a map in-order and yields mutable references.
 pub struct SkipMapIterMut<'a, T: 'a + Ord, U: 'a> {
