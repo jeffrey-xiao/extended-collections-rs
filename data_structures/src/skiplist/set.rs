@@ -253,7 +253,7 @@ impl<T: Ord> SkipSet<T> {
     }
 
     /// Returns the difference of `left` and `right`. The `-` operator is implemented to take the
-    /// difference of two maps.
+    /// difference of two sets.
     ///
     /// # Examples
     /// ```
@@ -306,8 +306,8 @@ impl<T: Ord> SkipSet<T> {
         }
     }
 
-    /// Returns an iterator over the set. The iterator will yield key-value pairs using in-order
-    /// traversal.
+    /// Returns an iterator over the set. The iterator will yield key-value pairs in ascending
+    /// order.
     ///
     /// # Examples
     /// ```
@@ -351,7 +351,7 @@ impl<'a, T: 'a + Ord> IntoIterator for &'a SkipSet<T> {
 
 /// An owning iterator for `SkipSet<T>`
 ///
-/// This iterator traverses the elements of a set in-order and yields owned keys.
+/// This iterator traverses the elements of a set in ascending order and yields owned keys.
 pub struct SkipSetIntoIter<T: Ord> {
     map_iter: SkipMapIntoIter<T, ()>,
 }
@@ -366,7 +366,8 @@ impl<T: Ord> Iterator for SkipSetIntoIter<T> {
 
 /// An iterator for `SkipSet<T>`
 ///
-/// This iterator traverses the elements of a set in-order and yields immutable references.
+/// This iterator traverses the elements of a set in ascending order and yields immutable
+/// references.
 pub struct SkipSetIter<'a, T: 'a + Ord> {
     map_iter: SkipMapIter<'a, T, ()>,
 }

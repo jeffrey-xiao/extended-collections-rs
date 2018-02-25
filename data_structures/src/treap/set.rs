@@ -274,7 +274,7 @@ impl<T: Ord> TreapSet<T> {
     }
 
     /// Returns the difference of `left` and `right`. The `-` operator is implemented to take the
-    /// difference of two maps.
+    /// difference of two sets.
     ///
     /// # Examples
     /// ```
@@ -372,7 +372,7 @@ impl<'a, T: 'a + Ord> IntoIterator for &'a TreapSet<T> {
 
 /// An owning iterator for `TreapSet<T>`
 ///
-/// This iterator traverses the elements of a set in-order and yields owned keys.
+/// This iterator traverses the elements of the set in-order and yields owned keys.
 pub struct TreapSetIntoIter<T: Ord> {
     map_iter: TreapMapIntoIter<T, ()>,
 }
@@ -387,7 +387,7 @@ impl<T: Ord> Iterator for TreapSetIntoIter<T> {
 
 /// An iterator for `TreapSet<T>`
 ///
-/// This iterator traverses the elements of a set in-order and yields immutable references.
+/// This iterator traverses the elements of the set in-order and yields immutable references.
 pub struct TreapSetIter<'a, T: 'a + Ord> {
     map_iter: TreapMapIter<'a, T, ()>,
 }

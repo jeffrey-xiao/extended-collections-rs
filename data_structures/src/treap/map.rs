@@ -478,7 +478,7 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut TreapMap<T, U> {
 
 /// An owning iterator for `TreapMap<T, U>`
 ///
-/// This iterator traverses the elements of a map in-order and yields owned entries.
+/// This iterator traverses the elements of the map in-order and yields owned entries.
 pub struct TreapMapIntoIter<T: Ord, U> {
     current: tree::Tree<T, U>,
     stack: Vec<Node<T, U>>,
@@ -506,7 +506,7 @@ impl<T: Ord, U> Iterator for TreapMapIntoIter<T, U> {
 
 /// An iterator for `TreapMap<T, U>`
 ///
-/// This iterator traverses the elements of a map in-order and yields immutable references.
+/// This iterator traverses the elements of the map in-order and yields immutable references.
 pub struct TreapMapIter<'a, T: 'a + Ord, U: 'a> {
     current: &'a tree::Tree<T, U>,
     stack: Vec<&'a Node<T, U>>,
@@ -535,7 +535,7 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIter<'a, T, U> {
 
 /// A mutable iterator for `TreapMap<T, U>`
 ///
-/// This iterator traverses the elements of a map in-order and yields mutable references.
+/// This iterator traverses the elements of the map in-order and yields mutable references.
 pub struct TreapMapIterMut<'a, T: 'a + Ord, U: 'a> {
     current: Option<&'a mut Node<T, U>>,
     stack: Vec<Option<(&'a mut Entry<T, U>, Option<&'a mut Node<T, U>>)>>,

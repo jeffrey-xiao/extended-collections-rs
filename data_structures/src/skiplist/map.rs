@@ -9,17 +9,17 @@ use std::ptr;
 
 #[repr(C)]
 struct Node<T: Ord, U> {
-    height: usize,
+    links_size: usize,
     value: U,
     key: T,
-    data: [*mut Node<T, U>; 0],
+    links: [*mut Node<T, U>; 0],
 }
 
 const MAX_HEIGHT: usize = 32;
 
 impl<T: Ord, U> Node<T, U> {
-    pub fn new(key: T, value: U, height: usize) -> *mut Self {
-        let ptr = unsafe { Self::allocate(height) };
+    pub fn new(key: T, value: U, links_size: usize) -> *mut Self {
+        let ptr = unsafe { Self::allocate(links_size) };
         unsafe {
             ptr::write(&mut (*ptr).key, key);
             ptr::write(&mut (*ptr).value, value);
@@ -28,34 +28,34 @@ impl<T: Ord, U> Node<T, U> {
     }
 
     pub fn get_pointer(&self, height: usize) -> &*mut Node<T, U> {
-        unsafe { self.data.get_unchecked(height) }
+        unsafe { self.links.get_unchecked(height) }
     }
 
     pub fn get_pointer_mut(&mut self, height: usize) -> &mut *mut Node<T, U> {
-        unsafe { self.data.get_unchecked_mut(height) }
+        unsafe { self.links.get_unchecked_mut(height) }
     }
 
-    fn get_size_in_u64s(height: usize) -> usize {
+    fn get_size_in_u64s(links_size: usize) -> usize {
         let base_size = mem::size_of::<Node<T, U>>();
         let ptr_size = mem::size_of::<*mut Node<T, U>>();
         let u64_size = mem::size_of::<u64>();
 
-        (base_size + ptr_size * height + u64_size - 1) / u64_size
+        (base_size + ptr_size * links_size + u64_size - 1) / u64_size
     }
 
-    unsafe fn allocate(height: usize) -> *mut Self {
-        let mut v = Vec::<u64>::with_capacity(Self::get_size_in_u64s(height));
+    unsafe fn allocate(links_size: usize) -> *mut Self {
+        let mut v = Vec::<u64>::with_capacity(Self::get_size_in_u64s(links_size));
         let ptr = v.as_mut_ptr() as *mut Node<T, U>;
         mem::forget(v);
-        ptr::write(&mut (*ptr).height, height);
+        ptr::write(&mut (*ptr).links_size, links_size);
         // fill with null pointers
-        ptr::write_bytes((*ptr).data.get_unchecked_mut(0), 0, height);
+        ptr::write_bytes((*ptr).links.get_unchecked_mut(0), 0, links_size);
         ptr
     }
 
     unsafe fn deallocate(ptr: *mut Self) {
-        let height = (*ptr).height;
-        let cap = Self::get_size_in_u64s(height);
+        let links_size = (*ptr).links_size;
+        let cap = Self::get_size_in_u64s(links_size);
         drop(Vec::from_raw_parts(ptr as *mut u64, 0, cap));
     }
 
@@ -377,7 +377,7 @@ impl<T: Ord, U> SkipMap<T, U> {
             while !curr_node.is_null() {
                 Node::free(mem::replace(&mut curr_node, *(*curr_node).get_pointer(0)));
             }
-            ptr::write_bytes((*self.head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
         }
     }
 
@@ -543,8 +543,8 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
             let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
-            ptr::write_bytes((*left_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
-            ptr::write_bytes((*right_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
 
             loop {
                 let next_node;
@@ -566,8 +566,8 @@ impl<T: Ord, U> SkipMap<T, U> {
                 }
                 ret.size += 1;
 
-                ptr::write_bytes((*next_node).data.get_unchecked_mut(0), 0, (*next_node).height);
-                for i in 0..(*next_node).height + 1 {
+                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_size);
+                for i in 0..(*next_node).links_size {
                     *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
                     curr_nodes[i] = next_node;
                 }
@@ -610,8 +610,8 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
             let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
-            ptr::write_bytes((*left_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
-            ptr::write_bytes((*right_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
 
             loop {
                 let next_node;
@@ -645,8 +645,8 @@ impl<T: Ord, U> SkipMap<T, U> {
                 }
                 ret.size += 1;
 
-                ptr::write_bytes((*next_node).data.get_unchecked_mut(0), 0, (*next_node).height);
-                for i in 0..(*next_node).height + 1 {
+                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_size);
+                for i in 0..(*next_node).links_size {
                     *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
                     curr_nodes[i] = next_node;
                 }
@@ -668,8 +668,8 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
             let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
-            ptr::write_bytes((*left_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
-            ptr::write_bytes((*right_head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
 
             loop {
                 let next_node;
@@ -708,8 +708,8 @@ impl<T: Ord, U> SkipMap<T, U> {
                 }
                 ret.size += 1;
 
-                ptr::write_bytes((*next_node).data.get_unchecked_mut(0), 0, (*next_node).height);
-                for i in 0..(*next_node).height + 1 {
+                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_size);
+                for i in 0..(*next_node).links_size {
                     *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
                     curr_nodes[i] = next_node;
                 }
@@ -771,8 +771,8 @@ impl<T: Ord, U> SkipMap<T, U> {
         Self::map_difference(left, right, true)
     }
 
-    /// Returns an iterator over the map. The iterator will yield key-value pairs using in-order
-    /// traversal.
+    /// Returns an iterator over the map. The iterator will yield key-value pairs in ascending
+    /// order.
     ///
     /// # Examples
     /// ```
@@ -791,8 +791,8 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe { SkipMapIter { current: &*(*self.head).get_pointer(0) } }
     }
 
-    /// Returns a mutable iterator over the map. The iterator will yield key-value pairs using
-    /// in-order traversal.
+    /// Returns a mutable iterator over the map. The iterator will yield key-value pairs in
+    /// ascending order.
     ///
     /// # Examples
     /// ```
@@ -833,8 +833,8 @@ impl<T: Ord, U> IntoIterator for SkipMap<T, U> {
 
     fn into_iter(self) -> Self::IntoIter {
         unsafe {
-            let ret = SkipMapIntoIter { current: *(*self.head).data.get_unchecked_mut(0) };
-            ptr::write_bytes((*self.head).data.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            let ret = SkipMapIntoIter { current: *(*self.head).links.get_unchecked_mut(0) };
+            ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
             ret
         }
     }
@@ -860,7 +860,7 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut SkipMap<T, U> {
 
 /// An owning iterator for `SkipMap<T, U>`
 ///
-/// This iterator traverses the elements of a map in-order and yields owned entries.
+/// This iterator traverses the elements of a map in ascending order and yields owned entries.
 pub struct SkipMapIntoIter<T: Ord, U> {
     current: *mut Node<T, U>,
 }
@@ -888,7 +888,8 @@ impl<T: Ord, U> Drop for SkipMapIntoIter<T, U> {
     fn drop(&mut self) {
         unsafe {
             while !self.current.is_null() {
-                ptr::drop_in_place(&mut (*self.current).key); ptr::drop_in_place(&mut (*self.current).value);
+                ptr::drop_in_place(&mut (*self.current).key);
+                ptr::drop_in_place(&mut (*self.current).value);
                 Node::free(mem::replace(&mut self.current, *(*self.current).get_pointer(0)));
             }
         }
@@ -897,7 +898,8 @@ impl<T: Ord, U> Drop for SkipMapIntoIter<T, U> {
 
 /// An iterator for `SkipMap<T, U>`
 ///
-/// This iterator traverses the elements of a map in-order and yields immutable references.
+/// This iterator traverses the elements of a map in ascending order and yields immutable
+/// references.
 pub struct SkipMapIter<'a, T: 'a + Ord, U: 'a> {
     current: &'a *mut Node<T, U>,
 }
@@ -923,7 +925,7 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for SkipMapIter<'a, T, U> {
 
 /// A mutable iterator for `SkipMap<T, U>`
 ///
-/// This iterator traverses the elements of a map in-order and yields mutable references.
+/// This iterator traverses the elements of a map in ascending order and yields mutable references.
 pub struct SkipMapIterMut<'a, T: 'a + Ord, U: 'a> {
     current: &'a mut *mut Node<T, U>,
 }

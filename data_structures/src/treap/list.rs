@@ -257,7 +257,7 @@ impl<T> TreapList<T> {
         }
     }
 
-    /// Returns an iterator over the list.
+    /// Returns a mutable iterator over the list.
     ///
     /// # Examples
     /// ```
@@ -316,7 +316,7 @@ impl<'a, T: 'a> IntoIterator for &'a mut TreapList<T> {
 
 /// An owning iterator for `TreapList<T>`
 ///
-/// This iterator traverses the elements of a treap in-order and yields owned entries.
+/// This iterator traverses the elements of the list and yields owned entries.
 pub struct TreapListIntoIter<T> {
     current: implicit_tree::Tree<T>,
     stack: Vec<ImplicitNode<T>>,
@@ -340,7 +340,7 @@ impl<T> Iterator for TreapListIntoIter<T> {
 
 /// An iterator for `TreapList<T>`
 ///
-/// This iterator traverses the elements of a treap in-order and yields immutable references.
+/// This iterator traverses the elements of the list in-order and yields immutable references.
 pub struct TreapListIter<'a, T: 'a> {
     current: &'a implicit_tree::Tree<T>,
     stack: Vec<&'a ImplicitNode<T>>,
@@ -365,7 +365,7 @@ impl<'a, T: 'a> Iterator for TreapListIter<'a, T> {
 
 /// A mutable iterator for `TreapList<T>`
 ///
-/// This iterator traverses the elements of a treap in-order and yields mutable references.
+/// This iterator traverses the elements of the list in-order and yields mutable references.
 pub struct TreapListIterMut<'a, T: 'a> {
     current: Option<&'a mut ImplicitNode<T>>,
     stack: Vec<Option<(&'a mut T, Option<&'a mut ImplicitNode<T>>)>>,
