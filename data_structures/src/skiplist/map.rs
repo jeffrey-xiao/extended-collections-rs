@@ -122,7 +122,7 @@ impl<T: Ord, U> SkipMap<T, U> {
     }
 
     fn gen_random_height(&mut self) -> usize {
-        self.rng.next_u64().leading_zeros() as usize
+        self.rng.next_u32().leading_zeros() as usize
     }
 
     /// Inserts a key-value pair into the map. If the key already exists in the map, it will return
@@ -377,7 +377,7 @@ impl<T: Ord, U> SkipMap<T, U> {
             while !curr_node.is_null() {
                 Node::free(mem::replace(&mut curr_node, *(*curr_node).get_pointer(0)));
             }
-            ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
         }
     }
 
@@ -543,8 +543,8 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
             let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
-            ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
-            ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
+            ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
 
             loop {
                 let next_node;
@@ -610,8 +610,8 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
             let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
-            ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
-            ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
+            ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
 
             loop {
                 let next_node;
@@ -668,8 +668,8 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
             let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
-            ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
-            ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
+            ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
 
             loop {
                 let next_node;
@@ -834,7 +834,7 @@ impl<T: Ord, U> IntoIterator for SkipMap<T, U> {
     fn into_iter(self) -> Self::IntoIter {
         unsafe {
             let ret = SkipMapIntoIter { current: *(*self.head).links.get_unchecked_mut(0) };
-            ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT);
+            ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
             ret
         }
     }
