@@ -86,7 +86,7 @@ fn int_test_treaplist() {
 
         list[index] = val;
         expected[index] = val;
-        
+
         assert_eq!(list[index], expected[index]);
         assert_eq!(list.remove(index), expected.remove(index));
     }
