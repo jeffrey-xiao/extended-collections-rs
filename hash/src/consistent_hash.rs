@@ -1,17 +1,11 @@
 use std::hash::Hash;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::vec::Vec;
-use std::rc::Rc;
 use std::mem;
 use std::iter::Iterator;
 
 use data_structures::treap::TreapMap;
 use util;
-
-struct Node<T: Hash + Eq, U: Hash + Eq> {
-    id: Rc<T>,
-    points: HashMap<U, u64>,
-}
 
 /// A hashing ring implementing using consistent hashing.
 ///
@@ -20,36 +14,12 @@ struct Node<T: Hash + Eq, U: Hash + Eq> {
 /// replica number. A point is also represented as a pseudorandom value and it is mapped to the
 /// node with the smallest value that is greater than or equal to the point's value. If such a
 /// node does not exist, then the point maps to the node with the smallest value.
-///
-/// # Examples
-/// ```
-/// use hash::consistent_hash::Ring;
-///
-/// let mut r = Ring::new();
-/// r.insert_node("node-1", 3);
-/// r.insert_point("point-1");
-/// r.insert_point("point-2");
-///
-/// assert_eq!(r.size(), 1);
-/// assert_eq!(r.get_node(&"point-1"), &"node-1");
-///
-/// r.remove_point(&"point-2");
-/// assert_eq!(r.get_points(&"node-1"), [&"point-1"]);
-/// ```
-pub struct Ring<T: Hash + Eq, U: Hash + Eq> {
-    nodes: TreapMap<u64, Node<T, U>>,
-    replicas: HashMap<Rc<T>, usize>,
+pub struct Ring<'a, T: 'a + Hash + Eq> {
+    nodes: TreapMap<u64, &'a T>,
+    replicas: HashMap<&'a T, usize>,
 }
 
-impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
-    /// Constructs a new, empty `Ring<T, U>`
-    ///
-    /// # Examples
-    /// ```
-    /// use hash::consistent_hash::Ring;
-    ///
-    /// let mut r: Ring<&str, &str> = Ring::new();
-    /// ```
+impl<'a, T: 'a + Hash + Eq> Ring<'a, T> {
     pub fn new() -> Self {
         Ring {
             nodes: TreapMap::new(),
@@ -57,11 +27,133 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
         }
     }
 
-    fn get_next_node(&mut self, hash: &u64) -> Option<(u64, &mut Node<T, U>)> {
+    fn get_next_node(&mut self, hash: &u64) -> Option<&T> {
         match self.nodes.ceil(hash) {
-            Some(&id) => Some((id, self.nodes.get_mut(&id).unwrap())),
+            Some(&hash) => Some(&*self.nodes[&hash]),
             None => match self.nodes.min() {
-                Some(&id) => Some((id, self.nodes.get_mut(&id).unwrap())),
+                Some(&hash) => Some(&*self.nodes[&hash]),
+                None => None,
+            },
+        }
+    }
+
+    pub fn insert_node(&mut self, id: &'a T, replicas: usize) {
+        for i in 0..replicas {
+            let hash = util::combine_hash(util::gen_hash(id), util::gen_hash(&i));
+            self.nodes.insert(hash, &id);
+        }
+        self.replicas.insert(&id, replicas);
+    }
+
+    pub fn remove_node(&mut self, id: &T) {
+        for i in 0..self.replicas[id] {
+            let hash = util::combine_hash(util::gen_hash(id), util::gen_hash(&i));
+            let should_remove = {
+                if let Some(existing_id) = self.nodes.get(&hash) {
+                    **existing_id == *id
+                } else {
+                    false
+                }
+            };
+
+            if should_remove {
+                self.nodes.remove(&hash);
+            }
+        }
+        self.replicas.remove(id);
+    }
+
+    pub fn get_node<U: Hash + Eq>(&mut self, key: &U) -> &T {
+        let hash = util::gen_hash(key);
+        if let Some(node) = self.get_next_node(&hash) {
+            &*node
+        } else {
+            panic!("Error: empty ring");
+        }
+    }
+
+    fn contains_point(&self, index: u64) -> bool {
+        self.nodes.contains_key(&index)
+    }
+
+    pub fn get_replica_count(&self, id: &T) -> usize {
+        self.replicas[id]
+    }
+
+    pub fn len(&self) -> usize {
+        self.replicas.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.replicas.is_empty()
+    }
+
+    pub fn iter(&'a self) -> Box<Iterator<Item = (&'a T, usize)> + 'a> {
+        Box::new(self.replicas.iter().map(|replica| {
+            let (id, replica_count) = replica;
+            (&**id, *replica_count)
+        }))
+    }
+}
+
+impl<'a, T: Hash + Eq> IntoIterator for &'a Ring<'a, T> {
+    type Item = (&'a T, usize);
+    type IntoIter = Box<Iterator<Item = (&'a T, usize)> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+ impl<'a, T: 'a + Hash + Eq> Default for Ring<'a, T> {
+     fn default() -> Self {
+         Self::new()
+     }
+ }
+
+/// A client that uses `Ring<T>`.
+///
+/// # Examples
+/// ```
+/// use hash::consistent_hash::Client;
+///
+/// let mut c = Client::new();
+/// c.insert_node(&"node-1", 3);
+/// c.insert_point(&"point-1");
+/// c.insert_point(&"point-2");
+///
+/// assert_eq!(c.len(), 1);
+/// assert_eq!(c.get_node(&"point-1"), &"node-1");
+///
+/// c.remove_point(&"point-2");
+/// assert_eq!(c.get_points(&"node-1"), [&"point-1"]);
+/// ```
+pub struct Client<'a, T: 'a + Hash + Eq, U: 'a + Hash + Eq> {
+    ring: Ring<'a, T>,
+    data: TreapMap<u64, HashSet<&'a U>>,
+}
+
+impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
+    /// Constructs a new, empty `Client<T, U>`
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::consistent_hash::Client;
+    ///
+    /// let mut c: Client<&str, &str> = Client::new();
+    /// ```
+    pub fn new() -> Self {
+        Client {
+            ring: Ring::new(),
+            data: TreapMap::new(),
+        }
+    }
+
+    fn get_next_node(&mut self, hash: &u64) -> Option<(u64, &mut HashSet<&'a U>)> {
+        match self.data.ceil(hash) {
+            Some(&hash) => Some((hash, &mut self.data[&hash])),
+            None => match self.data.min() {
+                Some(&hash) => Some((hash, &mut self.data[&hash])),
                 None => None,
             },
         }
@@ -71,15 +163,15 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Client;
     ///
-    /// let mut r: Ring<&str, &str> = Ring::new();
+    /// let mut c: Client<&str, &str> = Client::new();
     ///
-    /// r.insert_node("node-1", 3);
-    /// assert_eq!(r.size(), 1);
+    /// c.insert_node(&"node-1", 3);
+    /// assert_eq!(c.len(), 1);
     /// ```
-    pub fn size(&self) -> usize {
-        self.replicas.len()
+    pub fn len(&self) -> usize {
+        self.ring.len()
     }
 
     /// Inserts a node into the ring with a number of replicas.
@@ -90,42 +182,38 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Client;
     ///
-    /// let mut r: Ring<&str, &str> = Ring::new();
+    /// let mut c: Client<&str, &str> = Client::new();
     ///
     /// // "node-2" will receive three times more points than "node-1"
-    /// r.insert_node("node-1", 1);
-    /// r.insert_node("node-2", 3);
+    /// c.insert_node(&"node-1", 1);
+    /// c.insert_node(&"node-2", 3);
     /// ```
-    pub fn insert_node(&mut self, id: T, replicas: usize) {
-        let id_ref = Rc::new(id);
-        self.replicas.insert(Rc::clone(&id_ref), replicas);
-        for i in 0..replicas {
-            let mut new_node: Node<T, U> = Node {
-                id: Rc::clone(&id_ref),
-                points: HashMap::new(),
-            };
-            let new_hash = util::combine_hash(util::gen_hash(&id_ref), util::gen_hash(&i));
+    pub fn insert_node(&mut self, id: &'a T, replicas: usize) {
+        let new_hashes = (0..replicas)
+            .map(|replica| util::combine_hash(util::gen_hash(&id), util::gen_hash(&replica)))
+            .collect::<Vec<u64>>();
+        self.ring.insert_node(id, replicas);
+        for new_hash in new_hashes {
+            let mut new_points = HashSet::new();
+            // if hash already exists, then no additional work is needed to be done
+            if !self.data.contains_key(&new_hash) {
+                if let Some((hash, points)) = self.get_next_node(&new_hash) {
+                    let (old_set, new_set) = points.drain().partition(|point| {
+                        let point_hash = util::gen_hash(point);
+                        if new_hash < hash {
+                            new_hash < point_hash && point_hash < hash
+                        } else {
+                            new_hash < point_hash || point_hash < hash
+                        }
+                    });
 
-            // replaces another node
-            if self.nodes.contains_key(&new_hash) {
-                new_node.points = self.nodes.remove(&new_hash).unwrap().1.points;
+                    mem::replace(points, old_set);
+                    new_points = new_set;
+                }
+                self.data.insert(new_hash, new_points);
             }
-            // could take some of another node
-            else if let Some((hash, &mut Node { ref mut points, .. })) = self.get_next_node(&new_hash) {
-                let (old_vec, new_vec) = points.drain().partition(|point| {
-                    if new_hash < hash {
-                        new_hash < point.1 && point.1 < hash
-                    } else {
-                        new_hash < point.1 || point.1 < hash
-                    }
-                });
-
-                new_node.points = new_vec;
-                mem::replace(points, old_vec);
-            }
-            self.nodes.insert(new_hash, new_node);
         }
     }
 
@@ -136,28 +224,29 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Client;
     ///
-    /// let mut r: Ring<&str, &str> = Ring::new();
+    /// let mut c: Client<&str, &str> = Client::new();
     ///
-    /// r.insert_node("node-1", 1);
-    /// r.insert_node("node-2", 1);
-    /// r.remove_node(&"node-1");
+    /// c.insert_node(&"node-1", 1);
+    /// c.insert_node(&"node-2", 1);
+    /// c.remove_node(&"node-2");
     /// ```
     pub fn remove_node(&mut self, id: &T) {
-        for i in 0..self.replicas[id] {
+        let replicas = self.ring.get_replica_count(id);
+        self.ring.remove_node(id);
+        for i in 0..replicas {
             let hash = util::combine_hash(util::gen_hash(id), util::gen_hash(&i));
-            if let Some((_, Node { points, .. })) = self.nodes.remove(&hash) {
-                if let Some((_, &mut Node { points: ref mut next_points, .. })) = self.get_next_node(&hash) {
-                    for val in points {
-                        next_points.insert(val.0, val.1);
+            if !self.ring.contains_point(hash) {
+                if let Some((_, mut points)) = self.data.remove(&hash) {
+                    if let Some((_, next_points)) = self.get_next_node(&hash) {
+                        next_points.extend(points);
+                    } else {
+                        panic!("Error: empty ring after deletion");
                     }
-                } else {
-                    panic!("Error: empty ring after deletion");
                 }
             }
         }
-        self.replicas.remove(id);
     }
 
     /// Returns the points associated with a node and its replicas.
@@ -167,23 +256,20 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Client;
     ///
-    /// let mut r: Ring<&str, &str> = Ring::new();
+    /// let mut c: Client<&str, &str> = Client::new();
     ///
-    /// r.insert_node("node-1", 1);
-    /// r.insert_point("point-1");
-    /// assert_eq!(r.get_points(&"node-1"), [&"point-1"]);
+    /// c.insert_node(&"node-1", 1);
+    /// c.insert_point(&"point-1");
+    /// assert_eq!(c.get_points(&"node-1"), [&"point-1"]);
     /// ```
     pub fn get_points(&self, id: &T) -> Vec<&U> {
-        let replicas = self.replicas[id];
         let mut ret: Vec<&U> = Vec::new();
-        for i in 0..replicas {
+        for i in 0..self.ring.get_replica_count(id) {
             let hash = util::combine_hash(util::gen_hash(id), util::gen_hash(&i));
-            if let Some(node) = self.nodes.get(&hash) {
-                for entry in &node.points {
-                    ret.push(entry.0);
-                }
+            if let Some(points) = self.data.get(&hash) {
+                ret.extend(points.iter());
             }
         }
         ret
@@ -196,21 +282,16 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Client;
     ///
-    /// let mut r: Ring<&str, &str> = Ring::new();
+    /// let mut c: Client<&str, &str> = Client::new();
     ///
-    /// r.insert_node("node-1", 1);
-    /// r.insert_point("point-1");
-    /// assert_eq!(r.get_node(&"point-1"), &"node-1");
+    /// c.insert_node(&"node-1", 1);
+    /// c.insert_point(&"point-1");
+    /// assert_eq!(c.get_node(&"point-1"), &"node-1");
     /// ```
     pub fn get_node(&mut self, key: &U) -> &T {
-        let hash = util::gen_hash(key);
-        if let Some((_, &mut Node { ref id, .. })) = self.get_next_node(&hash) {
-            &**id
-        } else {
-            panic!("Error: empty ring");
-        }
+        self.ring.get_node(key)
     }
 
     /// Inserts a point into the ring.
@@ -220,16 +301,16 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Client;
     ///
-    /// let mut r = Ring::new();
-    /// r.insert_node("node-1", 1);
-    /// r.insert_point("point-1");
+    /// let mut c = Client::new();
+    /// c.insert_node(&"node-1", 1);
+    /// c.insert_point(&"point-1");
     /// ```
-    pub fn insert_point(&mut self, key: U) {
-        let hash = util::gen_hash(&key);
-        if let Some((_, &mut Node { ref mut points, .. })) = self.get_next_node(&hash) {
-            points.insert(key, hash);
+    pub fn insert_point(&mut self, key: &'a U) {
+        let hash = util::gen_hash(key);
+        if let Some((_, points)) = self.get_next_node(&hash) {
+            points.insert(key);
         } else {
             panic!("Error: empty ring");
         }
@@ -242,16 +323,16 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Client;
     ///
-    /// let mut r = Ring::new();
-    /// r.insert_node("node-1", 1);
-    /// r.insert_point("point-1");
-    /// r.remove_point(&"point-1");
+    /// let mut c = Client::new();
+    /// c.insert_node(&"node-1", 1);
+    /// c.insert_point(&"point-1");
+    /// c.remove_point(&"point-1");
     /// ```
     pub fn remove_point(&mut self, key: &U) {
-        let hash = util::gen_hash(key);
-        if let Some((_, &mut Node { ref mut points, .. })) = self.get_next_node(&hash) {
+        let hash = util::gen_hash(&key);
+        if let Some((_, points)) = self.get_next_node(&hash) {
             points.remove(key);
         } else {
             panic!("Error: empty ring");
@@ -263,30 +344,28 @@ impl<T: Hash + Eq, U: Hash + Eq> Ring<T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent_hash::Client;
     ///
-    /// let mut r = Ring::new();
-    /// r.insert_node("node-1", 1);
-    /// r.insert_point("point-1");
+    /// let mut c = Client::new();
+    /// c.insert_node(&"node-1", 1);
+    /// c.insert_point(&"point-1");
     ///
-    /// let mut iterator = r.iter();
+    /// let mut iterator = c.iter();
     /// assert_eq!(iterator.next(), Some((&"node-1", vec![&"point-1"])))
     /// ```
-    pub fn iter<'a>(&'a self) -> Box<Iterator<Item = (&'a T, Vec<&'a U>)> + 'a> {
-        Box::new(self.replicas.iter().map(move |ref node_entry| {
+    pub fn iter(&'a self) -> Box<Iterator<Item = (&'a T, Vec<&'a U>)> + 'a> {
+        Box::new(self.ring.iter().map(move |ref replica| {
             let mut points = Vec::new();
-            for i in 0..*node_entry.1 {
-                let hash = util::combine_hash(util::gen_hash(&*node_entry.0), util::gen_hash(&i));
-                for point_entry in &self.nodes.get(&hash).unwrap().points {
-                    points.push(point_entry.0);
-                }
+            for i in 0..replica.1 {
+                let hash = util::combine_hash(util::gen_hash(&*replica.0), util::gen_hash(&i));
+                points.extend(self.data.get(&hash).unwrap())
             }
-            (&**node_entry.0, points)
+            (replica.0, points)
         }))
     }
 }
 
-impl<'a, T: Hash + Eq, U: Hash + Eq> IntoIterator for &'a Ring<T, U> {
+impl<'a, T: Hash + Eq, U: Hash + Eq> IntoIterator for &'a Client<'a, T, U> {
     type Item = (&'a T, Vec<&'a U>);
     type IntoIter = Box<Iterator<Item = (&'a T, Vec<&'a U>)> + 'a>;
 
@@ -295,7 +374,7 @@ impl<'a, T: Hash + Eq, U: Hash + Eq> IntoIterator for &'a Ring<T, U> {
     }
 }
 
-impl<T: Hash + Eq, U: Hash + Eq> Default for Ring<T, U> {
+impl<'a, T: Hash + Eq, U: Hash + Eq> Default for Client<'a, T, U> {
     fn default() -> Self {
         Self::new()
     }
@@ -303,49 +382,49 @@ impl<T: Hash + Eq, U: Hash + Eq> Default for Ring<T, U> {
 
 #[cfg(test)]
 mod tests {
-    use super::Ring;
+    use super::Client;
     use std::hash::{Hash, Hasher};
 
     #[test]
     fn test_size_empty() {
-        let ring: Ring<u32, u32> = Ring::new();
-        assert_eq!(ring.size(), 0);
+        let client: Client<u32, u32> = Client::new();
+        assert_eq!(client.len(), 0);
     }
 
     #[test]
     #[should_panic]
-    fn test_panic_remove_node_empty_ring() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.insert_node(0, 1);
-        ring.remove_node(&0);
+    fn test_panic_remove_node_empty_client() {
+        let mut client: Client<u32, u32> = Client::new();
+        client.insert_node(&0, 1);
+        client.remove_node(&0);
     }
 
     #[test]
     #[should_panic]
     fn test_panic_remove_node_non_existent_node() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.remove_node(&0);
+        let mut client: Client<u32, u32> = Client::new();
+        client.remove_node(&0);
     }
 
     #[test]
     #[should_panic]
-    fn test_panic_get_node_empty_ring() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.get_node(&0);
+    fn test_panic_get_node_empty_client() {
+        let mut client: Client<u32, u32> = Client::new();
+        client.get_node(&0);
     }
 
     #[test]
     #[should_panic]
-    fn test_panic_insert_point_empty_ring() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.insert_point(0);
+    fn test_panic_insert_point_empty_client() {
+        let mut client: Client<u32, u32> = Client::new();
+        client.insert_point(&0);
     }
 
     #[test]
     #[should_panic]
-    fn test_panic_remove_point_empty_ring() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.remove_point(&0);
+    fn test_panic_remove_point_empty_client() {
+        let mut client: Client<u32, u32> = Client::new();
+        client.remove_point(&0);
     }
 
     #[derive(PartialEq, Eq)]
@@ -358,69 +437,69 @@ mod tests {
 
     #[test]
     fn test_insert_node_replace_node() {
-        let mut ring: Ring<Key, u32> = Ring::new();
-        ring.insert_node(Key(0), 1);
-        ring.insert_point(0);
-        ring.insert_node(Key(1), 1);
-        assert_eq!(ring.get_points(&Key(1)).as_slice(), [&0u32,]);
+        let mut client: Client<Key, u32> = Client::new();
+        client.insert_node(&Key(0), 1);
+        client.insert_point(&0);
+        client.insert_node(&Key(1), 1);
+        assert_eq!(client.get_points(&Key(1)).as_slice(), [&0u32,]);
     }
 
     #[test]
     fn test_insert_node_share_node() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.insert_node(0, 1);
-        ring.insert_point(0);
-        ring.insert_point(1);
-        ring.insert_node(1, 1);
-        assert_eq!(ring.get_points(&0).as_slice(), [&1u32,]);
-        assert_eq!(ring.get_points(&1).as_slice(), [&0u32,]);
+        let mut client: Client<u32, u32> = Client::new();
+        client.insert_node(&0, 1);
+        client.insert_point(&0);
+        client.insert_point(&1);
+        client.insert_node(&1, 1);
+        assert_eq!(client.get_points(&0).as_slice(), [&1u32,]);
+        assert_eq!(client.get_points(&1).as_slice(), [&0u32,]);
     }
 
     #[test]
     fn test_remove_node() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.insert_node(0, 1);
-        ring.insert_point(0);
-        ring.insert_node(1, 1);
-        ring.remove_node(&1);
-        assert_eq!(ring.get_points(&0), [&0,]);
+        let mut client: Client<u32, u32> = Client::new();
+        client.insert_node(&0, 1);
+        client.insert_point(&0);
+        client.insert_node(&1, 1);
+        client.remove_node(&1);
+        assert_eq!(client.get_points(&0), [&0,]);
     }
 
     #[test]
     fn test_get_node() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.insert_node(0, 3);
-        assert_eq!(ring.get_node(&0), &0);
+        let mut client: Client<u32, u32> = Client::new();
+        client.insert_node(&0, 3);
+        assert_eq!(client.get_node(&0), &0);
     }
 
     #[test]
     fn test_insert_point() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.insert_node(0, 3);
-        ring.insert_point(0);
-        assert_eq!(ring.get_points(&0).as_slice(), [&0u32,]);
+        let mut client: Client<u32, u32> = Client::new();
+        client.insert_node(&0, 3);
+        client.insert_point(&0);
+        assert_eq!(client.get_points(&0).as_slice(), [&0u32,]);
     }
 
     #[test]
     fn test_remove_point() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.insert_node(0, 3);
-        ring.insert_point(0);
-        ring.remove_point(&0);
+        let mut client: Client<u32, u32> = Client::new();
+        client.insert_node(&0, 3);
+        client.insert_point(&0);
+        client.remove_point(&0);
         let expected: [&u32; 0] = [];
-        assert_eq!(ring.get_points(&0).as_slice(), expected);
+        assert_eq!(client.get_points(&0).as_slice(), expected);
     }
 
     #[test]
     fn test_iter() {
-        let mut ring: Ring<u32, u32> = Ring::new();
-        ring.insert_node(0, 3);
-        ring.insert_point(1);
-        ring.insert_point(2);
-        ring.insert_point(3);
-        ring.insert_point(4);
-        ring.insert_point(5);
-        let mut actual: Vec<(&u32, Vec<&u32>)> = ring.iter().collect();
+        let mut client: Client<u32, u32> = Client::new();
+        client.insert_node(&0, 3);
+        client.insert_point(&1);
+        client.insert_point(&2);
+        client.insert_point(&3);
+        client.insert_point(&4);
+        client.insert_point(&5);
+        let mut actual: Vec<(&u32, Vec<&u32>)> = client.iter().collect();
         actual[0].1.sort();
         assert_eq!(actual[0].0, &0);
         assert_eq!(actual[0].1.as_slice(), [&1, &2, &3, &4, &5]);
