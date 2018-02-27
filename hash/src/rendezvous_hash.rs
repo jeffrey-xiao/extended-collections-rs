@@ -101,7 +101,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     /// ```
     pub fn get_node<U: Hash + Eq>(&self, key: &U) -> &'a T {
         let point_hash = util::gen_hash(key);
-        &*self.nodes.iter().map(|entry| {
+        self.nodes.iter().map(|entry| {
             (
                 entry.1.iter().map(|hash| util::combine_hash(*hash, point_hash)).max().unwrap(),
                 entry.0,
@@ -219,21 +219,6 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
             nodes: HashMap::new(),
             points: HashMap::new(),
         }
-    }
-
-    /// Returns the number of nodes in the ring.
-    ///
-    /// # Examples
-    /// ```
-    /// use hash::rendezvous_hash::Client;
-    ///
-    /// let mut c: Client<&str, &str> = Client::new();
-    ///
-    /// c.insert_node(&"node-1", 3);
-    /// assert_eq!(c.len(), 1);
-    /// ```
-    pub fn len(&self) -> usize {
-        self.nodes.len()
     }
 
     /// Inserts a node into the ring with a number of replicas.
@@ -385,6 +370,37 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
         let node = self.ring.get_node(key);
         self.nodes.get_mut(node).unwrap().remove(key);
         self.points.remove(key);
+    }
+
+    /// Returns the number of nodes in the ring.
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::rendezvous_hash::Client;
+    ///
+    /// let mut c: Client<&str, &str> = Client::new();
+    ///
+    /// c.insert_node(&"node-1", 3);
+    /// assert_eq!(c.len(), 1);
+    /// ```
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    /// Returns `true` if the ring is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::rendezvous_hash::Client;
+    ///
+    /// let mut c: Client<&str, &str> = Client::new();
+    ///
+    /// assert!(c.is_empty());
+    /// c.insert_node(&"node-1", 3);
+    /// assert!(!c.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.ring.is_empty()
     }
 
     /// Returns an iterator over the ring. The iterator will yield nodes and points in no

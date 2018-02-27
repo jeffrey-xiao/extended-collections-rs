@@ -85,7 +85,7 @@ impl<T> SkipList<T> {
     pub fn new() -> Self {
         SkipList {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
-            rng: rand::SeedableRng::from_seed([1235, 15212, 12512512, 12512521]),
+            rng: XorShiftRng::new_unseeded(),
             size: 0,
         }
     }
@@ -287,10 +287,8 @@ impl<T> SkipList<T> {
                     curr_node = &mem::replace(&mut next_link, (*next_link.next).get_pointer(curr_height)).next;
                 }
 
-                if !next_link.next.is_null() {
-                    if next_link.distance == index + 1 {
-                        return Some(&(*next_link.next).key);
-                    }
+                if !next_link.next.is_null() && next_link.distance == index + 1 {
+                    return Some(&(*next_link.next).key);
                 }
 
                 if curr_height == 0 {
@@ -327,10 +325,8 @@ impl<T> SkipList<T> {
                     curr_node = &mut mem::replace(&mut next_link, (*next_link.next).get_pointer_mut(curr_height)).next;
                 }
 
-                if !next_link.next.is_null() {
-                    if next_link.distance == index + 1 {
-                        return Some(&mut (*next_link.next).key);
-                    }
+                if !next_link.next.is_null() && next_link.distance == index + 1 {
+                    return Some(&mut (*next_link.next).key);
                 }
 
                 if curr_height == 0 {

@@ -83,9 +83,9 @@ impl<'a, T: 'a + Hash + Eq> Ring<'a, T> {
     pub fn insert_node(&mut self, id: &'a T, replicas: usize) {
         for i in 0..replicas {
             let hash = util::combine_hash(util::gen_hash(id), util::gen_hash(&i));
-            self.nodes.insert(hash, &id);
+            self.nodes.insert(hash, id);
         }
-        self.replicas.insert(&id, replicas);
+        self.replicas.insert(id, replicas);
     }
 
     /// Removes a node and all its replicas from a ring.
@@ -265,37 +265,6 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
         }
     }
 
-    /// Returns the number of nodes in the ring.
-    ///
-    /// # Examples
-    /// ```
-    /// use hash::consistent_hash::Client;
-    ///
-    /// let mut c: Client<&str, &str> = Client::new();
-    ///
-    /// c.insert_node(&"node-1", 3);
-    /// assert_eq!(c.len(), 1);
-    /// ```
-    pub fn len(&self) -> usize {
-        self.ring.len()
-    }
-
-    /// Returns `true` if the ring is empty.
-    ///
-    /// # Examples
-    /// ```
-    /// use hash::consistent_hash::Client;
-    ///
-    /// let mut c: Client<&str, &str> = Client::new();
-    ///
-    /// assert!(c.is_empty());
-    /// c.insert_node(&"node-1", 3);
-    /// assert!(!c.is_empty());
-    /// ```
-    pub fn is_empty(&self) -> bool {
-        self.ring.is_empty()
-    }
-
     /// Inserts a node into the ring with a number of replicas.
     ///
     /// Increasing the number of replicas will increase the number of expected points mapped to the
@@ -459,6 +428,37 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
         } else {
             panic!("Error: empty ring");
         }
+    }
+
+    /// Returns the number of nodes in the ring.
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::consistent_hash::Client;
+    ///
+    /// let mut c: Client<&str, &str> = Client::new();
+    ///
+    /// c.insert_node(&"node-1", 3);
+    /// assert_eq!(c.len(), 1);
+    /// ```
+    pub fn len(&self) -> usize {
+        self.ring.len()
+    }
+
+    /// Returns `true` if the ring is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::consistent_hash::Client;
+    ///
+    /// let mut c: Client<&str, &str> = Client::new();
+    ///
+    /// assert!(c.is_empty());
+    /// c.insert_node(&"node-1", 3);
+    /// assert!(!c.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.ring.is_empty()
     }
 
     /// Returns an iterator over the ring. The iterator will yield nodes and points in no

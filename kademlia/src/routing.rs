@@ -33,7 +33,7 @@ impl RoutingBucket {
     }
 
     fn contains(&self, node_data: &NodeData) -> bool {
-        return self.nodes.iter().position(|data| data == node_data).is_some()
+        self.nodes.iter().any(|data| data == node_data)
     }
 
     fn split(&mut self, key: &Key, index: usize) -> RoutingBucket {
@@ -68,7 +68,7 @@ impl RoutingBucket {
     }
 
     pub fn is_stale(&self) -> bool {
-        return SteadyTime::now() - self.last_update_time > Duration::seconds(BUCKET_REFRESH_INTERVAL as i64);
+        SteadyTime::now() - self.last_update_time > Duration::seconds(BUCKET_REFRESH_INTERVAL as i64)
     }
 
     pub fn size(&self) -> usize {
@@ -170,7 +170,7 @@ impl RoutingTable {
                 ret.push(i);
             }
         }
-        return ret;
+        ret
     }
 
     pub fn size(&self) -> usize {
