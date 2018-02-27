@@ -1,6 +1,5 @@
 extern crate rand;
 
-use std::fmt::Debug;
 use rand::Rng;
 use rand::XorShiftRng;
 use std::mem;
@@ -9,13 +8,13 @@ use std::ptr;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-struct Link<T: Debug + PartialEq> {
+struct Link<T> {
     next: *mut Node<T>,
     distance: usize,
 }
 
 #[repr(C)]
-struct Node<T: Debug + PartialEq> {
+struct Node<T> {
     links_size: usize,
     key: T,
     links: [Link<T>; 0],
@@ -23,7 +22,7 @@ struct Node<T: Debug + PartialEq> {
 
 const MAX_HEIGHT: usize = 32;
 
-impl<T: Debug + PartialEq> Node<T> {
+impl<T> Node<T> {
     pub fn new(key: T, links_size: usize) -> *mut Self {
         let ptr = unsafe { Self::allocate(links_size) };
         unsafe { ptr::write(&mut (*ptr).key, key); }
@@ -68,13 +67,13 @@ impl<T: Debug + PartialEq> Node<T> {
     }
 }
 
-pub struct SkipList<T: Debug + PartialEq> {
+pub struct SkipList<T> {
     head: *mut Node<T>,
     rng: XorShiftRng,
     size: usize,
 }
 
-impl<T: Debug + PartialEq> SkipList<T> {
+impl<T> SkipList<T> {
     /// Constructs a new, empty `SkipList<T>`
     ///
     /// # Examples
@@ -435,39 +434,9 @@ impl<T: Debug + PartialEq> SkipList<T> {
     pub fn iter_mut(&mut self) -> SkipListIterMut<T> {
         unsafe { SkipListIterMut { current: &mut (*self.head).get_pointer_mut(0).next } }
     }
-
-    pub fn assert(&mut self) {
-        unsafe {
-            let mut curr_node = &mut (*self.head).get_pointer_mut(0).next;
-            let mut actual = vec![];
-            while !curr_node.is_null() {
-                actual.push(&(**curr_node).key);
-                let mut next_link = (**curr_node).get_pointer_mut(0);
-                curr_node = &mut mem::replace(&mut next_link, (*next_link.next).get_pointer_mut(0)).next;
-            }
-
-            for i in 1..MAX_HEIGHT + 1 {
-                let mut curr_node = &mut (*self.head).get_pointer_mut(i).next;
-                while !curr_node.is_null() {
-                    let x = &(**curr_node).key;
-                    let mut next_link = (**curr_node).get_pointer_mut(i);
-                    let dist = next_link.distance;
-                    curr_node = &mut mem::replace(&mut next_link, (*next_link.next).get_pointer_mut(0)).next;
-                    if !curr_node.is_null() {
-                        let y = &(**curr_node).key;
-
-                        assert_eq!(
-                            dist,
-                            actual.iter().position(|&n| n == y).unwrap() - actual.iter().position(|&n| n == x).unwrap(),
-                        );
-                    }
-                }
-            }
-        }
-    }
 }
 
-impl<T: Debug + PartialEq> Drop for SkipList<T> {
+impl<T> Drop for SkipList<T> {
     fn drop(&mut self) {
         unsafe {
             Node::deallocate(mem::replace(&mut self.head, (*self.head).get_pointer(0).next));
@@ -478,7 +447,7 @@ impl<T: Debug + PartialEq> Drop for SkipList<T> {
     }
 }
 
-impl<T: Debug + PartialEq> IntoIterator for SkipList<T> {
+impl<T> IntoIterator for SkipList<T> {
     type Item = T;
     type IntoIter = SkipListIntoIter<T>;
 
@@ -491,7 +460,7 @@ impl<T: Debug + PartialEq> IntoIterator for SkipList<T> {
     }
 }
 
-impl<'a, T: 'a + Debug + PartialEq> IntoIterator for &'a SkipList<T> {
+impl<'a, T: 'a> IntoIterator for &'a SkipList<T> {
     type Item = &'a T;
     type IntoIter = SkipListIter<'a, T>;
 
@@ -500,7 +469,7 @@ impl<'a, T: 'a + Debug + PartialEq> IntoIterator for &'a SkipList<T> {
     }
 }
 
-impl<'a, T: 'a + Debug + PartialEq> IntoIterator for &'a mut SkipList<T> {
+impl<'a, T: 'a> IntoIterator for &'a mut SkipList<T> {
     type Item = &'a mut T;
     type IntoIter = SkipListIterMut<'a, T>;
 
@@ -512,11 +481,11 @@ impl<'a, T: 'a + Debug + PartialEq> IntoIterator for &'a mut SkipList<T> {
 /// An owning iterator for `SkipList<T>`
 ///
 /// This iterator traverses the elements of the list and yields owned entries.
-pub struct SkipListIntoIter<T: Debug + PartialEq> {
+pub struct SkipListIntoIter<T> {
     current: *mut Node<T>,
 }
 
-impl<T: Debug + PartialEq> Iterator for SkipListIntoIter<T> {
+impl<T> Iterator for SkipListIntoIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -532,7 +501,7 @@ impl<T: Debug + PartialEq> Iterator for SkipListIntoIter<T> {
     }
 }
 
-impl<T: Debug + PartialEq> Drop for SkipListIntoIter<T> {
+impl<T> Drop for SkipListIntoIter<T> {
     fn drop(&mut self) {
         unsafe {
             while !self.current.is_null() {
@@ -546,11 +515,11 @@ impl<T: Debug + PartialEq> Drop for SkipListIntoIter<T> {
 /// An iterator for `SkipList<T>`
 ///
 /// This iterator traverses the elements of the list in-order and yields immutable references.
-pub struct SkipListIter<'a, T: 'a + Debug + PartialEq> {
+pub struct SkipListIter<'a, T: 'a> {
     current: &'a *mut Node<T>,
 }
 
-impl<'a, T: 'a + Debug + PartialEq> Iterator for SkipListIter<'a, T> {
+impl<'a, T: 'a> Iterator for SkipListIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -569,11 +538,11 @@ impl<'a, T: 'a + Debug + PartialEq> Iterator for SkipListIter<'a, T> {
 /// A mutable iterator for `SkipList<T>`
 ///
 /// This iterator traverses the elements of the list in-order and yields mutable references.
-pub struct SkipListIterMut<'a, T: 'a + Debug + PartialEq> {
+pub struct SkipListIterMut<'a, T: 'a> {
     current: &'a mut *mut Node<T>,
 }
 
-impl<'a, T: 'a + Debug + PartialEq> Iterator for SkipListIterMut<'a, T> {
+impl<'a, T: 'a> Iterator for SkipListIterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -589,20 +558,20 @@ impl<'a, T: 'a + Debug + PartialEq> Iterator for SkipListIterMut<'a, T> {
     }
 }
 
-impl<T: Debug + PartialEq> Default for SkipList<T> {
+impl<T> Default for SkipList<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Debug + PartialEq> Index<usize> for SkipList<T> {
+impl<T> Index<usize> for SkipList<T> {
     type Output = T;
     fn index(&self, key: usize) -> &Self::Output {
         self.get(key).unwrap()
     }
 }
 
-impl<T: Debug + PartialEq> IndexMut<usize> for SkipList<T> {
+impl<T> IndexMut<usize> for SkipList<T> {
     fn index_mut(&mut self, key: usize) -> &mut Self::Output {
         self.get_mut(key).unwrap()
     }

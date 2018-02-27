@@ -64,10 +64,6 @@ fn int_test_skipmap() {
 fn int_test_skiplist() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut list = SkipList::new();
-    // list.push_back(1);
-    // list.push_back(1);
-    // list.push_back(1);
-    // list.push_back(1);
 
     let mut expected = Vec::new();
 
