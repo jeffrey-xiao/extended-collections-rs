@@ -47,14 +47,14 @@ pub fn split<T>(tree: &mut Tree<T>, index: usize, left_inclusive: bool) -> Tree<
 }
 
 pub fn insert<T>(tree: &mut Tree<T>, index: usize, new_node: ImplicitNode<T>)  {
-    assert!(1 <= index && index <= size(tree) + 1);
+    assert!(1 <= index && index <= len(tree) + 1);
     let right = split(tree, index, true);
     merge(tree, Some(Box::new(new_node)));
     merge(tree, right);
 }
 
 pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
-    assert!(1 <= index && index <= size(tree));
+    assert!(1 <= index && index <= len(tree));
     let new_tree = {
         let node = tree.as_mut().unwrap();
         let key = node.get_implicit_key();
@@ -101,9 +101,9 @@ pub fn get_mut<T>(tree: &mut Tree<T>, index: usize) -> Option<&mut T> {
     })
 }
 
-pub fn size<T>(tree: &Tree<T>) -> usize {
+pub fn len<T>(tree: &Tree<T>) -> usize {
     if let Some(ref node) = *tree {
-        node.size()
+        node.len()
     } else {
         0
     }

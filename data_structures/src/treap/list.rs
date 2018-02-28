@@ -27,7 +27,7 @@ use treap::node::ImplicitNode;
 ///
 /// assert_eq!(list.get(0), Some(&3));
 /// assert_eq!(list.get(3), None);
-/// assert_eq!(list.size(), 3);
+/// assert_eq!(list.len(), 3);
 ///
 /// *list.get_mut(0).unwrap() += 1;
 /// assert_eq!(list.pop_front(), 4);
@@ -72,7 +72,7 @@ impl<T> TreapList<T> {
         implicit_tree::insert(tree, index + 1, ImplicitNode {
             value,
             priority: rng.next_u32(),
-            size: 1,
+            len: 1,
             left: None,
             right: None,
         })
@@ -119,7 +119,7 @@ impl<T> TreapList<T> {
     /// assert_eq!(list.get(0), Some(&1));
     /// ```
     pub fn push_back(&mut self, value: T) {
-        let index = self.size();
+        let index = self.len();
         self.insert(index, value);
     }
 
@@ -156,7 +156,7 @@ impl<T> TreapList<T> {
     /// assert_eq!(list.pop_back(), 2);
     /// ```
     pub fn pop_back(&mut self) -> T {
-        let index = self.size() - 1;
+        let index = self.len() - 1;
         self.remove(index)
     }
 
@@ -192,7 +192,7 @@ impl<T> TreapList<T> {
         implicit_tree::get_mut(&mut self.tree, index + 1)
     }
 
-    /// Returns the size of the list.
+    /// Returns the number of elements in the list.
     ///
     /// # Examples
     /// ```
@@ -200,10 +200,10 @@ impl<T> TreapList<T> {
     ///
     /// let mut list = TreapList::new();
     /// list.insert(0, 1);
-    /// assert_eq!(list.size(), 1);
+    /// assert_eq!(list.len(), 1);
     /// ```
-    pub fn size(&self) -> usize {
-        implicit_tree::size(&self.tree)
+    pub fn len(&self) -> usize {
+        implicit_tree::len(&self.tree)
     }
 
     /// Returns `true` if the list is empty.
@@ -431,9 +431,9 @@ mod tests {
     use super::TreapList;
 
     #[test]
-    fn test_size_empty() {
+    fn test_len_empty() {
         let list: TreapList<u32> = TreapList::new();
-        assert_eq!(list.size(), 0);
+        assert_eq!(list.len(), 0);
     }
 
     #[test]
@@ -519,7 +519,7 @@ mod tests {
             res.iter().collect::<Vec<&u32>>(),
             vec![&2, &3, &1, &5, &6, &4],
         );
-        assert_eq!(res.size(), 6);
+        assert_eq!(res.len(), 6);
     }
 
     #[test]

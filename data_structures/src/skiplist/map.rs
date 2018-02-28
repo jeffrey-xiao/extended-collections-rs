@@ -9,7 +9,7 @@ use std::ptr;
 
 #[repr(C)]
 struct Node<T: Ord, U> {
-    links_size: usize,
+    links_len: usize,
     value: U,
     key: T,
     links: [*mut Node<T, U>; 0],
@@ -18,8 +18,8 @@ struct Node<T: Ord, U> {
 const MAX_HEIGHT: usize = 32;
 
 impl<T: Ord, U> Node<T, U> {
-    pub fn new(key: T, value: U, links_size: usize) -> *mut Self {
-        let ptr = unsafe { Self::allocate(links_size) };
+    pub fn new(key: T, value: U, links_len: usize) -> *mut Self {
+        let ptr = unsafe { Self::allocate(links_len) };
         unsafe {
             ptr::write(&mut (*ptr).key, key);
             ptr::write(&mut (*ptr).value, value);
@@ -35,27 +35,27 @@ impl<T: Ord, U> Node<T, U> {
         unsafe { self.links.get_unchecked_mut(height) }
     }
 
-    fn get_size_in_u64s(links_size: usize) -> usize {
+    fn get_size_in_u64s(links_len: usize) -> usize {
         let base_size = mem::size_of::<Node<T, U>>();
         let ptr_size = mem::size_of::<*mut Node<T, U>>();
         let u64_size = mem::size_of::<u64>();
 
-        (base_size + ptr_size * links_size + u64_size - 1) / u64_size
+        (base_size + ptr_size * links_len + u64_size - 1) / u64_size
     }
 
-    unsafe fn allocate(links_size: usize) -> *mut Self {
-        let mut v = Vec::<u64>::with_capacity(Self::get_size_in_u64s(links_size));
+    unsafe fn allocate(links_len: usize) -> *mut Self {
+        let mut v = Vec::<u64>::with_capacity(Self::get_size_in_u64s(links_len));
         let ptr = v.as_mut_ptr() as *mut Node<T, U>;
         mem::forget(v);
-        ptr::write(&mut (*ptr).links_size, links_size);
+        ptr::write(&mut (*ptr).links_len, links_len);
         // fill with null pointers
-        ptr::write_bytes((*ptr).links.get_unchecked_mut(0), 0, links_size);
+        ptr::write_bytes((*ptr).links.get_unchecked_mut(0), 0, links_len);
         ptr
     }
 
     unsafe fn deallocate(ptr: *mut Self) {
-        let links_size = (*ptr).links_size;
-        let cap = Self::get_size_in_u64s(links_size);
+        let links_len = (*ptr).links_len;
+        let cap = Self::get_size_in_u64s(links_len);
         drop(Vec::from_raw_parts(ptr as *mut u64, 0, cap));
     }
 
@@ -85,7 +85,7 @@ impl<T: Ord, U> Node<T, U> {
 ///
 /// assert_eq!(map[&0], 1);
 /// assert_eq!(map.get(&1), None);
-/// assert_eq!(map.size(), 2);
+/// assert_eq!(map.len(), 2);
 ///
 /// assert_eq!(map.min(), Some(&0));
 /// assert_eq!(map.ceil(&2), Some(&3));
@@ -97,7 +97,7 @@ impl<T: Ord, U> Node<T, U> {
 pub struct SkipMap<T: Ord, U> {
     head: *mut Node<T, U>,
     rng: XorShiftRng,
-    size: usize,
+    len: usize,
 }
 
 impl<T: Ord, U> SkipMap<T, U> {
@@ -113,12 +113,12 @@ impl<T: Ord, U> SkipMap<T, U> {
         SkipMap {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
             rng: XorShiftRng::new_unseeded(),
-            size: 0,
+            len: 0,
         }
     }
 
     fn get_starting_height(&self) -> usize {
-        MAX_HEIGHT - (self.size as u32).leading_zeros() as usize
+        MAX_HEIGHT - (self.len as u32).leading_zeros() as usize
     }
 
     fn gen_random_height(&mut self) -> usize {
@@ -139,7 +139,7 @@ impl<T: Ord, U> SkipMap<T, U> {
     /// assert_eq!(map.get(&1), Some(&2));
     /// ```
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
-        self.size += 1;
+        self.len += 1;
         let new_height = self.gen_random_height();
         let new_node = Node::new(key, value, new_height + 1);
         let mut curr_height = MAX_HEIGHT;
@@ -159,7 +159,7 @@ impl<T: Ord, U> SkipMap<T, U> {
                     if curr_height == 0 {
                         ret = Some((ptr::read(&(*temp).key), ptr::read(&(*temp).value)));
                         Node::deallocate(temp);
-                        self.size -= 1;
+                        self.len -= 1;
                     }
                 }
 
@@ -207,7 +207,7 @@ impl<T: Ord, U> SkipMap<T, U> {
                     if curr_height == 0 {
                         ret = Some((ptr::read(&(*temp).key), ptr::read(&(*temp).value)));
                         Node::deallocate(temp);
-                        self.size -= 1;
+                        self.len -= 1;
                     }
                 }
 
@@ -331,7 +331,7 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
-    /// Returns the size of the map.
+    /// Returns the number of elements in the map.
     ///
     /// # Examples
     /// ```
@@ -339,10 +339,10 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
-    /// assert_eq!(map.size(), 1);
+    /// assert_eq!(map.len(), 1);
     /// ```
-    pub fn size(&self) -> usize {
-        self.size
+    pub fn len(&self) -> usize {
+        self.len
     }
 
     /// Returns `true` if the map is empty.
@@ -355,7 +355,7 @@ impl<T: Ord, U> SkipMap<T, U> {
     /// assert!(map.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.size == 0
+        self.len == 0
     }
 
     /// Clears the map, removing all values.
@@ -371,7 +371,7 @@ impl<T: Ord, U> SkipMap<T, U> {
     /// assert_eq!(map.is_empty(), true);
     /// ```
     pub fn clear(&mut self) {
-        self.size = 0;
+        self.len = 0;
         unsafe {
             let mut curr_node = *(*self.head).get_pointer(0);
             while !curr_node.is_null() {
@@ -536,7 +536,7 @@ impl<T: Ord, U> SkipMap<T, U> {
         let mut ret = SkipMap {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
             rng: XorShiftRng::new_unseeded(),
-            size: 0,
+            len: 0,
         };
         let mut curr_nodes = [ret.head; MAX_HEIGHT + 1];
 
@@ -564,10 +564,10 @@ impl<T: Ord, U> SkipMap<T, U> {
                     (true, false) => next_node = mem::replace(&mut right.head, *(*right.head).get_pointer(0)),
                     (false, true) => next_node = mem::replace(&mut left.head, *(*left.head).get_pointer(0)),
                 }
-                ret.size += 1;
+                ret.len += 1;
 
-                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_size);
-                for i in 0..(*next_node).links_size {
+                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_len);
+                for i in 0..(*next_node).links_len {
                     *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
                     curr_nodes[i] = next_node;
                 }
@@ -603,7 +603,7 @@ impl<T: Ord, U> SkipMap<T, U> {
         let mut ret = SkipMap {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
             rng: XorShiftRng::new_unseeded(),
-            size: 0,
+            len: 0,
         };
         let mut curr_nodes = [ret.head; MAX_HEIGHT + 1];
 
@@ -643,10 +643,10 @@ impl<T: Ord, U> SkipMap<T, U> {
                         continue;
                     },
                 }
-                ret.size += 1;
+                ret.len += 1;
 
-                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_size);
-                for i in 0..(*next_node).links_size {
+                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_len);
+                for i in 0..(*next_node).links_len {
                     *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
                     curr_nodes[i] = next_node;
                 }
@@ -661,7 +661,7 @@ impl<T: Ord, U> SkipMap<T, U> {
         let mut ret = SkipMap {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
             rng: XorShiftRng::new_unseeded(),
-            size: 0,
+            len: 0,
         };
         let mut curr_nodes = [ret.head; MAX_HEIGHT + 1];
 
@@ -706,10 +706,10 @@ impl<T: Ord, U> SkipMap<T, U> {
                         next_node = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
                     },
                 }
-                ret.size += 1;
+                ret.len += 1;
 
-                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_size);
-                for i in 0..(*next_node).links_size {
+                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_len);
+                for i in 0..(*next_node).links_len {
                     *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
                     curr_nodes[i] = next_node;
                 }
@@ -989,9 +989,9 @@ mod tests {
     use super::SkipMap;
 
     #[test]
-    fn test_size_empty() {
+    fn test_len_empty() {
         let map: SkipMap<u32, u32> = SkipMap::new();
-        assert_eq!(map.size(), 0);
+        assert_eq!(map.len(), 0);
     }
 
     #[test]
@@ -1092,7 +1092,7 @@ mod tests {
             union.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2), (&3, &3), (&4, &4), (&5, &5)],
         );
-        assert_eq!(union.size(), 5);
+        assert_eq!(union.len(), 5);
     }
 
     #[test]
@@ -1113,7 +1113,7 @@ mod tests {
             intersection.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&3, &3)],
         );
-        assert_eq!(intersection.size(), 1);
+        assert_eq!(intersection.len(), 1);
     }
 
     #[test]
@@ -1134,7 +1134,7 @@ mod tests {
             difference.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2)],
         );
-        assert_eq!(difference.size(), 2);
+        assert_eq!(difference.len(), 2);
     }
 
     #[test]
@@ -1155,7 +1155,7 @@ mod tests {
             symmetric_difference.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2), (&4, &4), (&5, &5)],
         );
-        assert_eq!(symmetric_difference.size(), 4);
+        assert_eq!(symmetric_difference.len(), 4);
     }
 
     #[test]

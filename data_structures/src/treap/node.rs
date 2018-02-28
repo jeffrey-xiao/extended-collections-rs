@@ -5,7 +5,7 @@ use treap::entry::Entry;
 pub struct Node<T: Ord, U> {
     pub entry: Entry<T, U>,
     pub priority: u32,
-    pub size: usize,
+    pub len: usize,
     pub left: tree::Tree<T, U>,
     pub right: tree::Tree<T, U>,
 }
@@ -14,47 +14,47 @@ pub struct Node<T: Ord, U> {
 pub struct ImplicitNode<T> {
     pub value: T,
     pub priority: u32,
-    pub size: usize,
+    pub len: usize,
     pub left: implicit_tree::Tree<T>,
     pub right: implicit_tree::Tree<T>,
 }
 
 impl<T: Ord, U> Node<T, U> {
-    pub fn size(&self) -> usize {
-        self.size
+    pub fn len(&self) -> usize {
+        self.len
     }
 
     pub fn update(&mut self) {
-        let Node { ref mut size, ref left, ref right, .. } = *self;
-        *size = 1;
+        let Node { ref mut len, ref left, ref right, .. } = *self;
+        *len = 1;
         if let Some(ref left_node) = *left {
-            *size += left_node.size();
+            *len += left_node.len();
         }
         if let Some(ref right_node) = *right {
-            *size += right_node.size();
+            *len += right_node.len();
         }
     }
 }
 
 impl<T> ImplicitNode<T> {
-    pub fn size(&self) -> usize {
-        self.size
+    pub fn len(&self) -> usize {
+        self.len
     }
 
     pub fn update(&mut self) {
-        let ImplicitNode { ref mut size, ref left, ref right, .. } = *self;
-        *size = 1;
+        let ImplicitNode { ref mut len, ref left, ref right, .. } = *self;
+        *len = 1;
         if let Some(ref left_node) = *left {
-            *size += left_node.size();
+            *len += left_node.len();
         }
         if let Some(ref right_node) = *right {
-            *size += right_node.size();
+            *len += right_node.len();
         }
     }
 
     pub fn get_implicit_key(&self) -> usize {
         match self.left {
-            Some(ref left_node) => left_node.size() + 1,
+            Some(ref left_node) => left_node.len() + 1,
             None => 1
         }
     }

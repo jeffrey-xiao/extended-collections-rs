@@ -23,7 +23,7 @@ fn int_test_skipmap() {
     expected.sort_by(|l, r| l.0.cmp(&r.0));
     expected.dedup_by_key(|pair| pair.0);
 
-    assert_eq!(map.size(), expected.len());
+    assert_eq!(map.len(), expected.len());
 
     assert_eq!(map.min(), Some(&expected[0].0));
     assert_eq!(map.max(), Some(&expected[expected.len() - 1].0));
@@ -51,12 +51,12 @@ fn int_test_skipmap() {
 
     thread_rng().shuffle(&mut expected);
 
-    let mut expected_size = expected.len();
+    let mut expected_len = expected.len();
     for entry in expected {
         let old_entry = map.remove(&entry.0);
-        expected_size -= 1;
+        expected_len -= 1;
         assert_eq!(old_entry, Some((entry.0, entry.1)));
-        assert_eq!(map.size(), expected_size);
+        assert_eq!(map.len(), expected_len);
     }
 }
 
@@ -75,7 +75,7 @@ fn int_test_skiplist() {
         expected.insert(index, val);
     }
 
-    assert_eq!(list.size(), expected.len());
+    assert_eq!(list.len(), expected.len());
     assert_eq!(
         list.iter().collect::<Vec<&u32>>(),
         expected.iter().collect::<Vec<&u32>>(),

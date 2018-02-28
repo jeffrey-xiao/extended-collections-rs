@@ -23,7 +23,7 @@ use treap::tree;
 ///
 /// assert_eq!(map[&0], 1);
 /// assert_eq!(map.get(&1), None);
-/// assert_eq!(map.size(), 2);
+/// assert_eq!(map.len(), 2);
 ///
 /// assert_eq!(map.min(), Some(&0));
 /// assert_eq!(map.ceil(&2), Some(&3));
@@ -71,7 +71,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         let new_node = Node {
             entry: Entry { key, value },
             priority: rng.next_u32(),
-            size: 1,
+            len: 1,
             left: None,
             right: None,
         };
@@ -148,7 +148,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         tree::get_mut(&mut self.tree, key).map(|entry| &mut entry.value)
     }
 
-    /// Returns the size of the map.
+    /// Returns the number of elements in the map.
     ///
     /// # Examples
     /// ```
@@ -156,12 +156,12 @@ impl<T: Ord, U> TreapMap<T, U> {
     ///
     /// let mut map = TreapMap::new();
     /// map.insert(1, 1);
-    /// assert_eq!(map.size(), 1);
+    /// assert_eq!(map.len(), 1);
     /// ```
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         match self.tree {
             None => 0,
-            Some(ref node) => node.size(),
+            Some(ref node) => node.len(),
         }
     }
 
@@ -175,7 +175,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert!(map.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.size() == 0
+        self.len() == 0
     }
 
     /// Clears the map, removing all values.
@@ -606,9 +606,9 @@ mod tests {
     use super::TreapMap;
 
     #[test]
-    fn test_size_empty() {
+    fn test_len_empty() {
         let map: TreapMap<u32, u32> = TreapMap::new();
-        assert_eq!(map.size(), 0);
+        assert_eq!(map.len(), 0);
     }
 
     #[test]
@@ -745,7 +745,7 @@ mod tests {
             union.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2), (&3, &3), (&4, &4), (&5, &5)],
         );
-        assert_eq!(union.size(), 5);
+        assert_eq!(union.len(), 5);
     }
 
     #[test]
@@ -766,7 +766,7 @@ mod tests {
             intersection.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&3, &3)],
         );
-        assert_eq!(intersection.size(), 1);
+        assert_eq!(intersection.len(), 1);
     }
 
     #[test]
@@ -787,7 +787,7 @@ mod tests {
             difference.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2)],
         );
-        assert_eq!(difference.size(), 2);
+        assert_eq!(difference.len(), 2);
     }
 
     #[test]
@@ -808,7 +808,7 @@ mod tests {
             symmetric_difference.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2), (&4, &4), (&5, &5)],
         );
-        assert_eq!(symmetric_difference.size(), 4);
+        assert_eq!(symmetric_difference.len(), 4);
     }
 
     #[test]

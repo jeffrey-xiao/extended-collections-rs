@@ -18,7 +18,7 @@ use skiplist::map::{SkipMap, SkipMapIntoIter, SkipMapIter};
 /// set.insert(0);
 /// set.insert(3);
 ///
-/// assert_eq!(set.size(), 2);
+/// assert_eq!(set.len(), 2);
 ///
 /// assert_eq!(set.min(), Some(&0));
 /// assert_eq!(set.ceil(&2), Some(&3));
@@ -92,7 +92,7 @@ impl<T: Ord> SkipSet<T> {
         self.map.contains_key(key)
     }
 
-    /// Returns the size of the set.
+    /// Returns the len of the set.
     ///
     /// # Examples
     /// ```
@@ -100,10 +100,10 @@ impl<T: Ord> SkipSet<T> {
     ///
     /// let mut set = SkipSet::new();
     /// set.insert(1);
-    /// assert_eq!(set.size(), 1);
+    /// assert_eq!(set.len(), 1);
     /// ```
-    pub fn size(&self) -> usize {
-        self.map.size()
+    pub fn len(&self) -> usize {
+        self.map.len()
     }
 
     /// Returns `true` if the set is empty.
@@ -116,7 +116,7 @@ impl<T: Ord> SkipSet<T> {
     /// assert!(set.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.map.size() == 0
+        self.map.len() == 0
     }
 
     /// Clears the set, removing all values.
@@ -407,9 +407,9 @@ mod tests {
     use super::SkipSet;
 
     #[test]
-    fn test_size_empty() {
+    fn test_len_empty() {
         let set: SkipSet<u32> = SkipSet::new();
-        assert_eq!(set.size(), 0);
+        assert_eq!(set.len(), 0);
     }
 
     #[test]
@@ -497,7 +497,7 @@ mod tests {
             union.iter().collect::<Vec<&u32>>(),
             vec![&1, &2, &3, &4, &5],
         );
-        assert_eq!(union.size(), 5);
+        assert_eq!(union.len(), 5);
     }
 
     #[test]
@@ -518,7 +518,7 @@ mod tests {
             intersection.iter().collect::<Vec<&u32>>(),
             vec![&3],
         );
-        assert_eq!(intersection.size(), 1);
+        assert_eq!(intersection.len(), 1);
     }
 
     #[test]
@@ -539,7 +539,7 @@ mod tests {
             difference.iter().collect::<Vec<&u32>>(),
             vec![&1, &2],
         );
-        assert_eq!(difference.size(), 2);
+        assert_eq!(difference.len(), 2);
     }
 
     #[test]
@@ -560,7 +560,7 @@ mod tests {
             symmetric_difference.iter().collect::<Vec<&u32>>(),
             vec![&1, &2, &4, &5],
         );
-        assert_eq!(symmetric_difference.size(), 4);
+        assert_eq!(symmetric_difference.len(), 4);
     }
 
     #[test]

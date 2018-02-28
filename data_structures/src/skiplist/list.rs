@@ -15,7 +15,7 @@ struct Link<T> {
 
 #[repr(C)]
 struct Node<T> {
-    links_size: usize,
+    links_len: usize,
     key: T,
     links: [Link<T>; 0],
 }
@@ -23,8 +23,8 @@ struct Node<T> {
 const MAX_HEIGHT: usize = 32;
 
 impl<T> Node<T> {
-    pub fn new(key: T, links_size: usize) -> *mut Self {
-        let ptr = unsafe { Self::allocate(links_size) };
+    pub fn new(key: T, links_len: usize) -> *mut Self {
+        let ptr = unsafe { Self::allocate(links_len) };
         unsafe { ptr::write(&mut (*ptr).key, key); }
         ptr
     }
@@ -37,27 +37,27 @@ impl<T> Node<T> {
         unsafe { self.links.get_unchecked_mut(height) }
     }
 
-    fn get_size_in_u64s(links_size: usize) -> usize {
+    fn get_size_in_u64s(links_len: usize) -> usize {
         let base_size = mem::size_of::<Node<T>>();
         let link_size = mem::size_of::<Link<T>>();
         let u64_size = mem::size_of::<u64>();
 
-        (base_size + link_size * links_size + u64_size - 1) / u64_size
+        (base_size + link_size * links_len + u64_size - 1) / u64_size
     }
 
-    unsafe fn allocate(links_size: usize) -> *mut Self {
-        let mut v = Vec::<u64>::with_capacity(Self::get_size_in_u64s(links_size));
+    unsafe fn allocate(links_len: usize) -> *mut Self {
+        let mut v = Vec::<u64>::with_capacity(Self::get_size_in_u64s(links_len));
         let ptr = v.as_mut_ptr() as *mut Node<T>;
         mem::forget(v);
-        ptr::write(&mut (*ptr).links_size, links_size);
+        ptr::write(&mut (*ptr).links_len, links_len);
         // fill with null pointers
-        ptr::write_bytes((*ptr).links.get_unchecked_mut(0), 0, links_size);
+        ptr::write_bytes((*ptr).links.get_unchecked_mut(0), 0, links_len);
         ptr
     }
 
     unsafe fn deallocate(ptr: *mut Self) {
-        let links_size = (*ptr).links_size;
-        let cap = Self::get_size_in_u64s(links_size);
+        let links_len = (*ptr).links_len;
+        let cap = Self::get_size_in_u64s(links_len);
         drop(Vec::from_raw_parts(ptr as *mut u64, 0, cap));
     }
 
@@ -70,7 +70,7 @@ impl<T> Node<T> {
 pub struct SkipList<T> {
     head: *mut Node<T>,
     rng: XorShiftRng,
-    size: usize,
+    len: usize,
 }
 
 impl<T> SkipList<T> {
@@ -86,7 +86,7 @@ impl<T> SkipList<T> {
         SkipList {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
             rng: XorShiftRng::new_unseeded(),
-            size: 0,
+            len: 0,
         }
     }
 
@@ -108,8 +108,8 @@ impl<T> SkipList<T> {
     /// assert_eq!(list.get(1), Some(&1));
     /// ```
     pub fn insert(&mut self, mut index: usize, value: T) {
-        assert!(index <= self.size);
-        self.size += 1;
+        assert!(index <= self.len);
+        self.len += 1;
         let new_height = self.gen_random_height();
         let new_node = Node::new(value, new_height + 1);
         let mut curr_height = MAX_HEIGHT;
@@ -163,7 +163,7 @@ impl<T> SkipList<T> {
     /// assert_eq!(list.remove(0), 1);
     /// ```
     pub fn remove(&mut self, mut index: usize) -> T {
-        assert!(index < self.size);
+        assert!(index < self.len);
         let mut curr_height = MAX_HEIGHT;
         let mut curr_node = &mut self.head;
 
@@ -182,7 +182,7 @@ impl<T> SkipList<T> {
                         next_link.distance += distance - 1;
                         if curr_height == 0 {
                             Node::deallocate(next);
-                            self.size -= 1;
+                            self.len -= 1;
                             return ptr::read(&(*next).key);
                         }
                     } else {
@@ -222,7 +222,7 @@ impl<T> SkipList<T> {
     /// assert_eq!(list.get(0), Some(&1));
     /// ```
     pub fn push_back(&mut self, value: T) {
-        let index = self.size();
+        let index = self.len();
         self.insert(index, value);
     }
 
@@ -259,7 +259,7 @@ impl<T> SkipList<T> {
     /// assert_eq!(list.pop_back(), 2);
     /// ```
     pub fn pop_back(&mut self) -> T {
-        let index = self.size() - 1;
+        let index = self.len() - 1;
         self.remove(index)
     }
 
@@ -339,7 +339,7 @@ impl<T> SkipList<T> {
         }
     }
 
-    /// Returns the size of the list.
+    /// Returns the number of elements in the list.
     ///
     /// # Examples
     /// ```
@@ -347,10 +347,10 @@ impl<T> SkipList<T> {
     ///
     /// let mut list = SkipList::new();
     /// list.insert(0, 1);
-    /// assert_eq!(list.size(), 1);
+    /// assert_eq!(list.len(), 1);
     /// ```
-    pub fn size(&self) -> usize {
-        self.size
+    pub fn len(&self) -> usize {
+        self.len
     }
 
     /// Returns `true` if the list is empty.
@@ -363,7 +363,7 @@ impl<T> SkipList<T> {
     /// assert!(list.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.size == 0
+        self.len == 0
     }
 
     /// Clears the list, removing all values.
@@ -379,7 +379,7 @@ impl<T> SkipList<T> {
     /// assert_eq!(list.is_empty(), true);
     /// ```
     pub fn clear(&mut self) {
-        self.size = 0;
+        self.len = 0;
         unsafe {
             let mut curr_node = (*self.head).get_pointer(0).next;
             while !curr_node.is_null() {
@@ -578,9 +578,9 @@ mod tests {
     use super::SkipList;
 
     #[test]
-    fn test_size_empty() {
+    fn test_len_empty() {
         let list: SkipList<u32> = SkipList::new();
-        assert_eq!(list.size(), 0);
+        assert_eq!(list.len(), 0);
     }
 
     #[test]
@@ -666,7 +666,7 @@ mod tests {
     //         res.iter().collect::<Vec<&u32>>(),
     //         vec![&2, &3, &1, &5, &6, &4],
     //     );
-    //     assert_eq!(res.size(), 6);
+    //     assert_eq!(res.len(), 6);
     // }
 
     #[test]
