@@ -39,7 +39,7 @@ impl RoutingBucket {
     fn split(&mut self, key: &Key, index: usize) -> RoutingBucket {
         let (old_bucket, new_bucket) = self.nodes
             .drain(..)
-            .partition(|node| node.id.xor(key).count_leading_zeroes() == index);
+            .partition(|node| node.id.xor(key).leading_zeros() == index);
         mem::replace(&mut self.nodes, old_bucket);
         RoutingBucket {
             nodes: new_bucket,
@@ -94,7 +94,7 @@ impl RoutingTable {
     }
 
     pub fn update_node(&mut self, node_data: NodeData) -> bool {
-        let distance = self.node_data.id.xor(&node_data.id).count_leading_zeroes();
+        let distance = self.node_data.id.xor(&node_data.id).leading_zeros();
         let mut target_bucket = cmp::min(distance, self.buckets.len() - 1);
         if self.buckets[target_bucket].contains(&node_data) {
             self.buckets[target_bucket].update_node(node_data);
@@ -123,7 +123,7 @@ impl RoutingTable {
     }
 
     pub fn get_closest_nodes(&self, key: &Key, count: usize) -> Vec<NodeData> {
-        let index = cmp::min(self.node_data.id.xor(key).count_leading_zeroes(), self.buckets.len() - 1);
+        let index = cmp::min(self.node_data.id.xor(key).leading_zeros(), self.buckets.len() - 1);
         let mut ret = Vec::new();
 
         // the closest keys are guaranteed to be in bucket which the key would reside
@@ -131,14 +131,14 @@ impl RoutingTable {
 
         if ret.len() < count {
             // the distance between target key and keys is not necessarily monotonic
-            // in range (key.count_leading_zeroes(), self.buckets.len()], so we must iterate
+            // in range (key.leading_zeros(), self.buckets.len()], so we must iterate
             for i in (index + 1)..self.buckets.len() {
                 ret.extend_from_slice(self.buckets[i].get_nodes());
             }
         }
 
         if ret.len() < count {
-            // the distance between target key and keys in [0, key.count_leading_zeroes())
+            // the distance between target key and keys in [0, key.leading_zeros())
             // is monotonicly decreasing by bucket
             for i in (0..index).rev() {
                 ret.extend_from_slice(self.buckets[i].get_nodes());
@@ -154,12 +154,12 @@ impl RoutingTable {
     }
 
     pub fn remove_lrs(&mut self, key: &Key) -> Option<NodeData> {
-        let index = cmp::min(self.node_data.id.xor(key).count_leading_zeroes(), self.buckets.len() - 1);
+        let index = cmp::min(self.node_data.id.xor(key).leading_zeros(), self.buckets.len() - 1);
         self.buckets[index].remove_lrs()
     }
 
     pub fn remove_node(&mut self, node_data: &NodeData) {
-        let index = cmp::min(self.node_data.id.xor(&node_data.id).count_leading_zeroes(), self.buckets.len() - 1);
+        let index = cmp::min(self.node_data.id.xor(&node_data.id).leading_zeros(), self.buckets.len() - 1);
         self.buckets[index].remove_node(node_data);
     }
 

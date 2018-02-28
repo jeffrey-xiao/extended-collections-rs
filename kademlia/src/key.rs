@@ -47,15 +47,14 @@ impl Key {
         Key(ret)
     }
 
-    pub fn count_leading_zeroes(&self) -> usize {
+    pub fn leading_zeros(&self) -> usize {
         let mut ret = 0;
         for i in 0..KEY_LENGTH {
-            for j in 0..8 {
-                if (self.0[i] >> (7 - j)) & 1 != 0 {
-                    return ret + j;
-                }
+            if self.0[i] == 0 {
+                ret += 8
+            } else {
+                return ret + self.0[i].leading_zeros() as usize
             }
-            ret += 8;
         }
         ret
     }
@@ -78,5 +77,13 @@ mod tests {
             assert!(BigUint::from_bytes_be(&lower) <= key);
             assert!(key < BigUint::from_bytes_be(&lower) << 1);
         }
+    }
+
+    #[test]
+    fn test_leading_zeros() {
+        for i in 0..KEY_LENGTH * 8 {
+            assert_eq!(Key::rand_in_range(i).leading_zeros(), i);
+        }
+
     }
 }
