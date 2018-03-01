@@ -5,5 +5,6 @@ extern crate data_structures;
 extern crate rand;
 
 mod util;
+pub mod carp;
 pub mod consistent_hash;
 pub mod rendezvous_hash;
