@@ -3,7 +3,7 @@ extern crate rand;
 use rand::Rng;
 use rand::XorShiftRng;
 use std::mem;
-use std::ops::{Index, IndexMut};
+use std::ops::{Add, Index, IndexMut};
 use std::ptr;
 
 #[repr(C)]
@@ -560,6 +560,39 @@ impl<T> Default for SkipList<T> {
     }
 }
 
+impl<T> Add for SkipList<T> {
+    type Output = SkipList<T>;
+
+    fn add(mut self, other: SkipList<T>) -> SkipList<T> {
+        self.len += other.len();
+
+        let mut curr_nodes = [self.head; MAX_HEIGHT + 1];
+        unsafe {
+            let mut curr_height = MAX_HEIGHT;
+            let mut curr_node = self.head;
+            while !curr_node.is_null() {
+                while (*curr_node).get_pointer(curr_height).next.is_null() {
+                    curr_nodes[curr_height] = curr_node;
+                    if curr_height == 0 {
+                        break;
+                    }
+                    curr_height -= 1;
+                }
+                curr_node = (*curr_node).get_pointer(curr_height).next;
+            }
+
+            for i in 0..MAX_HEIGHT + 1 {
+                mem::swap(
+                    (*curr_nodes[i]).get_pointer_mut(i),
+                    (*other.head).get_pointer_mut(i),
+                );
+                (*curr_nodes[i]).get_pointer_mut(i).distance += (*other.head).get_pointer_mut(i).distance;
+            }
+        }
+        self
+    }
+}
+
 impl<T> Index<usize> for SkipList<T> {
     type Output = T;
     fn index(&self, key: usize) -> &Self::Output {
@@ -576,6 +609,37 @@ impl<T> IndexMut<usize> for SkipList<T> {
 #[cfg(test)]
 mod tests {
     use super::SkipList;
+    use std::mem;
+
+    pub fn check_valid<T: PartialEq>(list: &mut SkipList<T>) {
+        unsafe {
+            let mut curr_node = &mut (*list.head).get_pointer_mut(0).next;
+            let mut actual = vec![];
+            while !curr_node.is_null() {
+                actual.push(&(**curr_node).key);
+                let mut next_link = (**curr_node).get_pointer_mut(0);
+                curr_node = &mut mem::replace(&mut next_link, (*next_link.next).get_pointer_mut(0)).next;
+            }
+
+            for i in 1..super::MAX_HEIGHT + 1 {
+                let mut curr_node = &mut (*list.head).get_pointer_mut(i).next;
+                while !curr_node.is_null() {
+                    let x = &(**curr_node).key;
+                    let mut next_link = (**curr_node).get_pointer_mut(i);
+                    let dist = next_link.distance;
+                    curr_node = &mut mem::replace(&mut next_link, (*next_link.next).get_pointer_mut(0)).next;
+                    if !curr_node.is_null() {
+                        let y = &(**curr_node).key;
+
+                        assert_eq!(
+                            dist,
+                            actual.iter().position(|&n| n == y).unwrap() - actual.iter().position(|&n| n == x).unwrap(),
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_len_empty() {
@@ -593,6 +657,8 @@ mod tests {
     fn test_insert() {
         let mut list = SkipList::new();
         list.insert(0, 1);
+
+        check_valid(&mut list);
         assert_eq!(list.get(0), Some(&1));
     }
 
@@ -601,6 +667,8 @@ mod tests {
         let mut list = SkipList::new();
         list.insert(0, 1);
         let ret = list.remove(0);
+
+        check_valid(&mut list);
         assert_eq!(list.get(0), None);
         assert_eq!(ret, 1);
     }
@@ -621,6 +689,8 @@ mod tests {
         let mut list = SkipList::new();
         list.insert(0, 1);
         list.push_front(2);
+
+        check_valid(&mut list);
         assert_eq!(list.get(0), Some(&2));
     }
 
@@ -629,6 +699,8 @@ mod tests {
         let mut list = SkipList::new();
         list.insert(0, 1);
         list.push_back(2);
+
+        check_valid(&mut list);
         assert_eq!(list.get(1), Some(&2));
     }
 
@@ -637,6 +709,8 @@ mod tests {
         let mut list = SkipList::new();
         list.insert(0, 1);
         list.insert(1, 2);
+
+        check_valid(&mut list);
         assert_eq!(list.pop_front(), 1);
     }
 
@@ -648,26 +722,30 @@ mod tests {
         assert_eq!(list.pop_back(), 2);
     }
 
-    // #[test]
-    // fn test_add() {
-    //     let mut n = SkipList::new();
-    //     n.insert(0, 1);
-    //     n.insert(0, 2);
-    //     n.insert(1, 3);
+    #[test]
+    fn test_add() {
+        let mut n = SkipList::new();
+        n.insert(0, 1);
+        n.insert(0, 2);
+        n.insert(1, 3);
 
-    //     let mut m = SkipList::new();
-    //     m.insert(0, 4);
-    //     m.insert(0, 5);
-    //     m.insert(1, 6);
+        let mut m = SkipList::new();
+        m.insert(0, 4);
+        m.insert(0, 5);
+        m.insert(1, 6);
 
-    //     let res = n + m;
+        check_valid(&mut n);
+        check_valid(&mut m);
 
-    //     assert_eq!(
-    //         res.iter().collect::<Vec<&u32>>(),
-    //         vec![&2, &3, &1, &5, &6, &4],
-    //     );
-    //     assert_eq!(res.len(), 6);
-    // }
+        let mut res = n + m;
+
+        check_valid(&mut res);
+        assert_eq!(
+            res.iter().collect::<Vec<&u32>>(),
+            vec![&2, &3, &1, &5, &6, &4],
+        );
+        assert_eq!(res.len(), 6);
+    }
 
     #[test]
     fn test_into_iter() {
@@ -676,6 +754,7 @@ mod tests {
         list.insert(0, 2);
         list.insert(1, 3);
 
+        check_valid(&mut list);
         assert_eq!(
             list.into_iter().collect::<Vec<u32>>(),
             vec![2, 3, 1],
@@ -689,6 +768,7 @@ mod tests {
         list.insert(0, 2);
         list.insert(1, 3);
 
+        check_valid(&mut list);
         assert_eq!(
             list.iter().collect::<Vec<&u32>>(),
             vec![&2, &3, &1],
@@ -706,6 +786,7 @@ mod tests {
             *value += 1;
         }
 
+        check_valid(&mut list);
         assert_eq!(
             list.iter().collect::<Vec<&u32>>(),
             vec![&3, &4, &2],
