@@ -1,5 +1,5 @@
+use entry::Entry;
 use treap::{implicit_tree, tree};
-use treap::entry::Entry;
 
 /// A struct representing an internal node of a treap.
 pub struct Node<T: Ord, U> {
@@ -20,6 +20,15 @@ pub struct ImplicitNode<T> {
 }
 
 impl<T: Ord, U> Node<T, U> {
+    pub fn new(key: T, value: U, priority: u32) -> Self {
+        Node {
+            entry: Entry { key, value },
+            priority,
+            len: 1,
+            left: None,
+            right: None,
+        }
+    }
     pub fn len(&self) -> usize {
         self.len
     }
@@ -37,6 +46,15 @@ impl<T: Ord, U> Node<T, U> {
 }
 
 impl<T> ImplicitNode<T> {
+    pub fn new(value: T, priority: u32) -> Self {
+        ImplicitNode {
+            value,
+            priority,
+            len: 1,
+            left: None,
+            right: None,
+        }
+    }
     pub fn len(&self) -> usize {
         self.len
     }

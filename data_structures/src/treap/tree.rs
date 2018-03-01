@@ -1,7 +1,7 @@
+use entry::{Entry};
 use std::cmp::Ordering;
 use std::mem;
 use treap::node::Node;
-use treap::entry::{Entry};
 
 pub type Tree<T, U> = Option<Box<Node<T, U>>>;
 

@@ -69,13 +69,7 @@ impl<T> TreapList<T> {
     /// ```
     pub fn insert(&mut self, index: usize, value: T) {
         let TreapList { ref mut tree, ref mut rng } = *self;
-        implicit_tree::insert(tree, index + 1, ImplicitNode {
-            value,
-            priority: rng.next_u32(),
-            len: 1,
-            left: None,
-            right: None,
-        })
+        implicit_tree::insert(tree, index + 1, ImplicitNode::new(value, rng.next_u32()));
     }
 
     /// Removes a value at a particular index from the list. Returns the value at the index.

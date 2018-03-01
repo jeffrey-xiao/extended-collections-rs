@@ -1,5 +1,6 @@
 extern crate rand;
 
+use entry::Entry;
 use rand::Rng;
 use rand::XorShiftRng;
 use std::cmp;
@@ -10,8 +11,7 @@ use std::ptr;
 #[repr(C)]
 struct Node<T: Ord, U> {
     links_len: usize,
-    value: U,
-    key: T,
+    entry: Entry<T, U>,
     links: [*mut Node<T, U>; 0],
 }
 
@@ -20,10 +20,7 @@ const MAX_HEIGHT: usize = 32;
 impl<T: Ord, U> Node<T, U> {
     pub fn new(key: T, value: U, links_len: usize) -> *mut Self {
         let ptr = unsafe { Self::allocate(links_len) };
-        unsafe {
-            ptr::write(&mut (*ptr).key, key);
-            ptr::write(&mut (*ptr).value, value);
-        }
+        unsafe { ptr::write(&mut (*ptr).entry, Entry { key, value }); }
         ptr
     }
 
@@ -60,8 +57,7 @@ impl<T: Ord, U> Node<T, U> {
     }
 
     unsafe fn free(ptr: *mut Self) {
-        ptr::drop_in_place(&mut (*ptr).key);
-        ptr::drop_in_place(&mut (*ptr).value);
+        ptr::drop_in_place(&mut (*ptr).entry);
         Self::deallocate(ptr);
     }
 }
@@ -149,15 +145,15 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer_mut(curr_height);
-                while !next_node.is_null() && (**next_node).key < (*new_node).key {
+                while !next_node.is_null() && (**next_node).entry.key < (*new_node).entry.key {
                     curr_node = mem::replace(&mut next_node, (**next_node).get_pointer_mut(curr_height));
                 }
 
-                if !next_node.is_null() && (**next_node).key == (*new_node).key {
+                if !next_node.is_null() && (**next_node).entry.key == (*new_node).entry.key {
                     let temp = *next_node;
                     *(**curr_node).get_pointer_mut(curr_height) = *(**next_node).get_pointer_mut(curr_height);
                     if curr_height == 0 {
-                        ret = Some((ptr::read(&(*temp).key), ptr::read(&(*temp).value)));
+                        ret = Some((ptr::read(&(*temp).entry.key), ptr::read(&(*temp).entry.value)));
                         Node::deallocate(temp);
                         self.len -= 1;
                     }
@@ -197,15 +193,15 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer_mut(curr_height);
-                while !next_node.is_null() && (**next_node).key < *key {
+                while !next_node.is_null() && (**next_node).entry.key < *key {
                     curr_node = mem::replace(&mut next_node, (**next_node).get_pointer_mut(curr_height));
                 }
 
-                if !next_node.is_null() && (**next_node).key == *key {
+                if !next_node.is_null() && (**next_node).entry.key == *key {
                     let temp = *next_node;
                     *(**curr_node).get_pointer_mut(curr_height) = *(**next_node).get_pointer_mut(curr_height);
                     if curr_height == 0 {
-                        ret = Some((ptr::read(&(*temp).key), ptr::read(&(*temp).value)));
+                        ret = Some((ptr::read(&(*temp).entry.key), ptr::read(&(*temp).entry.value)));
                         Node::deallocate(temp);
                         self.len -= 1;
                     }
@@ -239,11 +235,11 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
-                while !next_node.is_null() && (**next_node).key < *key {
+                while !next_node.is_null() && (**next_node).entry.key < *key {
                     curr_node = mem::replace(&mut next_node, (**next_node).get_pointer(curr_height));
                 }
 
-                if !next_node.is_null() && (**next_node).key == *key {
+                if !next_node.is_null() && (**next_node).entry.key == *key {
                     return true;
                 }
 
@@ -276,12 +272,12 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
-                while !next_node.is_null() && (**next_node).key < *key {
+                while !next_node.is_null() && (**next_node).entry.key < *key {
                     curr_node = mem::replace(&mut next_node, (**next_node).get_pointer(curr_height));
                 }
 
-                if !next_node.is_null() && (**next_node).key == *key {
-                    return Some(&(**next_node).value);
+                if !next_node.is_null() && (**next_node).entry.key == *key {
+                    return Some(&(**next_node).entry.value);
                 }
 
                 if curr_height == 0 {
@@ -313,12 +309,12 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer_mut(curr_height);
-                while !next_node.is_null() && (**next_node).key < *key {
+                while !next_node.is_null() && (**next_node).entry.key < *key {
                     curr_node = mem::replace(&mut next_node, (**next_node).get_pointer_mut(curr_height));
                 }
 
-                if !next_node.is_null() && (**next_node).key == *key {
-                    return Some(&mut (**next_node).value);
+                if !next_node.is_null() && (**next_node).entry.key == *key {
+                    return Some(&mut (**next_node).entry.value);
                 }
 
                 if curr_height == 0 {
@@ -400,7 +396,7 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
-                while !next_node.is_null() && (**next_node).key < *key {
+                while !next_node.is_null() && (**next_node).entry.key < *key {
                     curr_node = mem::replace(&mut next_node, (**next_node).get_pointer(curr_height));
                 }
 
@@ -408,7 +404,7 @@ impl<T: Ord, U> SkipMap<T, U> {
                     if next_node.is_null() {
                         return None
                     } else {
-                        return Some(&(**next_node).key)
+                        return Some(&(**next_node).entry.key)
                     }
                 }
 
@@ -436,7 +432,7 @@ impl<T: Ord, U> SkipMap<T, U> {
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
-                while !next_node.is_null() && (**next_node).key <= *key {
+                while !next_node.is_null() && (**next_node).entry.key <= *key {
                     curr_node = mem::replace(&mut next_node, (**next_node).get_pointer(curr_height));
                 }
 
@@ -444,7 +440,7 @@ impl<T: Ord, U> SkipMap<T, U> {
                     if curr_node == &self.head {
                         return None;
                     } else {
-                        return Some(&(**curr_node).key);
+                        return Some(&(**curr_node).entry.key);
                     }
                 }
 
@@ -470,7 +466,7 @@ impl<T: Ord, U> SkipMap<T, U> {
             if min_node.is_null() {
                 None
             } else {
-                Some(&(**min_node).key)
+                Some(&(**min_node).entry.key)
             }
         }
     }
@@ -501,7 +497,7 @@ impl<T: Ord, U> SkipMap<T, U> {
                     if curr_node == &self.head {
                         return None;
                     } else {
-                        return Some(&(**curr_node).key);
+                        return Some(&(**curr_node).entry.key);
                     };
                 }
 
@@ -551,7 +547,7 @@ impl<T: Ord, U> SkipMap<T, U> {
                 match (left.head.is_null(), right.head.is_null()) {
                     (true, true) => break,
                     (false, false) => {
-                        let cmp = (*left.head).key.cmp(&(*right.head).key);
+                        let cmp = (*left.head).entry.cmp(&(*right.head).entry);
                         match cmp {
                             cmp::Ordering::Equal => {
                                 Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
@@ -618,7 +614,7 @@ impl<T: Ord, U> SkipMap<T, U> {
                 match (left.head.is_null(), right.head.is_null()) {
                     (true, true) => break,
                     (false, false) => {
-                        let cmp = (*left.head).key.cmp(&(*right.head).key);
+                        let cmp = (*left.head).entry.cmp(&(*right.head).entry);
                         match cmp {
                             cmp::Ordering::Equal => {
                                 next_node = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
@@ -676,7 +672,7 @@ impl<T: Ord, U> SkipMap<T, U> {
                 match (left.head.is_null(), right.head.is_null()) {
                     (true, true) => break,
                     (false, false) => {
-                        let cmp = (*left.head).key.cmp(&(*right.head).key);
+                        let cmp = (*left.head).entry.cmp(&(*right.head).entry);
                         match cmp {
                             cmp::Ordering::Equal => {
                                 Node::free(mem::replace(&mut left.head, *(*left.head).get_pointer(0)));
@@ -873,12 +869,9 @@ impl<T: Ord, U> Iterator for SkipMapIntoIter<T, U> {
             None
         } else {
             unsafe {
-                let ret = (
-                    ptr::read(&(*self.current).key),
-                    ptr::read(&(*self.current).value),
-                );
+                let Entry { key, value } = ptr::read(&(*self.current).entry);
                 Node::deallocate(mem::replace(&mut self.current, *(*self.current).get_pointer(0)));
-                Some(ret)
+                Some((key, value))
             }
         }
     }
@@ -888,8 +881,7 @@ impl<T: Ord, U> Drop for SkipMapIntoIter<T, U> {
     fn drop(&mut self) {
         unsafe {
             while !self.current.is_null() {
-                ptr::drop_in_place(&mut (*self.current).key);
-                ptr::drop_in_place(&mut (*self.current).value);
+                ptr::drop_in_place(&mut (*self.current).entry);
                 Node::free(mem::replace(&mut self.current, *(*self.current).get_pointer(0)));
             }
         }
@@ -912,12 +904,9 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for SkipMapIter<'a, T, U> {
             None
         } else {
             unsafe {
-                let ret = (
-                    &(**self.current).key,
-                    &(**self.current).value,
-                );
+                let Entry { ref key, ref value } = (**self.current).entry;
                 mem::replace(&mut self.current, &*(**self.current).get_pointer(0));
-                Some(ret)
+                Some((key, value))
             }
         }
     }
@@ -938,12 +927,9 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for SkipMapIterMut<'a, T, U> {
             None
         } else {
             unsafe {
-                let ret = (
-                    &(**self.current).key,
-                    &mut (**self.current).value,
-                );
+                let Entry { ref key, ref mut value } = (**self.current).entry;
                 mem::replace(&mut self.current, &mut *(**self.current).get_pointer_mut(0));
-                Some(ret)
+                Some((key, value))
             }
         }
     }

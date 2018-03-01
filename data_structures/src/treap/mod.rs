@@ -1,4 +1,3 @@
-mod entry;
 mod implicit_tree;
 mod list;
 mod node;

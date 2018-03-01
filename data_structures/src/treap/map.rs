@@ -1,7 +1,7 @@
+use entry::Entry;
 use rand::Rng;
 use rand::XorShiftRng;
 use std::ops::{Add, Sub, Index, IndexMut};
-use treap::entry::{Entry};
 use treap::node::Node;
 use treap::tree;
 
@@ -68,13 +68,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// ```
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
         let &mut TreapMap { ref mut tree, ref mut rng } = self;
-        let new_node = Node {
-            entry: Entry { key, value },
-            priority: rng.next_u32(),
-            len: 1,
-            left: None,
-            right: None,
-        };
+        let new_node = Node::new(key, value, rng.next_u32());
         tree::insert(tree, new_node).and_then(|entry| {
             let Entry { key, value } = entry;
             Some((key, value))

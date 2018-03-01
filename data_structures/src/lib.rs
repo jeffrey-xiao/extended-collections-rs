@@ -3,6 +3,7 @@
 
 extern crate rand;
 
+mod entry;
 pub mod arena;
 pub mod skiplist;
 pub mod treap;
