@@ -19,6 +19,29 @@ impl<'a, T: 'a + Hash + Ord> Node<'a, T> {
     }
 }
 
+/// A hashing ring implemented using the Cache Array Routing Protocol.
+///
+/// The Cache Array Routing Protocol calculates the relative weight for each node in the ring to
+/// distribute points according to their weights.
+///
+/// # Examples
+/// ```
+/// use hash::carp::{Node, Ring};
+///
+/// let mut r = Ring::new(vec![
+///     Node::new(&"node-1", 1f32),
+///     Node::new(&"node-2", 3f32),
+/// ]);
+///
+/// r.remove_node(&"node-1");
+///
+/// assert_eq!(r.get_node(&"point-1"), &"node-2");
+/// assert_eq!(r.len(), 1);
+///
+/// let mut iterator = r.iter();
+/// assert_eq!(iterator.next(), Some((&"node-2", 3f32)));
+/// assert_eq!(iterator.next(), None);
+/// ```
 pub struct Ring<'a, T: 'a + Hash + Ord> {
     nodes: Vec<Node<'a, T>>,
 }
@@ -48,6 +71,14 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
         }
     }
 
+    /// Constructs a new, empty `Ring<T>`
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::carp::Ring;
+    ///
+    /// let mut r: Ring<&str> = Ring::new(vec![]);
+    /// ```
     pub fn new(mut nodes: Vec<Node<'a, T>>) -> Ring<'a, T> {
         nodes.reverse();
         nodes.sort_by_key(|node| node.id);
@@ -64,6 +95,22 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
         ret
     }
 
+    /// Inserts a node into the ring with a particular weight.
+    ///
+    /// Increasing the weight will increase the number of expected points mapped to the node. For
+    /// example, a node with a weight of three will receive approximately three times more points
+    /// than a node with a weight of one.
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::carp::{Node, Ring};
+    ///
+    /// let mut r = Ring::new(vec![
+    ///     Node::new(&"node-1", 1f32),
+    /// ]);
+    ///
+    /// r.remove_node(&"node-1");
+    /// ```
     pub fn insert_node(&mut self, new_node: Node<'a, T>) {
         if let Some(index) = self.nodes.iter().position(|node| node.id == new_node.id) {
             self.nodes[index] = new_node;
@@ -80,6 +127,19 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
         self.rebalance();
     }
 
+    /// Removes a node from the ring.
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::carp::{Node, Ring};
+    ///
+    /// let mut r = Ring::new(vec![
+    ///     Node::new(&"node-1", 1f32),
+    ///     Node::new(&"node-2", 3f32),
+    /// ]);
+    ///
+    /// r.remove_node(&"node-2");
+    /// ```
     pub fn remove_node(&mut self, id: &T) {
         if let Some(index) = self.nodes.iter().position(|node| node.id == id) {
             self.nodes.remove(index);
@@ -87,6 +147,18 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
         }
     }
 
+    /// Returns the node associated with a point.
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::carp::{Node, Ring};
+    ///
+    /// let mut r = Ring::new(vec![
+    ///     Node::new(&"node-1", 1f32),
+    /// ]);
+    ///
+    /// assert_eq!(r.get_node(&"point-1"), &"node-1");
+    /// ```
     pub fn get_node<U: Hash + Eq>(&self, point: &U) -> &'a T {
         let point_hash = util::gen_hash(point);
         self.nodes.iter().map(|node| {
@@ -103,14 +175,58 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
         }).unwrap().1
     }
 
+    /// Returns the number of nodes in the ring.
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::carp::{Node, Ring};
+    ///
+    /// let mut r = Ring::new(vec![
+    ///     Node::new(&"node-1", 1f32),
+    ///     Node::new(&"node-2", 3f32),
+    /// ]);
+    ///
+    /// assert_eq!(r.len(), 2);
+    /// ```
     pub fn len(&self) -> usize {
         self.nodes.len()
     }
 
+    /// Removes a node from the ring.
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::carp::{Node, Ring};
+    ///
+    /// let mut r = Ring::new(vec![
+    ///     Node::new(&"node-1", 1f32),
+    ///     Node::new(&"node-2", 3f32),
+    /// ]);
+    ///
+    /// assert_eq!(r.len(), 2);
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
 
+    /// Returns an iterator over the ring. The iterator will yield nodes and their weights in
+    /// sorted by weight, and then by id.
+    /// particular order.
+    ///
+    /// # Examples
+    /// ```
+    /// use hash::carp::{Node, Ring};
+    ///
+    /// let mut r = Ring::new(vec![
+    ///     Node::new(&"node-1", 1f32),
+    ///     Node::new(&"node-2", 3f32),
+    /// ]);
+    ///
+    /// let mut iterator = r.iter();
+    /// assert_eq!(iterator.next(), Some((&"node-1", 1f32)));
+    /// assert_eq!(iterator.next(), Some((&"node-2", 3f32)));
+    /// assert_eq!(iterator.next(), None);
+    /// ```
     pub fn iter(&'a self) -> Box<Iterator<Item = (&'a T, f32)> + 'a> {
         Box::new(self.nodes.iter().map(|node| (&*node.id, node.weight)))
     }

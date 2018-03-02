@@ -503,15 +503,24 @@ mod tests {
         let mut client: Client<u32, u32> = Client::new();
         client.insert_node(&0, 1f32);
         client.insert_point(&0);
+        client.insert_point(&1);
+        client.insert_point(&2);
         client.insert_node(&1, 1f32);
         client.remove_node(&1);
-        assert_eq!(client.get_points(&0), [&0,]);
+
+        let points = client.get_points(&0);
+
+        assert!(points.contains(&&0u32));
+        assert!(points.contains(&&1u32));
+        assert!(points.contains(&&2u32));
     }
 
     #[test]
     fn test_get_node() {
         let mut client: Client<u32, u32> = Client::new();
         client.insert_node(&0, 3f32);
+        client.insert_node(&1, 0f32);
+        client.insert_node(&2, 0f32);
         assert_eq!(client.get_node(&0), &0);
     }
 

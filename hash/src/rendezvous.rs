@@ -7,7 +7,8 @@ use util;
 ///
 /// Rendezvous hashing is based on based on assigning a pseudorandom value to node-point pair.
 /// A point is mapped to the node that yields the greatest value associated with the node-point
-/// pair.
+/// pair. By mapping the weights to `[0, 1)` using logarithms, rendezvous hashing can be modified
+/// to handle weighted nodes.
 ///
 /// # Examples
 /// ```
