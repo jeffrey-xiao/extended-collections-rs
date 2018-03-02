@@ -6,5 +6,6 @@ extern crate rand;
 
 mod util;
 pub mod carp;
-pub mod consistent_hash;
-pub mod rendezvous_hash;
+pub mod consistent;
+pub mod rendezvous;
+pub mod weighted_rendezvous;

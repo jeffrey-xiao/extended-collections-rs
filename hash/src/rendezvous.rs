@@ -11,7 +11,7 @@ use util;
 ///
 /// # Examples
 /// ```
-/// use hash::rendezvous_hash::Ring;
+/// use hash::rendezvous::Ring;
 ///
 /// let mut r = Ring::new();
 ///
@@ -36,7 +36,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Ring;
+    /// use hash::rendezvous::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     /// ```
@@ -54,7 +54,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Ring;
+    /// use hash::rendezvous::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     ///
@@ -69,11 +69,11 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
         self.nodes.insert(id, hashes);
     }
 
-    /// Removes a node and all its replicas from a ring.
+    /// Removes a node and all its replicas from the ring.
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Ring;
+    /// use hash::rendezvous::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     ///
@@ -92,15 +92,15 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Ring;
+    /// use hash::rendezvous::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     ///
     /// r.insert_node(&"node-1", 1);
     /// assert_eq!(r.get_node(&"point-1"), &"node-1");
     /// ```
-    pub fn get_node<U: Hash + Eq>(&self, key: &U) -> &'a T {
-        let point_hash = util::gen_hash(key);
+    pub fn get_node<U: Hash + Eq>(&self, id: &U) -> &'a T {
+        let point_hash = util::gen_hash(id);
         self.nodes.iter().map(|entry| {
             (
                 entry.1.iter().map(|hash| util::combine_hash(*hash, point_hash)).max().unwrap(),
@@ -117,7 +117,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Ring;
+    /// use hash::rendezvous::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     ///
@@ -132,7 +132,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Ring;
+    /// use hash::rendezvous::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     ///
@@ -149,7 +149,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Ring;
+    /// use hash::rendezvous::Ring;
     ///
     /// let mut r = Ring::new();
     /// r.insert_node(&"node-1", 1);
@@ -185,7 +185,7 @@ impl<'a, T: 'a + Hash + Ord> Default for Ring<'a, T> {
 ///
 /// # Examples
 /// ```
-/// use hash::rendezvous_hash::Client;
+/// use hash::rendezvous::Client;
 ///
 /// let mut c = Client::new();
 /// c.insert_node(&"node-1", 3);
@@ -209,7 +209,7 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Client;
+    /// use hash::rendezvous::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     /// ```
@@ -229,7 +229,7 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Client;
+    /// use hash::rendezvous::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -259,14 +259,14 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
         self.nodes.insert(id, new_points);
     }
 
-    /// Removes a node and all its replicas from a ring.
+    /// Removes a node and all its replicas from the ring.
     ///
     /// # Panics
     /// Panics if the ring is empty after removal of a node or if the node does not exist.
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Client;
+    /// use hash::rendezvous::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -299,7 +299,7 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Client;
+    /// use hash::rendezvous::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -318,7 +318,7 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Client;
+    /// use hash::rendezvous::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -326,8 +326,8 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
     /// c.insert_point(&"point-1");
     /// assert_eq!(c.get_node(&"point-1"), &"node-1");
     /// ```
-    pub fn get_node(&mut self, key: &U) -> &T {
-        self.ring.get_node(key)
+    pub fn get_node(&mut self, point: &U) -> &T {
+        self.ring.get_node(point)
     }
 
     /// Inserts a point into the ring.
@@ -337,19 +337,19 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Client;
+    /// use hash::rendezvous::Client;
     ///
     /// let mut c = Client::new();
     /// c.insert_node(&"node-1", 1);
     /// c.insert_point(&"point-1");
     /// ```
-    pub fn insert_point(&mut self, key: &'a U) {
-        let node = self.ring.get_node(key);
+    pub fn insert_point(&mut self, point: &'a U) {
+        let node = self.ring.get_node(point);
         let hashes = self.ring.get_hashes(node);
-        let point_hash = util::gen_hash(key);
+        let point_hash = util::gen_hash(point);
         let max_score = hashes.iter().map(|hash| util::combine_hash(*hash, point_hash)).max().unwrap();
-        self.nodes.get_mut(node).unwrap().insert(key);
-        self.points.insert(key, (node, max_score));
+        self.nodes.get_mut(node).unwrap().insert(point);
+        self.points.insert(point, (node, max_score));
     }
 
     /// Removes a point from the ring.
@@ -359,24 +359,24 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Client;
+    /// use hash::rendezvous::Client;
     ///
     /// let mut c = Client::new();
     /// c.insert_node(&"node-1", 1);
     /// c.insert_point(&"point-1");
     /// c.remove_point(&"point-1");
     /// ```
-    pub fn remove_point(&mut self, key: &U) {
-        let node = self.ring.get_node(key);
-        self.nodes.get_mut(node).unwrap().remove(key);
-        self.points.remove(key);
+    pub fn remove_point(&mut self, point: &U) {
+        let node = self.ring.get_node(point);
+        self.nodes.get_mut(node).unwrap().remove(point);
+        self.points.remove(point);
     }
 
     /// Returns the number of nodes in the ring.
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Client;
+    /// use hash::rendezvous::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -391,7 +391,7 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Client;
+    /// use hash::rendezvous::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -408,7 +408,7 @@ impl<'a, T: 'a + Hash + Ord, U: 'a + Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::rendezvous_hash::Client;
+    /// use hash::rendezvous::Client;
     ///
     /// let mut c = Client::new();
     /// c.insert_node(&"node-1", 1);
@@ -448,6 +448,7 @@ mod tests {
     #[test]
     fn test_size_empty() {
         let client: Client<u32, u32> = Client::new();
+        assert!(client.is_empty());
         assert_eq!(client.len(), 0);
     }
 

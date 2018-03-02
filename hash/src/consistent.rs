@@ -17,7 +17,7 @@ use util;
 ///
 /// # Examples
 /// ```
-/// use hash::consistent_hash::Ring;
+/// use hash::consistent::Ring;
 ///
 /// let mut r = Ring::new();
 ///
@@ -43,7 +43,7 @@ impl<'a, T: 'a + Hash + Eq> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     /// ```
@@ -72,7 +72,7 @@ impl<'a, T: 'a + Hash + Eq> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     ///
@@ -88,11 +88,11 @@ impl<'a, T: 'a + Hash + Eq> Ring<'a, T> {
         self.replicas.insert(id, replicas);
     }
 
-    /// Removes a node and all its replicas from a ring.
+    /// Removes a node and all its replicas from the ring.
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     ///
@@ -125,15 +125,15 @@ impl<'a, T: 'a + Hash + Eq> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     ///
     /// r.insert_node(&"node-1", 1);
     /// assert_eq!(r.get_node(&"point-1"), &"node-1");
     /// ```
-    pub fn get_node<U: Hash + Eq>(&mut self, key: &U) -> &T {
-        let hash = util::gen_hash(key);
+    pub fn get_node<U: Hash + Eq>(&mut self, point: &U) -> &T {
+        let hash = util::gen_hash(point);
         if let Some(node) = self.get_next_node(&hash) {
             &*node
         } else {
@@ -153,7 +153,7 @@ impl<'a, T: 'a + Hash + Eq> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     ///
@@ -168,7 +168,7 @@ impl<'a, T: 'a + Hash + Eq> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent::Ring;
     ///
     /// let mut r: Ring<&str> = Ring::new();
     ///
@@ -185,7 +185,7 @@ impl<'a, T: 'a + Hash + Eq> Ring<'a, T> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Ring;
+    /// use hash::consistent::Ring;
     ///
     /// let mut r = Ring::new();
     /// r.insert_node(&"node-1", 1);
@@ -221,7 +221,7 @@ impl<'a, T: 'a + Hash + Eq> Default for Ring<'a, T> {
 ///
 /// # Examples
 /// ```
-/// use hash::consistent_hash::Client;
+/// use hash::consistent::Client;
 ///
 /// let mut c = Client::new();
 /// c.insert_node(&"node-1", 3);
@@ -244,7 +244,7 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Client;
+    /// use hash::consistent::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     /// ```
@@ -273,7 +273,7 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Client;
+    /// use hash::consistent::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -308,14 +308,14 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
         }
     }
 
-    /// Removes a node and all its replicas from a ring.
+    /// Removes a node and all its replicas from the ring.
     ///
     /// # Panics
     /// Panics if the ring is empty after removal of a node or if the node does not exist.
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Client;
+    /// use hash::consistent::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -347,7 +347,7 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Client;
+    /// use hash::consistent::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -373,7 +373,7 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Client;
+    /// use hash::consistent::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -381,8 +381,8 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
     /// c.insert_point(&"point-1");
     /// assert_eq!(c.get_node(&"point-1"), &"node-1");
     /// ```
-    pub fn get_node(&mut self, key: &U) -> &T {
-        self.ring.get_node(key)
+    pub fn get_node(&mut self, point: &U) -> &T {
+        self.ring.get_node(point)
     }
 
     /// Inserts a point into the ring.
@@ -392,16 +392,16 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Client;
+    /// use hash::consistent::Client;
     ///
     /// let mut c = Client::new();
     /// c.insert_node(&"node-1", 1);
     /// c.insert_point(&"point-1");
     /// ```
-    pub fn insert_point(&mut self, key: &'a U) {
-        let hash = util::gen_hash(key);
+    pub fn insert_point(&mut self, point: &'a U) {
+        let hash = util::gen_hash(point);
         if let Some((_, points)) = self.get_next_node(&hash) {
-            points.insert(key);
+            points.insert(point);
         } else {
             panic!("Error: empty ring");
         }
@@ -414,17 +414,17 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Client;
+    /// use hash::consistent::Client;
     ///
     /// let mut c = Client::new();
     /// c.insert_node(&"node-1", 1);
     /// c.insert_point(&"point-1");
     /// c.remove_point(&"point-1");
     /// ```
-    pub fn remove_point(&mut self, key: &U) {
-        let hash = util::gen_hash(&key);
+    pub fn remove_point(&mut self, point: &U) {
+        let hash = util::gen_hash(&point);
         if let Some((_, points)) = self.get_next_node(&hash) {
-            points.remove(key);
+            points.remove(point);
         } else {
             panic!("Error: empty ring");
         }
@@ -434,7 +434,7 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Client;
+    /// use hash::consistent::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -449,7 +449,7 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Client;
+    /// use hash::consistent::Client;
     ///
     /// let mut c: Client<&str, &str> = Client::new();
     ///
@@ -466,7 +466,7 @@ impl<'a, T: 'a + Hash + Eq, U: Hash + Eq> Client<'a, T, U> {
     ///
     /// # Examples
     /// ```
-    /// use hash::consistent_hash::Client;
+    /// use hash::consistent::Client;
     ///
     /// let mut c = Client::new();
     /// c.insert_node(&"node-1", 1);
@@ -511,6 +511,7 @@ mod tests {
     #[test]
     fn test_size_empty() {
         let client: Client<u32, u32> = Client::new();
+        assert!(client.is_empty());
         assert_eq!(client.len(), 0);
     }
 
