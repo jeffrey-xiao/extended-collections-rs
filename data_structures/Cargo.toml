@@ -5,3 +5,4 @@ authors = ["Jeffrey Xiao <jeffrey.xiao1998@gmail.com>"]
 
 [dependencies]
 rand = "0.4"
+crossbeam-epoch = "0.2"
