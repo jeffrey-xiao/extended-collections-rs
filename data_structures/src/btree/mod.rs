@@ -26,27 +26,30 @@ macro_rules! init_array(
 );
 #[derive(Serialize, Deserialize, Debug)]
 pub struct InternalNode<T: Ord + Clone + Debug, U: Debug> {
-    len: usize,
-    keys: [Option<T>; INTERNAL_DEGREE],
-    pointers: [u64; INTERNAL_DEGREE + 1],
-    _marker: PhantomData<U>,
+    pub len: usize,
+    pub keys: [Option<T>; INTERNAL_DEGREE],
+    pub pointers: [u64; INTERNAL_DEGREE + 1],
+    pub _marker: PhantomData<U>,
 }
 
 impl<T: Ord + Clone + Debug, U: Debug> InternalNode<T, U> {
-    // the inserted key should never be the first key of the internal node
-    fn insert(&mut self, mut new_key: T, mut new_pointer: u64) -> Option<(T, Node<T, U>)> {
+    pub fn insert(&mut self, mut new_key: T, mut new_pointer: u64, is_right_pointer: bool) -> Option<(T, Node<T, U>)> {
+        let offset = is_right_pointer as usize;
         // node has room; can insert
         if self.len < INTERNAL_DEGREE {
             let mut index = 0;
             while let Some(ref mut key) = self.keys[index] {
                 if new_key < *key {
                     mem::swap(&mut new_key, key);
-                    mem::swap(&mut new_pointer, &mut self.pointers[index + 1]);
+                    mem::swap(&mut new_pointer, &mut self.pointers[index + offset]);
                 }
                 index += 1;
             }
             self.keys[index] = Some(new_key);
-            self.pointers[index + 1] = new_pointer;
+            mem::swap(&mut new_pointer, &mut self.pointers[index + offset]);
+            if !is_right_pointer {
+                self.pointers[index + 1] = new_pointer;
+            }
             self.len += 1;
             None
         }
@@ -59,22 +62,22 @@ impl<T: Ord + Clone + Debug, U: Debug> InternalNode<T, U> {
                 if let Some(ref mut key) = self.keys[index] {
                     if new_key < *key {
                         mem::swap(&mut new_key, key);
-                        mem::swap(&mut new_pointer, &mut self.pointers[index + 1]);
+                        mem::swap(&mut new_pointer, &mut self.pointers[index + offset]);
                     }
                 }
                 if index > (INTERNAL_DEGREE + 1) / 2 {
                     mem::swap(&mut self.keys[index], &mut split_node_keys[index - (INTERNAL_DEGREE + 1) / 2 - 1]);
-                    mem::swap(&mut self.pointers[index + 1], &mut split_node_pointers[index - (INTERNAL_DEGREE + 1) / 2]);
+                    mem::swap(&mut self.pointers[index + offset], &mut split_node_pointers[index - (INTERNAL_DEGREE + 1) / 2 - (1 - offset)]);
                 }
                 index += 1;
             }
             split_node_keys[(INTERNAL_DEGREE - 2) / 2] = Some(new_key);
-            split_node_pointers[(INTERNAL_DEGREE - 2) / 2 + 1] = new_pointer;
+            split_node_pointers[(INTERNAL_DEGREE - 2) / 2 + offset] = new_pointer;
             let split_key = match mem::replace(&mut self.keys[(INTERNAL_DEGREE + 1) / 2], None) {
                 Some(key) => key,
                 _ => unreachable!(),
             };
-            mem::swap(&mut self.pointers[(INTERNAL_DEGREE + 1) / 2 + 1], &mut split_node_pointers[0]);
+            mem::swap(&mut self.pointers[(INTERNAL_DEGREE + 1) / 2 + 1], &mut split_node_pointers[(1 - offset)]);
             let split_node = Node::Internal(InternalNode {
                 len: INTERNAL_DEGREE / 2,
                 keys: split_node_keys,
@@ -233,7 +236,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                 Some((parent_page, mut parent_node, _)) => {
                     match &mut parent_node {
                         &mut Node::Internal(ref mut node) => {
-                            if let Some((split_key, split_node)) = node.insert(split_key, split_pointer) {
+                            if let Some((split_key, split_node)) = node.insert(split_key, split_pointer, false) {
                                 let split_node_index = self.pager.allocate_node(split_node);
                                 split_node_entry = Some((split_key, split_node_index));
                             } else {
