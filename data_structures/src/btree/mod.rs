@@ -33,8 +33,8 @@ pub struct InternalNode<T: Ord + Clone + Debug, U: Debug> {
 }
 
 impl<T: Ord + Clone + Debug, U: Debug> InternalNode<T, U> {
-    pub fn insert(&mut self, mut new_key: T, mut new_pointer: u64, is_right_pointer: bool) -> Option<(T, Node<T, U>)> {
-        let offset = is_right_pointer as usize;
+    pub fn insert(&mut self, mut new_key: T, mut new_pointer: u64, is_right: bool) -> Option<(T, Node<T, U>)> {
+        let offset = is_right as usize;
         // node has room; can insert
         if self.len < INTERNAL_DEGREE {
             let mut index = 0;
@@ -47,7 +47,7 @@ impl<T: Ord + Clone + Debug, U: Debug> InternalNode<T, U> {
             }
             self.keys[index] = Some(new_key);
             mem::swap(&mut new_pointer, &mut self.pointers[index + offset]);
-            if !is_right_pointer {
+            if !is_right {
                 self.pointers[index + 1] = new_pointer;
             }
             self.len += 1;
@@ -89,13 +89,78 @@ impl<T: Ord + Clone + Debug, U: Debug> InternalNode<T, U> {
             Some((split_key, split_node))
         }
     }
+
+    pub fn remove_at(&mut self, remove_index: usize, is_right: bool) -> (T, u64) {
+        assert!(remove_index < self.len);
+        let offset = is_right as usize;
+        self.len -= 1;
+        for index in remove_index..self.len {
+            self.keys.swap(index, index + 1);
+            self.pointers.swap(index + offset, index + offset + 1);
+        }
+
+        let ret_pointer = {
+            if !is_right {
+                self.pointers.swap(self.len, self.len + 1);
+            }
+            mem::replace(&mut self.pointers[self.len + 1], 0)
+        };
+
+        let ret_key = {
+            match mem::replace(&mut self.keys[self.len], None) {
+                Some(key) => key,
+                _ => unreachable!(),
+            }
+        };
+
+        (ret_key, ret_pointer)
+    }
+
+    pub fn merge(&mut self, split_key: T, node: &mut InternalNode<T, U>) {
+        assert!(self.len + node.len + 1 <= INTERNAL_DEGREE);
+        self.keys[self.len] = Some(split_key);
+        for index in 0..node.len {
+            self.keys[self.len + index + 1] = node.keys[index].take();
+            self.pointers[self.len + index + 1] = node.pointers[index];
+        }
+        self.len += node.len + 1;
+        self.pointers[self.len] = node.pointers[node.len];
+    }
+}
+
+#[test]
+fn test_internal_node_remove_at_left() {
+    let mut n = InternalNode::<u32, u32> {
+        len: 3,
+        keys: [Some(0), Some(1), Some(2)],
+        pointers: [0, 1, 2, 3],
+        _marker: PhantomData,
+    };
+    assert_eq!(n.remove_at(1, false), 1);
+    assert_eq!(n.len, 2);
+    assert_eq!(n.keys, [Some(0), Some(2), None]);
+    assert_eq!(n.pointers, [0, 2, 3, 0]);
+}
+
+#[test]
+fn test_internal_node_remove_at_right() {
+    let mut n = InternalNode::<u32, u32> {
+        len: 3,
+        keys: [Some(0), Some(1), Some(2)],
+        pointers: [0, 1, 2, 3],
+        _marker: PhantomData,
+    };
+    assert_eq!(n.remove_at(1, true), 1);
+    assert_eq!(n.len, 2);
+    assert_eq!(n.keys, [Some(0), Some(2), None]);
+    assert_eq!(n.pointers, [0, 1, 3, 0]);
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LeafNode<T: Ord + Clone + Debug, U: Debug> {
     len: usize,
     entries: [Option<Entry<T, U>>; LEAF_DEGREE],
-    next_leaf: u64,
+    next_leaf: Option<u64>,
 }
 
 impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
@@ -116,8 +181,7 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
         // node is full; have to split
         else {
             let mut split_node_entries = init_array!(Option<Entry<T, U>>, LEAF_DEGREE, None);
-            let mut index = 0;
-            while index < LEAF_DEGREE {
+            for index in 0..LEAF_DEGREE {
                 if let Some(ref mut entry) = self.entries[index] {
                     if new_entry < *entry {
                         mem::swap(entry, &mut new_entry);
@@ -126,7 +190,6 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
                 if index > LEAF_DEGREE / 2 {
                     mem::swap(&mut self.entries[index], &mut split_node_entries[index - LEAF_DEGREE / 2 - 1]);
                 }
-                index += 1;
             }
             split_node_entries[(LEAF_DEGREE - 1) / 2] = Some(new_entry);
             let split_key = match split_node_entries[0] {
@@ -142,6 +205,40 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
             Some((split_key, split_node))
         }
     }
+
+    fn remove_at(&mut self, remove_index: usize) -> Entry<T, U> {
+        assert!(remove_index < self.len);
+        self.len -= 1;
+        for index in remove_index..self.len {
+            self.entries.swap(index, index + 1);
+        }
+
+        match self.entries[self.len].take() {
+            Some(entry) => entry,
+            _ => unreachable!(),
+        }
+    }
+
+    fn remove(&mut self, key: &T) -> Option<Entry<T, U>> {
+        for index in 0..self.len {
+            if let Some(entry) = self.entries[index].take() {
+                if *key == entry.key && index + 1 < self.len {
+                    self.entries.swap(index, index + 1);
+                }
+            }
+        }
+        self.len -= 1;
+        self.entries[self.len].take()
+    }
+
+    fn merge(&mut self, node: &mut LeafNode<T, U>) {
+        assert!(self.len + node.len <= LEAF_DEGREE);
+        self.next_leaf = node.next_leaf;
+        for index in 0..node.len {
+            self.entries[self.len + index] = node.entries[index].take();
+        }
+        self.len += node.len;
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -156,7 +253,7 @@ impl<T: Ord + Clone + Debug, U: Debug> Node<T, U> {
         Node::Leaf(LeafNode {
             len: 0,
             entries: init_array!(Option<Entry<T, U>>, LEAF_DEGREE, None),
-            next_leaf: 0,
+            next_leaf: None,
         })
     }
 
@@ -197,7 +294,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                 match node.keys[mid as usize] {
                     None => hi = mid - 1,
                     Some(ref key) => {
-                        if key < search_key {
+                        if key <= search_key {
                             lo = mid + 1;
                         } else {
                             hi = mid - 1;
@@ -215,28 +312,26 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
 
     pub fn insert(&mut self, key: T, value: U) {
         let (mut curr_page, mut curr_node, mut stack) = self.search_node(&key);
-        let new_entry = Entry { key, value };
 
         let mut split_node_entry = None;
-        match &mut curr_node {
-            &mut Node::Leaf(ref mut node) => {
-                if let Some((split_key, split_node)) = node.insert(new_entry) {
+        match curr_node {
+            Node::Leaf(mut curr_leaf_node) => {
+                if let Some((split_key, split_node)) = curr_leaf_node.insert(Entry { key, value }) {
                     let split_node_index = self.pager.allocate_node(split_node);
-                    node.next_leaf = split_node_index;
+                    curr_leaf_node.next_leaf = Some(split_node_index);
                     split_node_entry = Some((split_key, split_node_index));
                 }
+                self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
             },
             _ => unreachable!(),
         }
-
-        self.pager.write_node(curr_page, curr_node);
 
         while let Some((split_key, split_pointer)) = split_node_entry {
             match stack.pop() {
                 Some((parent_page, mut parent_node, _)) => {
                     match &mut parent_node {
                         &mut Node::Internal(ref mut node) => {
-                            if let Some((split_key, split_node)) = node.insert(split_key, split_pointer, false) {
+                            if let Some((split_key, split_node)) = node.insert(split_key, split_pointer, true) {
                                 let split_node_index = self.pager.allocate_node(split_node);
                                 split_node_entry = Some((split_key, split_node_index));
                             } else {
@@ -269,71 +364,163 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
         }
     }
 
-    // pub fn remove(&mut self, key: &T) {
-    //     let (mut curr_page, mut curr_node, mut stack) = self.search_node(&key);
-    //     let mut deleted_entry = None;
+    pub fn remove(&mut self, key: &T) -> Option<Entry<T, U>> {
+        let (curr_page, curr_node, mut stack) = self.search_node(key);
+        let mut delete_entry = None;
+        let ret;
 
-    //     match &mut curr_node {
-    //         &mut Node::Leaf { ref mut len, ref mut entries, ref mut next_leaf } => {
-    //             let mut index = 0;
-    //             while let Some(entry) = entries[index].take() {
-    //                 if entry.key == *key {
-    //                     deleted_entry = Some(entry);
-    //                 } else if deleted_entry.is_some() {
-    //                     entries.swap(index - 1, index);
-    //                 }
-    //                 index += 1;
-    //                 if index == LEAF_DEGREE {
-    //                     break;
-    //                 }
-    //             }
-    //             if index < LEAF_DEGREE / 2 {
-    //                 // have to borrow or merge
-    //                 if let Some((parent_page, parent_node, parent_index)) = stack.pop() {
-    //                     let sibling_index = {
-    //                         if parent_index > 0 {
-    //                             parent_index - 1
-    //                         } else {
-    //                             parent_index + 1
-    //                         }
-    //                     };
-    //                     match parent_node {
-    //                         Node::Internal { len: mut parent_len, mut keys, mut pointers } => {
-    //                             let sibling_page = pointers[sibling_index];
-    //                             let sibling_node = self.pager.get_page(sibling_page);
-    //                             match sibling_node {
-    //                                 Node::Leaf { len: mut sibling_len, entries: mut sibling_entries, next_leaf: mut sibling_next_leaf } => {
-    //                                     // merge nodes
-    //                                     if sibling_len == LEAF_DEGREE / 2 {
-    //                                     } else {
-    //                                         sibling_len -= 1;
-    //                                         *len += 1;
-    //                                         let mut new_entry = &mut sibling_entries[sibling_len];
-    //                                         let index = 0;
-    //                                         while index < *len {
-    //                                             mem::swap(&mut entries[index], new_entry);
-    //                                         }
+        match curr_node {
+            Node::Leaf(mut curr_leaf_node) => {
+                ret = curr_leaf_node.remove(key);
+                if curr_leaf_node.len < (LEAF_DEGREE + 1) / 2 {
+                    if let Some((parent_page, parent_node, curr_index)) = stack.pop() {
+                        let mut parent_internal_node = {
+                            match parent_node {
+                                Node::Internal(node) => node,
+                                _ => unreachable!(),
+                            }
+                        };
+                        let sibling_index = {
+                            if curr_index == 0 {
+                                curr_index + 1
+                            } else {
+                                curr_index - 1
+                            }
+                        };
+                        let sibling_page = parent_internal_node.pointers[sibling_index];
+                        let mut sibling_leaf_node = {
+                            match self.pager.get_page(sibling_page) {
+                                Node::Leaf(node) => node,
+                                _ => unreachable!(),
+                            }
+                        };
 
-    //                                         if sibling_index == parent_index - 1 {
-    //                                             let new_parent_key = match entries[0] {
-    //                                                 Some(ref entry) => entry.key.clone(),
-    //                                                 None => unreachable!(),
-    //                                             };
-    //                                         } else {
-    //                                         }
-    //                                     }
-    //                                 },
-    //                                 _ => unreachable!(),
-    //                             }
-    //                         },
-    //                         _ => unreachable!(),
-    //                     }
-    //                 }
-    //             }
-    //         },
-    //         _ => unreachable!(),
-    //     }
-    // }
+                        // merge
+                        if sibling_leaf_node.len == (LEAF_DEGREE + 1) / 2 {
+                            if sibling_index == curr_index + 1 {
+                                curr_leaf_node.merge(&mut sibling_leaf_node);
+                                delete_entry = Some((curr_index, parent_page, parent_internal_node));
+                                self.pager.deallocate_node(sibling_page);
+                                self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
+                            } else {
+                                sibling_leaf_node.merge(&mut curr_leaf_node);
+                                delete_entry = Some((sibling_index, parent_page, parent_internal_node));
+                                self.pager.deallocate_node(curr_page);
+                                self.pager.write_node(sibling_page, Node::Leaf(sibling_leaf_node));
+                            }
+                        }
+                        // take one entry
+                        else {
+                            if sibling_index == curr_index + 1 {
+                                let removed_entry = sibling_leaf_node.remove_at(0);
+                                let new_key = {
+                                    match sibling_leaf_node.entries[0] {
+                                        Some(ref entry) => entry.key.clone(),
+                                        _ => unreachable!(),
+                                    }
+                                };
+                                parent_internal_node.keys[curr_index] = Some(new_key);
+                                curr_leaf_node.insert(removed_entry);
+                            } else {
+                                let remove_index = sibling_leaf_node.len - 1;
+                                let removed_entry = sibling_leaf_node.remove_at(remove_index);
+                                parent_internal_node.keys[sibling_index] = Some(removed_entry.key.clone());
+                                curr_leaf_node.insert(removed_entry);
+                            }
+                            self.pager.write_node(parent_page, Node::Internal(parent_internal_node));
+                            self.pager.write_node(sibling_page, Node::Leaf(sibling_leaf_node));
+                            self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
+                        }
+                    }
+                } else if ret.is_some() {
+                    self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
+                }
+            },
+            _ => unreachable!(),
+        }
+
+        while let Some((delete_index, curr_page, mut curr_internal_node)) = delete_entry {
+            delete_entry = None;
+            curr_internal_node.remove_at(delete_index, true);
+
+            if curr_internal_node.len + 1 < (INTERNAL_DEGREE + 1) / 2 {
+                if let Some((parent_page, parent_node, curr_index)) = stack.pop() {
+                    let mut parent_internal_node = {
+                        match parent_node {
+                            Node::Internal(node) => node,
+                            _ => unreachable!(),
+                        }
+                    };
+                    let sibling_index = {
+                        if curr_index == 0 {
+                            curr_index + 1
+                        } else {
+                            curr_index - 1
+                        }
+                    };
+                    let sibling_page = parent_internal_node.pointers[sibling_index];
+                    let mut sibling_internal_node = {
+                        match self.pager.get_page(sibling_page) {
+                            Node::Internal(node) => node,
+                            _ => unreachable!(),
+                        }
+                    };
+
+                    if sibling_internal_node.len + 1 == (INTERNAL_DEGREE + 1) / 2 {
+                        if sibling_index == curr_index + 1 {
+                            let parent_key = match parent_internal_node.keys[curr_index] {
+                                Some(ref key) => key.clone(),
+                                None => unreachable!(),
+                            };
+                            curr_internal_node.merge(parent_key, &mut sibling_internal_node);
+                            delete_entry = Some((curr_index, parent_page, parent_internal_node));
+                            self.pager.deallocate_node(sibling_page);
+                            self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
+                        } else {
+                            let parent_key = match parent_internal_node.keys[sibling_index] {
+                                Some(ref key) => key.clone(),
+                                None => unreachable!(),
+                            };
+                            sibling_internal_node.merge(parent_key, &mut curr_internal_node);
+                            delete_entry = Some((sibling_index, parent_page, parent_internal_node));
+                            self.pager.deallocate_node(curr_page);
+                            self.pager.write_node(sibling_page, Node::Internal(sibling_internal_node));
+                        }
+                    } else {
+                        if sibling_index == curr_index + 1 {
+                            let (mut removed_key, removed_pointer) = sibling_internal_node.remove_at(0, false);
+                            let removed_key = match mem::replace(&mut parent_internal_node.keys[curr_index], Some(removed_key)) {
+                                Some(key) => key,
+                                _ => unreachable!(),
+                            };
+                            curr_internal_node.insert(removed_key, removed_pointer, true);
+                            self.pager.write_node(parent_page, Node::Internal(parent_internal_node));
+                            self.pager.write_node(sibling_page, Node::Internal(sibling_internal_node));
+                            self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
+                        } else {
+                            let remove_index = sibling_internal_node.len - 1;
+                            let (mut removed_key, removed_pointer) = sibling_internal_node.remove_at(remove_index, true);
+                            let removed_key = match mem::replace(&mut parent_internal_node.keys[sibling_index], Some(removed_key)) {
+                                Some(key) => key,
+                                _ => unreachable!(),
+                            };
+                            curr_internal_node.insert(removed_key, removed_pointer, false);
+                            self.pager.write_node(parent_page, Node::Internal(parent_internal_node));
+                            self.pager.write_node(sibling_page, Node::Internal(sibling_internal_node));
+                            self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
+                        }
+                    }
+                } else if curr_internal_node.len == 0 {
+                    self.pager.set_root_page(curr_internal_node.pointers[0]);
+                    self.pager.deallocate_node(curr_page);
+                }
+            } else {
+                self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
+            }
+        }
+
+        ret
+    }
 
     pub fn print(&mut self) {
         let curr_page = self.pager.get_root_page();

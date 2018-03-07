@@ -10,30 +10,46 @@ fn main() {
     t.insert(25, 25);
     t.insert(4, 4);
     t.insert(9, 9);
-    t.print();
-    println!("------------------");
+    // t.print();
+    // println!("------------------");
 
     t.insert(20, 20);
-    t.print();
-    println!("------------------");
+    // t.print();
+    // println!("------------------");
 
     t.insert(13, 13);
-    t.print();
-    println!("------------------");
+    // t.print();
+    // println!("------------------");
 
     t.insert(15, 15);
-    t.print();
-    println!("------------------");
+    // t.print();
+    // println!("------------------");
 
     t.insert(10, 10);
-    t.print();
-    println!("------------------");
+    // t.print();
+    // println!("------------------");
 
     t.insert(11, 11);
+    // t.print();
+    // println!("------------------");
+
+    t.insert(12, 12);
     t.print();
     println!("------------------");
 
-    t.insert(12, 12);
+    t.remove(&13);
+    t.print();
+    println!("------------------");
+
+    t.remove(&15);
+    t.print();
+    println!("------------------");
+
+    t.remove(&11);
+    t.print();
+    println!("------------------");
+
+    t.remove(&25);
     t.print();
     println!("------------------");
 }
