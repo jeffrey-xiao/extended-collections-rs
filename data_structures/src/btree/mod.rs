@@ -136,7 +136,7 @@ fn test_internal_node_remove_at_left() {
         pointers: [0, 1, 2, 3],
         _marker: PhantomData,
     };
-    assert_eq!(n.remove_at(1, false), 1);
+    assert_eq!(n.remove_at(1, false), (1, 1));
     assert_eq!(n.len, 2);
     assert_eq!(n.keys, [Some(0), Some(2), None]);
     assert_eq!(n.pointers, [0, 2, 3, 0]);
@@ -150,7 +150,7 @@ fn test_internal_node_remove_at_right() {
         pointers: [0, 1, 2, 3],
         _marker: PhantomData,
     };
-    assert_eq!(n.remove_at(1, true), 1);
+    assert_eq!(n.remove_at(1, true), (1, 2));
     assert_eq!(n.len, 2);
     assert_eq!(n.keys, [Some(0), Some(2), None]);
     assert_eq!(n.pointers, [0, 1, 3, 0]);
