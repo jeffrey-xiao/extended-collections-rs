@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-use std::fmt::Debug;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Entry<T: Ord, U> {

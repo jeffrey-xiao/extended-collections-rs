@@ -1,4 +1,5 @@
 use bincode::{serialize, deserialize};
+use btree::node::Node;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::io::{Error, Read, Seek, SeekFrom, Write};
@@ -6,8 +7,6 @@ use std::fmt::Debug;
 use std::fs::{File, OpenOptions};
 use std::marker::PhantomData;
 use std::mem;
-
-use super::Node;
 
 const U64_SIZE: u64 = mem::size_of::<u64>() as u64;
 
