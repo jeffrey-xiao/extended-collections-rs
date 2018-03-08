@@ -4,5 +4,8 @@ version = "0.1.0"
 authors = ["Jeffrey Xiao <jeffrey.xiao1998@gmail.com>"]
 
 [dependencies]
-rand = "0.4"
+bincode = "1.0"
 crossbeam-epoch = "0.2"
+serde = "1.0"
+serde_derive = "1.0"
+rand = "0.4"
