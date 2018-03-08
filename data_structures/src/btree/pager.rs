@@ -33,9 +33,9 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
         db_file.seek(SeekFrom::Start(0)).unwrap();
         db_file.write(&serialize(&1u64).unwrap()).unwrap();
         db_file.write(&serialize(&0u64).unwrap()).unwrap();
-        db_file.write(&serialize(&None::<u64>).unwrap()).unwrap();
         db_file.write(&serialize(&leaf_degree).unwrap()).unwrap();
         db_file.write(&serialize(&internal_degree).unwrap()).unwrap();
+        db_file.write(&serialize(&None::<u64>).unwrap()).unwrap();
         db_file.seek(SeekFrom::Start(header_size)).unwrap();
         db_file.write(&serialize(&Node::Leaf(LeafNode::<T, U>::new(leaf_degree))).unwrap()).unwrap();
         let pager = Pager {

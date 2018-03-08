@@ -273,6 +273,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
         while let Some(curr_page) = queue.pop_front() {
             let curr_node = self.pager.get_page(curr_page);
             println!("{:?} {:?}", curr_node, curr_page);
+            println!("{:?} {:?}", self.pager.internal_degree, self.pager.leaf_degree);
             if let Node::Internal(InternalNode { keys, pointers, .. }) = curr_node {
                 let mut index = 0;
                 while let Some(_) = keys[index] {

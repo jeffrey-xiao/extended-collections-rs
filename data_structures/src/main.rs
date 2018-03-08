@@ -2,7 +2,7 @@ extern crate data_structures;
 use data_structures::btree;
 
 fn main() {
-    // let mut t = btree::Tree::open("test.db").unwrap();
+    // let mut t: btree::Tree<u32, u32> = btree::Tree::open("test.db").unwrap();
     let mut t = btree::Tree::with_degrees("test.db", 3, 4).unwrap();
     t.insert(1, 1);
     t.insert(16, 16);
