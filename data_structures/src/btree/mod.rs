@@ -1,11 +1,11 @@
 macro_rules! init_array(
     ($ty:ty, $len:expr, $val:expr) => (
         {
-            let mut array: [$ty; $len] = unsafe { mem::uninitialized() };
-            for i in array.iter_mut() {
-                unsafe { ::std::ptr::write(i, $val); }
+            let mut v: Vec<$ty> = Vec::with_capacity($len);
+            for _ in 0..$len {
+                v.push($val);
             }
-            array
+            v.into_boxed_slice()
         }
     )
 );
@@ -15,6 +15,3 @@ pub mod pager;
 pub mod tree;
 
 pub use self::tree::Tree;
-
-const INTERNAL_DEGREE: usize = 3;
-const LEAF_DEGREE: usize = 3;

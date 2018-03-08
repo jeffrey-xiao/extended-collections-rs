@@ -1,5 +1,4 @@
-use btree::{INTERNAL_DEGREE, LEAF_DEGREE};
-use btree::node::{InternalNode, Node};
+use btree::node::{BLOCK_SIZE, LeafNode, InternalNode, Node};
 use btree::pager::Pager;
 use entry::Entry;
 use serde::Serialize;
@@ -7,7 +6,6 @@ use serde::de::DeserializeOwned;
 use std::collections::VecDeque;
 use std::io::{Error};
 use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::mem;
 
 pub struct Tree<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> {
@@ -16,12 +14,21 @@ pub struct Tree<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serial
 
 impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> Tree<T, U> {
     pub fn new(db_file_path: &str) -> Result<Tree<T, U>, Error> {
-        Ok(Tree { pager: Pager::new(db_file_path)? })
+        let leaf_degree = LeafNode::<T, U>::get_degree();
+        let internal_degree = InternalNode::<T, U>::get_degree();
+        Ok(Tree { pager: Pager::new(db_file_path, leaf_degree, internal_degree)? })
+    }
+
+    pub fn with_degrees(db_file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<Tree<T, U>, Error> {
+        assert!(LeafNode::<T, U>::get_max_size(leaf_degree) <= BLOCK_SIZE);
+        assert!(InternalNode::<T, U>::get_max_size(internal_degree) <= BLOCK_SIZE);
+        Ok(Tree { pager: Pager::new(db_file_path, leaf_degree, internal_degree)? })
     }
 
     pub fn open(db_file_path: &str) -> Result<Tree<T, U>, Error> {
         Ok(Tree { pager: Pager::open(db_file_path)? })
     }
+
 
     fn search_node(&mut self, search_key: &T) -> (u64, Node<T, U>, Vec<(u64, Node<T, U>, usize)>) {
         let mut curr_page = self.pager.get_root_page();
@@ -31,7 +38,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
 
         while let Node::Internal(node) = curr_node {
             let mut lo = 0;
-            let mut hi = (INTERNAL_DEGREE - 1) as isize;
+            let mut hi = (node.keys.len() - 1) as isize;
             while lo <= hi {
                 let mid = lo + ((hi - lo) >> 1);
                 match node.keys[mid as usize] {
@@ -88,18 +95,12 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                     self.pager.write_node(curr_page, curr_node);
                 },
                 None => {
-                    let mut new_root_keys = init_array!(Option<T>, INTERNAL_DEGREE, None);
-                    let mut new_root_pointers = init_array!(u64, INTERNAL_DEGREE + 1, 0);
-                    new_root_keys[0] = Some(split_key);
-                    new_root_pointers[0] = curr_page;
-                    new_root_pointers[1] = split_pointer;
-                    let new_root = Node::Internal(InternalNode {
-                        len: 1,
-                        keys: new_root_keys,
-                        pointers: new_root_pointers,
-                        _marker: PhantomData,
-                    });
-                    let new_root_page = self.pager.allocate_node(new_root);
+                    let mut new_root = InternalNode::new(self.pager.internal_degree);
+                    new_root.keys[0] = Some(split_key);
+                    new_root.pointers[0] = curr_page;
+                    new_root.pointers[1] = split_pointer;
+                    new_root.len = 1;
+                    let new_root_page = self.pager.allocate_node(Node::Internal(new_root));
                     self.pager.set_root_page(new_root_page);
                     split_node_entry = None;
                 },
@@ -115,7 +116,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
         match curr_node {
             Node::Leaf(mut curr_leaf_node) => {
                 ret = curr_leaf_node.remove(key);
-                if curr_leaf_node.len < (LEAF_DEGREE + 1) / 2 {
+                if curr_leaf_node.len < (self.pager.leaf_degree + 1) / 2 {
                     if let Some((parent_page, parent_node, curr_index)) = stack.pop() {
                         let mut parent_internal_node = {
                             match parent_node {
@@ -139,7 +140,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                         };
 
                         // merge
-                        if sibling_leaf_node.len == (LEAF_DEGREE + 1) / 2 {
+                        if sibling_leaf_node.len == (self.pager.leaf_degree + 1) / 2 {
                             if sibling_index == curr_index + 1 {
                                 curr_leaf_node.merge(&mut sibling_leaf_node);
                                 delete_entry = Some((curr_index, parent_page, parent_internal_node));
@@ -186,7 +187,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
             delete_entry = None;
             curr_internal_node.remove_at(delete_index, true);
 
-            if curr_internal_node.len + 1 < (INTERNAL_DEGREE + 1) / 2 {
+            if curr_internal_node.len + 1 < (self.pager.internal_degree + 1) / 2 {
                 if let Some((parent_page, parent_node, curr_index)) = stack.pop() {
                     let mut parent_internal_node = {
                         match parent_node {
@@ -209,7 +210,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                         }
                     };
 
-                    if sibling_internal_node.len + 1 == (INTERNAL_DEGREE + 1) / 2 {
+                    if sibling_internal_node.len + 1 == (self.pager.internal_degree + 1) / 2 {
                         if sibling_index == curr_index + 1 {
                             let parent_key = match parent_internal_node.keys[curr_index] {
                                 Some(ref key) => key.clone(),
@@ -277,7 +278,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                 while let Some(_) = keys[index] {
                     queue.push_back(pointers[index]);
                     index += 1;
-                    if index == INTERNAL_DEGREE {
+                    if index == self.pager.internal_degree {
                         break;
                     }
                 }
