@@ -266,7 +266,7 @@ impl<T: Ord + Clone + Debug, U: Debug> Node<T, U> {
 mod tests {
     use entry::Entry;
     use std::marker::PhantomData;
-    use super::{LeafNode, InternalNode};
+    use super::{LeafNode, InternalNode, Node};
 
     #[test]
     fn test_internal_node_degree() {
@@ -296,7 +296,7 @@ mod tests {
             _marker: PhantomData,
         };
 
-        assert_eq!(n.insert(1, 1, false), None);
+        assert!(n.insert(1, 1, false).is_none());
         assert_eq!(n.len, 3);
         assert_eq!(*n.keys, [Some(0), Some(1), Some(2)]);
         assert_eq!(*n.pointers, [0, 1, 2, 3]);
@@ -311,10 +311,58 @@ mod tests {
             _marker: PhantomData,
         };
 
-        assert_eq!(n.insert(1, 2, true), None);
+        assert!(n.insert(1, 2, true).is_none());
         assert_eq!(n.len, 3);
         assert_eq!(*n.keys, [Some(0), Some(1), Some(2)]);
         assert_eq!(*n.pointers, [0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_internal_node_insert_left_full() {
+        let mut n = InternalNode::<u32, u32> {
+            len: 3,
+            keys: Box::new([Some(0), Some(2), Some(3)]),
+            pointers: Box::new([0, 2, 3, 4]),
+            _marker: PhantomData,
+        };
+        let res = n.insert(1, 1, false).unwrap();
+
+        assert_eq!(res.0, 2);
+        match res.1 {
+            Node::Internal(node) => {
+                assert_eq!(node.len, 1);
+                assert_eq!(*node.keys, [Some(3), None, None]);
+                assert_eq!(*node.pointers, [3, 4, 0, 0]);
+            },
+            _ => assert!(false, "Expected internal node."),
+        }
+        assert_eq!(n.len, 2);
+        assert_eq!(*n.keys, [Some(0), Some(1), None]);
+        assert_eq!(*n.pointers, [0, 1, 2, 0]);
+    }
+
+    #[test]
+    fn test_internal_node_insert_right_full() {
+        let mut n = InternalNode::<u32, u32> {
+            len: 3,
+            keys: Box::new([Some(0), Some(2), Some(3)]),
+            pointers: Box::new([0, 1, 3, 4]),
+            _marker: PhantomData,
+        };
+        let res = n.insert(1, 2, true).unwrap();
+
+        assert_eq!(res.0, 2);
+        match res.1 {
+            Node::Internal(node) => {
+                assert_eq!(node.len, 1);
+                assert_eq!(*node.keys, [Some(3), None, None]);
+                assert_eq!(*node.pointers, [3, 4, 0, 0]);
+            },
+            _ => assert!(false, "Expected internal node."),
+        }
+        assert_eq!(n.len, 2);
+        assert_eq!(*n.keys, [Some(0), Some(1), None]);
+        assert_eq!(*n.pointers, [0, 1, 2, 0]);
     }
 
     #[test]
@@ -386,15 +434,9 @@ mod tests {
     fn test_leaf_node_new() {
         let n = LeafNode::<u32, u64>::new(3);
 
-        assert_eq!(n, LeafNode::<u32, u64> {
-            len: 0,
-            entries: Box::new([
-                None,
-                NOne,
-                None,
-            ]),
-            next_leaf: None,
-        });
+        assert_eq!(n.len, 0);
+        assert_eq!(*n.entries, [None, None, None]);
+        assert_eq!(n.next_leaf, None);
     }
 
     #[test]
@@ -409,13 +451,14 @@ mod tests {
             next_leaf: None,
         };
 
-        assert_eq!(n.insert(Entry { key: 1, value: 1 }), None);
+        assert!(n.insert(Entry { key: 1, value: 1 }).is_none());
         assert_eq!(n.len, 3);
         assert_eq!(*n.entries, [
             Some(Entry { key: 0, value: 0 }),
             Some(Entry { key: 1, value: 1 }),
             Some(Entry { key: 2, value: 2 }),
         ]);
+        assert_eq!(n.next_leaf, None);
     }
 
     #[test]
@@ -432,18 +475,25 @@ mod tests {
         let res = n.insert(Entry { key: 1, value: 1 }).unwrap();
 
         assert_eq!(res.0, 2);
-        assert_eq!(res.1.len, 1);
-        assert_eq!(*res.1.entries, [
-            Some(Entry { key: 3, value: 3 }),
-            None,
-            None,
-        ]);
+        match res.1 {
+            Node::Leaf(node) => {
+                assert_eq!(node.len, 2);
+                assert_eq!(*node.entries, [
+                    Some(Entry { key: 2, value: 2 }),
+                    Some(Entry { key: 3, value: 3 }),
+                    None,
+                ]);
+                assert_eq!(node.next_leaf, None);
+            },
+            _ => assert!(false, "Expected leaf node."),
+        }
         assert_eq!(n.len, 2);
         assert_eq!(*n.entries, [
             Some(Entry { key: 0, value: 0 }),
             Some(Entry { key: 1, value: 1 }),
             None,
         ]);
+        assert_eq!(n.next_leaf, None);
     }
 
     #[test]
@@ -465,6 +515,7 @@ mod tests {
             Some(Entry { key: 2, value: 2 }),
             None,
         ]);
+        assert_eq!(n.next_leaf, None);
     }
 
     #[test]
@@ -486,6 +537,7 @@ mod tests {
             Some(Entry { key: 2, value: 2 }),
             None,
         ]);
+        assert_eq!(n.next_leaf, None);
     }
 
     #[test]
