@@ -1,5 +1,5 @@
 use bincode::{serialize, deserialize};
-use btree::node::{LeafNode, Node};
+use bptree::node::{LeafNode, Node};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::io::{Error, Read, Seek, SeekFrom, Write};
@@ -8,22 +8,34 @@ use std::fs::{File, OpenOptions};
 use std::marker::PhantomData;
 use std::mem;
 
-const U64_SIZE: u64 = mem::size_of::<u64>() as u64;
+#[derive(Serialize, Deserialize)]
+struct Metadata {
+    pages: u64,
+    len: usize,
+    root_page: u64,
+    leaf_degree: usize,
+    internal_degree: usize,
+    free_page: Option<u64>,
+}
 
 pub struct Pager<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> {
     db_file: File,
-    pages: u64,
-    root_page: u64,
-    pub leaf_degree: usize,
-    pub internal_degree: usize,
-    free_page: Option<u64>,
+    metadata: Metadata,
     _marker: PhantomData<(T, U)>,
 }
 
 impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> Pager<T, U> {
     pub fn new(db_file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<Pager<T, U>, Error> {
-        let header_size = U64_SIZE * 4 + Self::get_free_page_size();
+        let header_size = Self::get_metadata_size();
         let body_size = Node::<T, U>::get_max_size(leaf_degree, internal_degree) as u64;
+        let metadata = Metadata {
+            pages: 1,
+            len: 0,
+            root_page: 0,
+            leaf_degree,
+            internal_degree,
+            free_page: None,
+        };
         let mut db_file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -31,20 +43,13 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
             .open(db_file_path)?;
         db_file.set_len(header_size + body_size).unwrap();
         db_file.seek(SeekFrom::Start(0)).unwrap();
-        db_file.write(&serialize(&1u64).unwrap()).unwrap();
-        db_file.write(&serialize(&0u64).unwrap()).unwrap();
-        db_file.write(&serialize(&leaf_degree).unwrap()).unwrap();
-        db_file.write(&serialize(&internal_degree).unwrap()).unwrap();
-        db_file.write(&serialize(&None::<u64>).unwrap()).unwrap();
+        db_file.write(&serialize(&metadata).unwrap()).unwrap();
         db_file.seek(SeekFrom::Start(header_size)).unwrap();
         db_file.write(&serialize(&Node::Leaf(LeafNode::<T, U>::new(leaf_degree))).unwrap()).unwrap();
+
         let pager = Pager {
             db_file,
-            pages: 1,
-            root_page: 0,
-            free_page: None,
-            leaf_degree,
-            internal_degree,
+            metadata,
             _marker: PhantomData,
         };
 
@@ -59,55 +64,59 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
             .open(db_file_path)?;
         db_file.seek(SeekFrom::Start(0)).unwrap();
 
-        let mut buffer: Vec<u8> = vec![0; U64_SIZE as usize];
+        let mut buffer: Vec<u8> = vec![0; Self::get_metadata_size() as usize];
         db_file.read(buffer.as_mut_slice()).unwrap();
-        let pages = deserialize(buffer.as_slice()).unwrap();
-        db_file.read(buffer.as_mut_slice()).unwrap();
-        let root_page = deserialize(buffer.as_slice()).unwrap();
-        db_file.read(buffer.as_mut_slice()).unwrap();
-        let leaf_degree = deserialize(buffer.as_slice()).unwrap();
-        db_file.read(buffer.as_mut_slice()).unwrap();
-        let internal_degree = deserialize(buffer.as_slice()).unwrap();
-
-        let mut buffer: Vec<u8> = vec![0; Self::get_free_page_size() as usize];
-        db_file.read(buffer.as_mut_slice()).unwrap();
-        let free_page = deserialize(buffer.as_slice()).unwrap();
+        let metadata = deserialize(buffer.as_slice()).unwrap();
 
         Ok(Pager {
             db_file,
-            pages,
-            root_page,
-            free_page,
-            leaf_degree,
-            internal_degree,
+            metadata,
             _marker: PhantomData,
         })
     }
 
     #[inline]
     fn get_node_size(&self) -> u64 {
-        Node::<T, U>::get_max_size(self.leaf_degree, self.internal_degree) as u64
+        Node::<T, U>::get_max_size(self.metadata.leaf_degree, self.metadata.internal_degree) as u64
     }
 
     #[inline]
-    fn get_free_page_size() -> u64 {
-        mem::size_of::<Option<u64>>() as u64
+    fn get_metadata_size() -> u64 {
+        mem::size_of::<Metadata>() as u64
     }
 
     fn calculate_page_offset(&self, index: u64) -> u64 {
-        let header_size = U64_SIZE * 4 + Self::get_free_page_size();
+        let header_size = Self::get_metadata_size();
         let body_offset = self.get_node_size() * index;
         return header_size + body_offset
     }
 
-    pub fn get_root_page(&mut self) -> u64 {
-        self.root_page
+    pub fn get_leaf_degree(&self) -> usize {
+        self.metadata.leaf_degree
+    }
+
+    pub fn get_internal_degree(&self) -> usize {
+        self.metadata.internal_degree
+    }
+
+    pub fn get_len(&self) -> usize {
+        self.metadata.len
+    }
+
+    pub fn set_len(&mut self, len: usize) {
+        self.metadata.len = len;
+        self.db_file.seek(SeekFrom::Start(0)).unwrap();
+        self.db_file.write(&serialize(&self.metadata).unwrap()).unwrap();
+    }
+
+    pub fn get_root_page(&self) -> u64 {
+        self.metadata.root_page
     }
 
     pub fn set_root_page(&mut self, new_root_page: u64) {
-        self.root_page = new_root_page;
-        self.db_file.seek(SeekFrom::Start(U64_SIZE)).unwrap();
-        self.db_file.write(&serialize(&self.root_page).unwrap()).unwrap();
+        self.metadata.root_page = new_root_page;
+        self.db_file.seek(SeekFrom::Start(0)).unwrap();
+        self.db_file.write(&serialize(&self.metadata).unwrap()).unwrap();
     }
 
     pub fn get_page(&mut self, index: u64) -> Node<T, U> {
@@ -119,18 +128,18 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
     }
 
     pub fn allocate_node(&mut self, new_node: Node<T, U>) -> u64 {
-        match self.free_page {
+        match self.metadata.free_page {
             None => {
-                let len = self.calculate_page_offset(self.pages + 1);
+                self.metadata.pages += 1;
+                let len = self.calculate_page_offset(self.metadata.pages);
                 let node_size = self.get_node_size();
                 self.db_file.set_len(len).unwrap();
                 self.db_file.seek(SeekFrom::Start(len - node_size)).unwrap();
                 self.db_file.write(&serialize(&new_node).unwrap()).unwrap();
 
-                self.pages += 1;
                 self.db_file.seek(SeekFrom::Start(0)).unwrap();
-                self.db_file.write(&serialize(&self.pages).unwrap()).unwrap();
-                self.pages - 1
+                self.db_file.write(&serialize(&self.metadata).unwrap()).unwrap();
+                self.metadata.pages - 1
             },
             Some(free_page) => {
                 let offset = self.calculate_page_offset(free_page);
@@ -141,9 +150,12 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                 self.db_file.write(&serialize(&new_node).unwrap()).unwrap();
 
                 match deserialize(buffer.as_slice()).unwrap() {
-                    Node::Free::<T, U>(new_free_page) => self.free_page = new_free_page,
+                    Node::Free::<T, U>(new_free_page) => self.metadata.free_page = new_free_page,
                     _ => unreachable!(),
                 }
+                self.db_file.seek(SeekFrom::Start(0)).unwrap();
+                self.db_file.write(&serialize(&self.metadata).unwrap()).unwrap();
+
                 free_page
             }
         }
@@ -152,15 +164,29 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
     pub fn deallocate_node(&mut self, index: u64) {
         let offset = self.calculate_page_offset(index);
         self.db_file.seek(SeekFrom::Start(offset as u64)).unwrap();
-        self.db_file.write(&serialize(&Node::Free::<T, U>(self.free_page)).unwrap()).unwrap();
-        self.free_page = Some(offset);
-        self.db_file.seek(SeekFrom::Start((U64_SIZE * 4) as u64)).unwrap();
-        self.db_file.write(&serialize(&self.free_page).unwrap()).unwrap();
+        self.db_file.write(&serialize(&Node::Free::<T, U>(self.metadata.free_page)).unwrap()).unwrap();
+        self.metadata.free_page = Some(offset);
+        self.db_file.seek(SeekFrom::Start(0)).unwrap();
+        self.db_file.write(&serialize(&self.metadata).unwrap()).unwrap();
     }
 
     pub fn write_node(&mut self, index: u64, node: Node<T, U>) {
         let offset = self.calculate_page_offset(index);
         self.db_file.seek(SeekFrom::Start(offset as u64)).unwrap();
         self.db_file.write(&serialize(&node).unwrap()).unwrap();
+    }
+
+    pub fn clear(&mut self) {
+        let header_size = Self::get_metadata_size();
+        let body_size = Node::<T, U>::get_max_size(self.metadata.leaf_degree, self.metadata.internal_degree) as u64;
+        self.metadata.pages = 1;
+        self.metadata.len = 0;
+        self.metadata.root_page = 0;
+        self.metadata.free_page = None;
+        self.db_file.set_len(header_size + body_size).unwrap();
+        self.db_file.seek(SeekFrom::Start(0)).unwrap();
+        self.db_file.write(&serialize(&self.metadata).unwrap()).unwrap();
+        self.db_file.seek(SeekFrom::Start(header_size)).unwrap();
+        self.db_file.write(&serialize(&Node::Leaf(LeafNode::<T, U>::new(self.metadata.leaf_degree))).unwrap()).unwrap();
     }
 }

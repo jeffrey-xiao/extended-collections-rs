@@ -1,5 +1,5 @@
 use entry::Entry;
-use std::cmp;
+use std::cmp::{self, Ordering};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem;
@@ -117,6 +117,25 @@ impl<T: Ord + Clone + Debug, U: Debug> InternalNode<T, U> {
         (ret_key, ret_pointer)
     }
 
+    pub fn search(&self, search_key: &T) -> usize {
+        let mut lo = 0;
+        let mut hi = (self.keys.len() - 1) as isize;
+        while lo <= hi {
+            let mid = lo + ((hi - lo) >> 1);
+            match self.keys[mid as usize] {
+                None => hi = mid - 1,
+                Some(ref key) => {
+                    if key <= search_key {
+                        lo = mid + 1;
+                    } else {
+                        hi = mid - 1;
+                    }
+                }
+            }
+        }
+        lo as usize
+    }
+
     pub fn merge(&mut self, split_key: T, node: &mut InternalNode<T, U>) {
         assert!(self.len + node.len + 1 <= self.keys.len());
         self.keys[self.len] = Some(split_key);
@@ -137,18 +156,27 @@ pub struct LeafNode<T: Ord + Clone + Debug, U: Debug> {
     pub next_leaf: Option<u64>,
 }
 
+#[derive(Debug)]
+pub enum InsertCases<T: Ord + Clone + Debug, U: Debug> {
+    Split {
+        split_key: T,
+        split_node: Node<T, U>
+    },
+    Entry(Entry<T, U>),
+}
+
 impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
 
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
     #[inline]
     pub fn get_degree() -> usize {
-        (BLOCK_SIZE - U64_SIZE * 2 - OPT_U64_SIZE) / mem::size_of::<Entry<T, U>>()
+        (BLOCK_SIZE - U64_SIZE * 2 - OPT_U64_SIZE) / mem::size_of::<Option<Entry<T, U>>>()
     }
 
     #[inline]
     pub fn get_max_size(degree: usize) -> usize {
-        U64_SIZE * 2 + OPT_U64_SIZE + degree * mem::size_of::<Entry<T, U>>()
+        U64_SIZE * 2 + OPT_U64_SIZE + degree * mem::size_of::<Option<Entry<T, U>>>()
     }
 
     pub fn new(degree: usize) -> Self {
@@ -159,14 +187,16 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
         }
     }
 
-    pub fn insert(&mut self, mut new_entry: Entry<T, U>) -> Option<(T, Node<T, U>)> {
-        let leaf_degree = self.entries.len();
+    pub fn insert(&mut self, mut new_entry: Entry<T, U>) -> Option<InsertCases<T, U>> { let leaf_degree = self.entries.len();
         // node has room; can insert
         if self.len < leaf_degree {
             let mut index = 0;
             while let Some(ref mut entry) = self.entries[index] {
-                if new_entry < *entry {
+                if new_entry <= *entry {
                     mem::swap(entry, &mut new_entry);
+                    if new_entry == *entry {
+                        return Some(InsertCases::Entry(new_entry));
+                    }
                 }
                 index += 1;
             }
@@ -179,8 +209,11 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
             let mut split_node = LeafNode::new(leaf_degree);
             for index in 0..leaf_degree {
                 if let Some(ref mut entry) = self.entries[index] {
-                    if new_entry < *entry {
+                    if new_entry <= *entry {
                         mem::swap(entry, &mut new_entry);
+                        if new_entry == *entry {
+                            return Some(InsertCases::Entry(new_entry));
+                        }
                     }
                 }
                 if index > leaf_degree / 2 {
@@ -198,7 +231,7 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
                 next_leaf: self.next_leaf,
             });
             self.len = (self.len + 2) / 2;
-            Some((split_key, split_node))
+            Some(InsertCases::Split { split_key, split_node })
         }
     }
 
@@ -234,6 +267,26 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
         self.entries[self.len].take()
     }
 
+    pub fn search(&self, search_key: &T) -> Option<usize> {
+        let mut lo = 0;
+        let mut hi = (self.entries.len() - 1) as isize;
+        while lo <= hi {
+            let mid = lo + ((hi - lo) >> 1);
+            match self.entries[mid as usize] {
+                None => hi = mid - 1,
+                Some(ref entry) => {
+                    match entry.key.cmp(search_key) {
+                        Ordering::Less => lo = mid + 1,
+                        Ordering::Greater => hi = mid - 1,
+                        Ordering::Equal => return Some(mid as usize),
+                    }
+                }
+            }
+        }
+        None
+    }
+
+
     pub fn merge(&mut self, node: &mut LeafNode<T, U>) {
         assert!(self.len + node.len <= self.entries.len());
         self.next_leaf = node.next_leaf.take();
@@ -266,7 +319,12 @@ impl<T: Ord + Clone + Debug, U: Debug> Node<T, U> {
 mod tests {
     use entry::Entry;
     use std::marker::PhantomData;
-    use super::{LeafNode, InternalNode, Node};
+    use super::{LeafNode, InternalNode, InsertCases, Node};
+
+    #[test]
+    fn test_node_get_max_size() {
+        assert_eq!(Node::<u32, u32>::get_max_size(1, 1), 48);
+    }
 
     #[test]
     fn test_internal_node_degree() {
@@ -321,21 +379,24 @@ mod tests {
     fn test_internal_node_insert_left_full() {
         let mut n = InternalNode::<u32, u32> {
             len: 3,
-            keys: Box::new([Some(0), Some(2), Some(3)]),
-            pointers: Box::new([0, 2, 3, 4]),
+            keys: Box::new([Some(0), Some(1), Some(3)]),
+            pointers: Box::new([0, 1, 3, 4]),
             _marker: PhantomData,
         };
-        let res = n.insert(1, 1, false).unwrap();
+        let res = n.insert(2, 2, false).unwrap();
 
-        assert_eq!(res.0, 2);
-        match res.1 {
-            Node::Internal(node) => {
-                assert_eq!(node.len, 1);
-                assert_eq!(*node.keys, [Some(3), None, None]);
-                assert_eq!(*node.pointers, [3, 4, 0, 0]);
-            },
-            _ => assert!(false, "Expected internal node."),
-        }
+
+        let (split_key, split_node) = res;
+        let internal_node = match split_node {
+            Node::Internal(node) => node,
+            _ => panic!("Expected internal node."),
+        };
+
+        assert_eq!(split_key, 2);
+        assert_eq!(internal_node.len, 1);
+        assert_eq!(*internal_node.keys, [Some(3), None, None]);
+        assert_eq!(*internal_node.pointers, [3, 4, 0, 0]);
+
         assert_eq!(n.len, 2);
         assert_eq!(*n.keys, [Some(0), Some(1), None]);
         assert_eq!(*n.pointers, [0, 1, 2, 0]);
@@ -345,21 +406,23 @@ mod tests {
     fn test_internal_node_insert_right_full() {
         let mut n = InternalNode::<u32, u32> {
             len: 3,
-            keys: Box::new([Some(0), Some(2), Some(3)]),
-            pointers: Box::new([0, 1, 3, 4]),
+            keys: Box::new([Some(0), Some(1), Some(3)]),
+            pointers: Box::new([0, 1, 2, 4]),
             _marker: PhantomData,
         };
-        let res = n.insert(1, 2, true).unwrap();
+        let res = n.insert(2, 3, true).unwrap();
 
-        assert_eq!(res.0, 2);
-        match res.1 {
-            Node::Internal(node) => {
-                assert_eq!(node.len, 1);
-                assert_eq!(*node.keys, [Some(3), None, None]);
-                assert_eq!(*node.pointers, [3, 4, 0, 0]);
-            },
-            _ => assert!(false, "Expected internal node."),
-        }
+        let (split_key, split_node) = res;
+        let internal_node = match split_node {
+            Node::Internal(node) => node,
+            _ => panic!("Expected internal node."),
+        };
+
+        assert_eq!(split_key, 2);
+        assert_eq!(internal_node.len, 1);
+        assert_eq!(*internal_node.keys, [Some(3), None, None]);
+        assert_eq!(*internal_node.pointers, [3, 4, 0, 0]);
+
         assert_eq!(n.len, 2);
         assert_eq!(*n.keys, [Some(0), Some(1), None]);
         assert_eq!(*n.pointers, [0, 1, 2, 0]);
@@ -396,6 +459,24 @@ mod tests {
     }
 
     #[test]
+    fn test_internal_node_search() {
+        let n = InternalNode::<u32, u32> {
+            len: 3,
+            keys: Box::new([Some(1), Some(3), Some(5)]),
+            pointers: Box::new([0, 1, 2, 3]),
+            _marker: PhantomData,
+        };
+
+        assert_eq!(n.search(&0), 0);
+        assert_eq!(n.search(&1), 1);
+        assert_eq!(n.search(&2), 1);
+        assert_eq!(n.search(&3), 2);
+        assert_eq!(n.search(&4), 2);
+        assert_eq!(n.search(&5), 3);
+        assert_eq!(n.search(&6), 3);
+    }
+
+    #[test]
     fn test_internal_node_merge() {
         let mut n = InternalNode::<u32, u32> {
             len: 1,
@@ -422,12 +503,12 @@ mod tests {
 
     #[test]
     fn test_leaf_node_degree() {
-        assert_eq!(LeafNode::<u32, u64>::get_degree(), 254);
+        assert_eq!(LeafNode::<u32, u64>::get_degree(), 169);
     }
 
     #[test]
     fn test_leaf_node_get_max_size() {
-        assert_eq!(LeafNode::<u32, u64>::get_max_size(1), 48);
+        assert_eq!(LeafNode::<u32, u64>::get_max_size(1), 56);
     }
 
     #[test]
@@ -474,24 +555,60 @@ mod tests {
         };
         let res = n.insert(Entry { key: 1, value: 1 }).unwrap();
 
-        assert_eq!(res.0, 2);
-        match res.1 {
-            Node::Leaf(node) => {
-                assert_eq!(node.len, 2);
-                assert_eq!(*node.entries, [
-                    Some(Entry { key: 2, value: 2 }),
-                    Some(Entry { key: 3, value: 3 }),
-                    None,
-                ]);
-                assert_eq!(node.next_leaf, None);
-            },
-            _ => assert!(false, "Expected leaf node."),
-        }
+        let (split_key, split_node) = match res {
+            InsertCases::Split { split_key, split_node } => (split_key, split_node),
+            _ => panic!("Expected split insert case."),
+        };
+
+        let leaf_node = match split_node {
+            Node::Leaf(node) => node,
+            _ => panic!("Expected leaf node."),
+        };
+
+        assert_eq!(split_key, 2);
+        assert_eq!(leaf_node.len, 2);
+        assert_eq!(*leaf_node.entries, [
+            Some(Entry { key: 2, value: 2 }),
+            Some(Entry { key: 3, value: 3 }),
+            None,
+        ]);
+        assert_eq!(leaf_node.next_leaf, None);
+
         assert_eq!(n.len, 2);
         assert_eq!(*n.entries, [
             Some(Entry { key: 0, value: 0 }),
             Some(Entry { key: 1, value: 1 }),
             None,
+        ]);
+        assert_eq!(n.next_leaf, None);
+    }
+
+    #[test]
+    fn test_leaf_node_insert_existing() {
+        let mut n = LeafNode::<u32, u64> {
+            len: 3,
+            entries: Box::new([
+                Some(Entry { key: 0, value: 0 }),
+                Some(Entry { key: 1, value: 0 }),
+                Some(Entry { key: 2, value: 2 }),
+            ]),
+            next_leaf: None,
+        };
+        let res = n.insert(Entry { key: 1, value: 1 }).unwrap();
+
+        let entry = match res {
+            InsertCases::Entry(entry) => entry,
+            _ => panic!("Expected entry insert case."),
+        };
+
+        assert_eq!(entry.key, 1);
+        assert_eq!(entry.value, 0);
+
+        assert_eq!(n.len, 3);
+        assert_eq!(*n.entries, [
+            Some(Entry { key: 0, value: 0 }),
+            Some(Entry { key: 1, value: 1 }),
+            Some(Entry { key: 2, value: 2 }),
         ]);
         assert_eq!(n.next_leaf, None);
     }
@@ -516,6 +633,27 @@ mod tests {
             None,
         ]);
         assert_eq!(n.next_leaf, None);
+    }
+
+    #[test]
+    fn test_leaf_node_search() {
+        let n = LeafNode::<u32, u64> {
+            len: 3,
+            entries: Box::new([
+                Some(Entry { key: 1, value: 1 }),
+                Some(Entry { key: 3, value: 3 }),
+                Some(Entry { key: 5, value: 5 }),
+            ]),
+            next_leaf: None,
+        };
+
+        assert_eq!(n.search(&0), None);
+        assert_eq!(n.search(&1), Some(0));
+        assert_eq!(n.search(&2), None);
+        assert_eq!(n.search(&3), Some(1));
+        assert_eq!(n.search(&4), None);
+        assert_eq!(n.search(&5), Some(2));
+        assert_eq!(n.search(&6), None);
     }
 
     #[test]

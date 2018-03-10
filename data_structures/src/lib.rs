@@ -10,7 +10,7 @@ extern crate serde_derive;
 
 mod entry;
 pub mod arena;
-pub mod btree;
+pub mod bptree;
 pub mod skiplist;
 pub mod treap;
 pub mod sync;

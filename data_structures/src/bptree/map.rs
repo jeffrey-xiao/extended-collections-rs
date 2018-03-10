@@ -1,5 +1,5 @@
-use btree::node::{BLOCK_SIZE, LeafNode, InternalNode, Node};
-use btree::pager::Pager;
+use bptree::node::{BLOCK_SIZE, LeafNode, InternalNode, InsertCases, Node};
+use bptree::pager::Pager;
 use entry::Entry;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -8,70 +8,62 @@ use std::io::{Error};
 use std::fmt::Debug;
 use std::mem;
 
-pub struct Tree<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> {
+pub struct BPMap<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> {
     pager: Pager<T, U>,
 }
 
-impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> Tree<T, U> {
-    pub fn new(db_file_path: &str) -> Result<Tree<T, U>, Error> {
+impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> BPMap<T, U> {
+    pub fn new(db_file_path: &str) -> Result<BPMap<T, U>, Error> {
         let leaf_degree = LeafNode::<T, U>::get_degree();
         let internal_degree = InternalNode::<T, U>::get_degree();
-        Ok(Tree { pager: Pager::new(db_file_path, leaf_degree, internal_degree)? })
+        Ok(BPMap { pager: Pager::new(db_file_path, leaf_degree, internal_degree)? })
     }
 
-    pub fn with_degrees(db_file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<Tree<T, U>, Error> {
+    pub fn with_degrees(db_file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<BPMap<T, U>, Error> {
         assert!(LeafNode::<T, U>::get_max_size(leaf_degree) <= BLOCK_SIZE);
         assert!(InternalNode::<T, U>::get_max_size(internal_degree) <= BLOCK_SIZE);
-        Ok(Tree { pager: Pager::new(db_file_path, leaf_degree, internal_degree)? })
+        Ok(BPMap { pager: Pager::new(db_file_path, leaf_degree, internal_degree)? })
     }
 
-    pub fn open(db_file_path: &str) -> Result<Tree<T, U>, Error> {
-        Ok(Tree { pager: Pager::open(db_file_path)? })
+    pub fn open(db_file_path: &str) -> Result<BPMap<T, U>, Error> {
+        Ok(BPMap { pager: Pager::open(db_file_path)? })
     }
 
-
-    fn search_node(&mut self, search_key: &T) -> (u64, Node<T, U>, Vec<(u64, Node<T, U>, usize)>) {
+    fn search_node(&mut self, key: &T) -> (u64, Node<T, U>, Vec<(u64, Node<T, U>, usize)>) {
         let mut curr_page = self.pager.get_root_page();
         let mut curr_node = self.pager.get_page(curr_page);
 
         let mut stack = Vec::new();
 
         while let Node::Internal(node) = curr_node {
-            let mut lo = 0;
-            let mut hi = (node.keys.len() - 1) as isize;
-            while lo <= hi {
-                let mid = lo + ((hi - lo) >> 1);
-                match node.keys[mid as usize] {
-                    None => hi = mid - 1,
-                    Some(ref key) => {
-                        if key <= search_key {
-                            lo = mid + 1;
-                        } else {
-                            hi = mid - 1;
-                        }
-                    }
-                }
-            }
-            let next_page = node.pointers[lo as usize];
-            stack.push((curr_page, Node::Internal(node), lo as usize));
+            let next_index = node.search(key);
+            let next_page = node.pointers[next_index];
+            stack.push((curr_page, Node::Internal(node), next_index));
             curr_page = next_page;
             curr_node = self.pager.get_page(curr_page);
         }
         (curr_page, curr_node, stack)
     }
 
-    pub fn insert(&mut self, key: T, value: U) {
+    pub fn insert(&mut self, key: T, value: U) -> Option<U> {
         let (mut curr_page, mut curr_node, mut stack) = self.search_node(&key);
 
         let mut split_node_entry = None;
         match curr_node {
             Node::Leaf(mut curr_leaf_node) => {
-                if let Some((split_key, split_node)) = curr_leaf_node.insert(Entry { key, value }) {
-                    let split_node_index = self.pager.allocate_node(split_node);
-                    curr_leaf_node.next_leaf = Some(split_node_index);
-                    split_node_entry = Some((split_key, split_node_index));
+                match curr_leaf_node.insert(Entry { key, value }) {
+                    Some(InsertCases::Split { split_key, split_node }) => {
+                        let split_node_index = self.pager.allocate_node(split_node);
+                        curr_leaf_node.next_leaf = Some(split_node_index);
+                        split_node_entry = Some((split_key, split_node_index));
+                        self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
+                    },
+                    Some(InsertCases::Entry(entry)) => {
+                        self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
+                        return Some(entry.value);
+                    },
+                    None => self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node)),
                 }
-                self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
             },
             _ => unreachable!(),
         }
@@ -95,7 +87,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                     self.pager.write_node(curr_page, curr_node);
                 },
                 None => {
-                    let mut new_root = InternalNode::new(self.pager.internal_degree);
+                    let mut new_root = InternalNode::new(self.pager.get_internal_degree());
                     new_root.keys[0] = Some(split_key);
                     new_root.pointers[0] = curr_page;
                     new_root.pointers[1] = split_pointer;
@@ -106,9 +98,12 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                 },
             }
         }
+        let new_len = self.pager.get_len() + 1;
+        self.pager.set_len(new_len);
+        None
     }
 
-    pub fn remove(&mut self, key: &T) -> Option<Entry<T, U>> {
+    pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
         let (curr_page, curr_node, mut stack) = self.search_node(key);
         let mut delete_entry = None;
         let ret;
@@ -116,7 +111,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
         match curr_node {
             Node::Leaf(mut curr_leaf_node) => {
                 ret = curr_leaf_node.remove(key);
-                if curr_leaf_node.len < (self.pager.leaf_degree + 1) / 2 {
+                if curr_leaf_node.len < (self.pager.get_leaf_degree() + 1) / 2 {
                     if let Some((parent_page, parent_node, curr_index)) = stack.pop() {
                         let mut parent_internal_node = {
                             match parent_node {
@@ -140,7 +135,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                         };
 
                         // merge
-                        if sibling_leaf_node.len == (self.pager.leaf_degree + 1) / 2 {
+                        if sibling_leaf_node.len == (self.pager.get_leaf_degree() + 1) / 2 {
                             if sibling_index == curr_index + 1 {
                                 curr_leaf_node.merge(&mut sibling_leaf_node);
                                 delete_entry = Some((curr_index, parent_page, parent_internal_node));
@@ -176,7 +171,11 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                             self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
                         }
                     }
+                    let new_len = self.pager.get_len() - 1;
+                    self.pager.set_len(new_len);
                 } else if ret.is_some() {
+                    let new_len = self.pager.get_len() - 1;
+                    self.pager.set_len(new_len);
                     self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
                 }
             },
@@ -187,7 +186,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
             delete_entry = None;
             curr_internal_node.remove_at(delete_index, true);
 
-            if curr_internal_node.len + 1 < (self.pager.internal_degree + 1) / 2 {
+            if curr_internal_node.len + 1 < (self.pager.get_internal_degree() + 1) / 2 {
                 if let Some((parent_page, parent_node, curr_index)) = stack.pop() {
                     let mut parent_internal_node = {
                         match parent_node {
@@ -210,7 +209,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                         }
                     };
 
-                    if sibling_internal_node.len + 1 == (self.pager.internal_degree + 1) / 2 {
+                    if sibling_internal_node.len + 1 == (self.pager.get_internal_degree() + 1) / 2 {
                         if sibling_index == curr_index + 1 {
                             let parent_key = match parent_internal_node.keys[curr_index] {
                                 Some(ref key) => key.clone(),
@@ -257,13 +256,82 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
                 } else if curr_internal_node.len == 0 {
                     self.pager.set_root_page(curr_internal_node.pointers[0]);
                     self.pager.deallocate_node(curr_page);
+                } else {
+                    self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
                 }
             } else {
                 self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
             }
         }
+        ret.map(|entry| (entry.key, entry.value))
+    }
 
-        ret
+    pub fn contains_key(&mut self, key: &T) -> bool {
+        self.get(key).is_some()
+    }
+
+    pub fn get(&mut self, key: &T) -> Option<U> {
+        let (_, curr_node, _) = self.search_node(key);
+        match curr_node {
+            Node::Leaf(mut curr_leaf_node) =>{
+                curr_leaf_node.search(key).and_then(|index| {
+                    match mem::replace(&mut curr_leaf_node.entries[index], None) {
+                        Some(entry) => Some(entry.value),
+                        _ => unreachable!(),
+                    }
+                })
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.pager.get_len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pager.get_len() == 0
+    }
+
+    pub fn clear(&mut self) {
+        self.pager.clear();
+    }
+
+    pub fn min(&mut self) -> Option<T> {
+        let mut curr_page = self.pager.get_root_page();
+        let mut curr_node = self.pager.get_page(curr_page);
+
+        while let Node::Internal(curr_internal_node) = curr_node {
+            curr_page = curr_internal_node.pointers[0];
+            curr_node = self.pager.get_page(curr_page);
+        }
+
+        match curr_node {
+            Node::Leaf(mut curr_leaf_node) => mem::replace(&mut curr_leaf_node.entries[0], None).map(|entry| entry.key),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn max(&mut self) -> Option<T> {
+        let mut curr_page = self.pager.get_root_page();
+        let mut curr_node = self.pager.get_page(curr_page);
+
+        while let Node::Internal(curr_internal_node) = curr_node {
+            curr_page = curr_internal_node.pointers[curr_internal_node.len];
+            curr_node = self.pager.get_page(curr_page);
+        }
+
+        match curr_node {
+            Node::Leaf(mut curr_leaf_node) => {
+                if curr_leaf_node.len == 0 {
+                    None
+                } else {
+                    let index = curr_leaf_node.len - 1;
+                    mem::replace(&mut curr_leaf_node.entries[index], None).map(|entry| entry.key)
+                }
+            },
+            _ => unreachable!(),
+        }
     }
 
     pub fn print(&mut self) {
@@ -273,13 +341,12 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
         while let Some(curr_page) = queue.pop_front() {
             let curr_node = self.pager.get_page(curr_page);
             println!("{:?} {:?}", curr_node, curr_page);
-            println!("{:?} {:?}", self.pager.internal_degree, self.pager.leaf_degree);
             if let Node::Internal(InternalNode { keys, pointers, .. }) = curr_node {
                 let mut index = 0;
                 while let Some(_) = keys[index] {
                     queue.push_back(pointers[index]);
                     index += 1;
-                    if index == self.pager.internal_degree {
+                    if index == self.pager.get_internal_degree() {
                         break;
                     }
                 }
@@ -287,4 +354,9 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
             }
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+
 }
