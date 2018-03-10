@@ -1,6 +1,5 @@
 use entry::Entry;
 use std::cmp::{self, Ordering};
-use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem;
 
@@ -8,15 +7,15 @@ const U64_SIZE: usize = mem::size_of::<u64>() as usize;
 const OPT_U64_SIZE: usize = mem::size_of::<Option<u64>>() as usize;
 pub const BLOCK_SIZE: usize = 4096;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct InternalNode<T: Ord + Clone + Debug, U: Debug> {
+#[derive(Serialize, Deserialize)]
+pub struct InternalNode<T: Ord + Clone, U> {
     pub len: usize,
     pub keys: Box<[Option<T>]>,
     pub pointers: Box<[u64]>,
     pub _marker: PhantomData<U>,
 }
 
-impl<T: Ord + Clone + Debug, U: Debug> InternalNode<T, U> {
+impl<T: Ord + Clone, U> InternalNode<T, U> {
 
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
@@ -149,15 +148,14 @@ impl<T: Ord + Clone + Debug, U: Debug> InternalNode<T, U> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LeafNode<T: Ord + Clone + Debug, U: Debug> {
+#[derive(Serialize, Deserialize)]
+pub struct LeafNode<T: Ord + Clone, U> {
     pub len: usize,
     pub entries: Box<[Option<Entry<T, U>>]>,
     pub next_leaf: Option<u64>,
 }
 
-#[derive(Debug)]
-pub enum InsertCases<T: Ord + Clone + Debug, U: Debug> {
+pub enum InsertCases<T: Ord + Clone, U> {
     Split {
         split_key: T,
         split_node: Node<T, U>
@@ -165,7 +163,7 @@ pub enum InsertCases<T: Ord + Clone + Debug, U: Debug> {
     Entry(Entry<T, U>),
 }
 
-impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
+impl<T: Ord + Clone, U> LeafNode<T, U> {
 
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
@@ -307,14 +305,14 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub enum Node<T: Ord + Clone + Debug, U: Debug> {
+#[derive(Serialize, Deserialize)]
+pub enum Node<T: Ord + Clone, U> {
     Internal(InternalNode<T, U>),
     Leaf(LeafNode<T, U>),
     Free(Option<u64>),
 }
 
-impl<T: Ord + Clone + Debug, U: Debug> Node<T, U> {
+impl<T: Ord + Clone, U> Node<T, U> {
     #[inline]
     pub fn get_max_size(leaf_degree: usize, internal_degree: usize) -> usize {
         cmp::max(

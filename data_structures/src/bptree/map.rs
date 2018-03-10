@@ -5,7 +5,6 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::collections::VecDeque;
 use std::io::Error;
-use std::fmt::Debug;
 use std::mem;
 
 /// An ordered map implemented by an on-disk B+ tree.
@@ -37,11 +36,11 @@ use std::mem;
 /// # }
 /// # foo();
 /// ```
-pub struct BPMap<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> {
+pub struct BPMap<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOwned> {
     pager: Pager<T, U>,
 }
 
-impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> BPMap<T, U> {
+impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOwned> BPMap<T, U> {
     /// Constructs a new, empty `BPMap<T, U>` and creates a file for data persistence.
     ///
     /// # Examples
@@ -488,7 +487,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
         self.pager.clear();
     }
 
-    /// Returns the minimum key of the map. Returns `None` if the bptree is empty.
+    /// Returns the minimum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
     /// ```
@@ -520,7 +519,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
         }
     }
 
-    /// Returns the maximum key of the map. Returns `None` if the bptree is empty.
+    /// Returns the maximum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
     /// ```
@@ -599,30 +598,9 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
             _ => unreachable!(),
         }
     }
-
-    pub fn print(&mut self) {
-        let curr_page = self.pager.get_root_page();
-        let mut queue = VecDeque::new();
-        queue.push_back(curr_page);
-        while let Some(curr_page) = queue.pop_front() {
-            let curr_node = self.pager.get_page(curr_page);
-            println!("{:?} {:?}", curr_node, curr_page);
-            if let Node::Internal(InternalNode { keys, pointers, .. }) = curr_node {
-                let mut index = 0;
-                while let Some(_) = keys[index] {
-                    queue.push_back(pointers[index]);
-                    index += 1;
-                    if index == self.pager.get_internal_degree() {
-                        break;
-                    }
-                }
-                queue.push_back(pointers[index]);
-            }
-        }
-    }
 }
 
-impl<'a, T: 'a + Ord + Clone + Serialize + DeserializeOwned + Debug, U: 'a + Serialize + DeserializeOwned + Debug> IntoIterator for &'a mut BPMap<T, U> {
+impl<'a, T: 'a + Ord + Clone + Serialize + DeserializeOwned, U: 'a + Serialize + DeserializeOwned> IntoIterator for &'a mut BPMap<T, U> {
     type Item = (T, U);
     type IntoIter = BPMapIterMut<'a, T, U>;
 
@@ -634,13 +612,13 @@ impl<'a, T: 'a + Ord + Clone + Serialize + DeserializeOwned + Debug, U: 'a + Ser
 /// A mutable iterator for `BPMap<T, U>`
 ///
 /// This iterator traverses the elements of the map in ascending order and yields owned entries.
-pub struct BPMapIterMut<'a, T: 'a + Ord + Clone + Serialize + DeserializeOwned + Debug, U: 'a + Serialize + DeserializeOwned + Debug> {
+pub struct BPMapIterMut<'a, T: 'a + Ord + Clone + Serialize + DeserializeOwned, U: 'a + Serialize + DeserializeOwned> {
     pager: &'a mut Pager<T, U>,
     curr_node: LeafNode<T, U>,
     curr_index: usize,
 }
 
-impl<'a, T: 'a + Ord + Clone + Serialize + DeserializeOwned + Debug, U: 'a + Serialize + DeserializeOwned + Debug> Iterator for BPMapIterMut<'a, T, U> {
+impl<'a, T: 'a + Ord + Clone + Serialize + DeserializeOwned, U: 'a + Serialize + DeserializeOwned> Iterator for BPMapIterMut<'a, T, U> {
     type Item = (T, U);
 
     fn next(&mut self) -> Option<Self::Item> {

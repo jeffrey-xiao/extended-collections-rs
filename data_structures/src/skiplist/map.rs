@@ -449,7 +449,7 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
-    /// Returns the minimum key of the map. Returns `None` if the skiplist is empty.
+    /// Returns the minimum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
     /// ```
@@ -471,7 +471,7 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
-    /// Returns the maximum key of the map. Returns `None` if the skiplist is empty.
+    /// Returns the maximum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
     /// ```

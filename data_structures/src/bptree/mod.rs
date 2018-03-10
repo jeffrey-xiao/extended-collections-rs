@@ -10,8 +10,8 @@ macro_rules! init_array(
     )
 );
 
-pub mod map;
-pub mod node;
-pub mod pager;
+mod map;
+mod node;
+mod pager;
 
 pub use self::map::BPMap;

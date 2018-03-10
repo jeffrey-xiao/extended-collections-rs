@@ -18,13 +18,13 @@ struct Metadata {
     free_page: Option<u64>,
 }
 
-pub struct Pager<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> {
+pub struct Pager<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOwned> {
     db_file: File,
     metadata: Metadata,
     _marker: PhantomData<(T, U)>,
 }
 
-impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> Pager<T, U> {
+impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOwned> Pager<T, U> {
     pub fn new(file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<Pager<T, U>, Error> {
         let header_size = Self::get_metadata_size();
         let body_size = Node::<T, U>::get_max_size(leaf_degree, internal_degree) as u64;

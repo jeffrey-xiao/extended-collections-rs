@@ -220,7 +220,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         tree::ceil(&self.tree, key).map(|entry| &entry.key)
     }
 
-    /// Returns the minimum key of the map. Returns `None` if the treap is empty.
+    /// Returns the minimum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
     /// ```
@@ -235,7 +235,7 @@ impl<T: Ord, U> TreapMap<T, U> {
         tree::min(&self.tree).map(|entry| &entry.key)
     }
 
-    /// Returns the maximum key of the map. Returns `None` if the treap is empty.
+    /// Returns the maximum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
     /// ```
