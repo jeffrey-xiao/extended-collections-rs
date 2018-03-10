@@ -356,7 +356,6 @@ impl<'a, T: 'a> Iterator for TreapListIter<'a, T> {
     }
 }
 
-
 /// A mutable iterator for `TreapList<T>`
 ///
 /// This iterator traverses the elements of the list in-order and yields mutable references.

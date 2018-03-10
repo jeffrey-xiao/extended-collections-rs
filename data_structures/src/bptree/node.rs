@@ -249,10 +249,16 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
     }
 
     pub fn remove(&mut self, key: &T) -> Option<Entry<T, U>> {
+        let mut removed = false;
         for index in 0..self.len {
             let swap = {
                 if let Some(ref entry) = self.entries[index] {
-                    *key == entry.key && index + 1 < self.len
+                    if *key == entry.key {
+                        removed = true;
+                        index + 1 < self.len
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 }
@@ -263,8 +269,12 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
             }
         }
 
-        self.len -= 1;
-        self.entries[self.len].take()
+        if removed {
+            self.len -= 1;
+            self.entries[self.len].take()
+        } else {
+            None
+        }
     }
 
     pub fn search(&self, search_key: &T) -> Option<usize> {
@@ -285,7 +295,6 @@ impl<T: Ord + Clone + Debug, U: Debug> LeafNode<T, U> {
         }
         None
     }
-
 
     pub fn merge(&mut self, node: &mut LeafNode<T, U>) {
         assert!(self.len + node.len <= self.entries.len());

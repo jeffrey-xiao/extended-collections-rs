@@ -377,42 +377,6 @@ impl<T: Ord, U> SkipMap<T, U> {
         }
     }
 
-    /// Returns a key in the map that is greater than or equal to a particular key. Returns `None`
-    /// if such a key does not exist.
-    ///
-    /// # Examples
-    /// ```
-    /// use data_structures::skiplist::SkipMap;
-    ///
-    /// let mut map = SkipMap::new();
-    /// map.insert(1, 1);
-    /// assert_eq!(map.ceil(&0), Some(&1));
-    /// assert_eq!(map.ceil(&2), None);
-    /// ```
-    pub fn ceil(&self, key: &T) -> Option<&T> {
-        let mut curr_height = self.get_starting_height();
-        let mut curr_node = &self.head;
-
-        unsafe {
-            loop {
-                let mut next_node = (**curr_node).get_pointer(curr_height);
-                while !next_node.is_null() && (**next_node).entry.key < *key {
-                    curr_node = mem::replace(&mut next_node, (**next_node).get_pointer(curr_height));
-                }
-
-                if curr_height == 0 {
-                    if next_node.is_null() {
-                        return None
-                    } else {
-                        return Some(&(**next_node).entry.key)
-                    }
-                }
-
-                curr_height -= 1;
-            }
-        }
-    }
-
     /// Returns a key in the map that is less than or equal to a particular key. Returns `None` if
     /// such a key does not exist.
     ///
@@ -441,6 +405,42 @@ impl<T: Ord, U> SkipMap<T, U> {
                         return None;
                     } else {
                         return Some(&(**curr_node).entry.key);
+                    }
+                }
+
+                curr_height -= 1;
+            }
+        }
+    }
+
+    /// Returns a key in the map that is greater than or equal to a particular key. Returns `None`
+    /// if such a key does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::skiplist::SkipMap;
+    ///
+    /// let mut map = SkipMap::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.ceil(&0), Some(&1));
+    /// assert_eq!(map.ceil(&2), None);
+    /// ```
+    pub fn ceil(&self, key: &T) -> Option<&T> {
+        let mut curr_height = self.get_starting_height();
+        let mut curr_node = &self.head;
+
+        unsafe {
+            loop {
+                let mut next_node = (**curr_node).get_pointer(curr_height);
+                while !next_node.is_null() && (**next_node).entry.key < *key {
+                    curr_node = mem::replace(&mut next_node, (**next_node).get_pointer(curr_height));
+                }
+
+                if curr_height == 0 {
+                    if next_node.is_null() {
+                        return None
+                    } else {
+                        return Some(&(**next_node).entry.key)
                     }
                 }
 

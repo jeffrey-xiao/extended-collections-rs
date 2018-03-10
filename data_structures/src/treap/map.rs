@@ -188,23 +188,6 @@ impl<T: Ord, U> TreapMap<T, U> {
         self.tree = None;
     }
 
-    /// Returns a key in the map that is greater than or equal to a particular key. Returns `None`
-    /// if such a key does not exist.
-    ///
-    /// # Examples
-    /// ```
-    /// use data_structures::treap::TreapMap;
-    ///
-    /// let mut map = TreapMap::new();
-    /// map.insert(1, 1);
-    /// assert_eq!(map.ceil(&0), Some(&1));
-    /// assert_eq!(map.ceil(&2), None);
-    /// ```
-    pub fn ceil(&self, key: &T) -> Option<&T> {
-        tree::ceil(&self.tree, key).map(|entry| &entry.key)
-    }
-
-
     /// Returns a key in the map that is less than or equal to a particular key. Returns `None` if
     /// such a key does not exist.
     ///
@@ -219,6 +202,22 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// ```
     pub fn floor(&self, key: &T) -> Option<&T> {
         tree::floor(&self.tree, key).map(|entry| &entry.key)
+    }
+
+    /// Returns a key in the map that is greater than or equal to a particular key. Returns `None`
+    /// if such a key does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::treap::TreapMap;
+    ///
+    /// let mut map = TreapMap::new();
+    /// map.insert(1, 1);
+    /// assert_eq!(map.ceil(&0), Some(&1));
+    /// assert_eq!(map.ceil(&2), None);
+    /// ```
+    pub fn ceil(&self, key: &T) -> Option<&T> {
+        tree::ceil(&self.tree, key).map(|entry| &entry.key)
     }
 
     /// Returns the minimum key of the map. Returns `None` if the treap is empty.
@@ -525,7 +524,6 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIter<'a, T, U> {
         })
     }
 }
-
 
 /// A mutable iterator for `TreapMap<T, U>`
 ///

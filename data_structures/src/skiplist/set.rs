@@ -135,6 +135,21 @@ impl<T: Ord> SkipSet<T> {
         self.map.clear();
     }
 
+    /// Returns a key in the set that is less than or equal to a particular key. Returns `None` if
+    /// such a key does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::skiplist::SkipSet;
+    ///
+    /// let mut set = SkipSet::new();
+    /// set.insert(1);
+    /// assert_eq!(set.floor(&0), None);
+    /// assert_eq!(set.floor(&2), Some(&1));
+    /// ```
+    pub fn floor(&self, key: &T) -> Option<&T> {
+        self.map.floor(key)
+    }
 
     /// Returns a key in the set that is greater than or equal to a particular key. Returns `None`
     /// if such a key does not exist.
@@ -150,23 +165,6 @@ impl<T: Ord> SkipSet<T> {
     /// ```
     pub fn ceil(&self, key: &T) -> Option<&T> {
         self.map.ceil(key)
-    }
-
-
-    /// Returns a key in the set that is less than or equal to a particular key. Returns `None` if
-    /// such a key does not exist.
-    ///
-    /// # Examples
-    /// ```
-    /// use data_structures::skiplist::SkipSet;
-    ///
-    /// let mut set = SkipSet::new();
-    /// set.insert(1);
-    /// assert_eq!(set.floor(&0), None);
-    /// assert_eq!(set.floor(&2), Some(&1));
-    /// ```
-    pub fn floor(&self, key: &T) -> Option<&T> {
-        self.map.floor(key)
     }
 
     /// Returns the minimum key of the set. Returns `None` if the set is empty.

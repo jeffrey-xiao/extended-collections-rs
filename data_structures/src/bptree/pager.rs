@@ -25,7 +25,7 @@ pub struct Pager<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Seria
 }
 
 impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + DeserializeOwned + Debug> Pager<T, U> {
-    pub fn new(db_file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<Pager<T, U>, Error> {
+    pub fn new(file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<Pager<T, U>, Error> {
         let header_size = Self::get_metadata_size();
         let body_size = Node::<T, U>::get_max_size(leaf_degree, internal_degree) as u64;
         let metadata = Metadata {
@@ -40,7 +40,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
             .read(true)
             .write(true)
             .create(true)
-            .open(db_file_path)?;
+            .open(file_path)?;
         db_file.set_len(header_size + body_size).unwrap();
         db_file.seek(SeekFrom::Start(0)).unwrap();
         db_file.write(&serialize(&metadata).unwrap()).unwrap();
@@ -56,12 +56,12 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned + Debug, U: Serialize + Deser
         Ok(pager)
     }
 
-    pub fn open(db_file_path: &str) -> Result<Pager<T, U>, Error> {
+    pub fn open(file_path: &str) -> Result<Pager<T, U>, Error> {
         let mut db_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(db_file_path)?;
+            .open(file_path)?;
         db_file.seek(SeekFrom::Start(0)).unwrap();
 
         let mut buffer: Vec<u8> = vec![0; Self::get_metadata_size() as usize];
