@@ -3,7 +3,6 @@ use bptree::pager::Pager;
 use entry::Entry;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use std::collections::VecDeque;
 use std::io::Error;
 use std::mem;
 
@@ -692,6 +691,29 @@ mod tests {
             let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
             assert_eq!(map.min(), None);
             assert_eq!(map.max(), None);
+        }, test_name);
+    }
+
+    #[test]
+    fn test_free_node() {
+        let test_name = "test_free_node";
+        run_test(|| {
+            let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
+            map.insert(1, 1);
+            map.insert(2, 2);
+            map.insert(3, 3);
+            map.insert(4, 4);
+            assert_eq!(map.pager.get_root_page(), 2);
+            map.remove(&1);
+            map.remove(&2);
+            map.remove(&3);
+            map.remove(&4);
+            assert_eq!(map.pager.get_root_page(), 0);
+            map.insert(1, 1);
+            map.insert(2, 2);
+            map.insert(3, 3);
+            map.insert(4, 4);
+            assert_eq!(map.pager.get_root_page(), 1);
         }, test_name);
     }
 

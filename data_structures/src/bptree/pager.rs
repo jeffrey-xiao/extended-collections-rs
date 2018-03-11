@@ -3,7 +3,6 @@ use bptree::node::{LeafNode, Node};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::io::{Error, Read, Seek, SeekFrom, Write};
-use std::fmt::Debug;
 use std::fs::{File, OpenOptions};
 use std::marker::PhantomData;
 use std::mem;
@@ -144,9 +143,9 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
             Some(free_page) => {
                 let offset = self.calculate_page_offset(free_page);
                 let mut buffer: Vec<u8> = vec![0; self.get_node_size() as usize];
-                self.db_file.seek(SeekFrom::Start(offset as u64)).unwrap();
+                self.db_file.seek(SeekFrom::Start(offset)).unwrap();
                 self.db_file.read(buffer.as_mut_slice()).unwrap();
-                self.db_file.seek(SeekFrom::Start(offset as u64)).unwrap();
+                self.db_file.seek(SeekFrom::Start(offset)).unwrap();
                 self.db_file.write(&serialize(&new_node).unwrap()).unwrap();
 
                 match deserialize(buffer.as_slice()).unwrap() {
@@ -163,16 +162,16 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
 
     pub fn deallocate_node(&mut self, index: u64) {
         let offset = self.calculate_page_offset(index);
-        self.db_file.seek(SeekFrom::Start(offset as u64)).unwrap();
+        self.db_file.seek(SeekFrom::Start(offset)).unwrap();
         self.db_file.write(&serialize(&Node::Free::<T, U>(self.metadata.free_page)).unwrap()).unwrap();
-        self.metadata.free_page = Some(offset);
+        self.metadata.free_page = Some(index);
         self.db_file.seek(SeekFrom::Start(0)).unwrap();
         self.db_file.write(&serialize(&self.metadata).unwrap()).unwrap();
     }
 
     pub fn write_node(&mut self, index: u64, node: Node<T, U>) {
         let offset = self.calculate_page_offset(index);
-        self.db_file.seek(SeekFrom::Start(offset as u64)).unwrap();
+        self.db_file.seek(SeekFrom::Start(offset)).unwrap();
         self.db_file.write(&serialize(&node).unwrap()).unwrap();
     }
 
