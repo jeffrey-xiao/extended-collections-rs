@@ -1,6 +1,11 @@
 use std::hash::Hash;
 use util;
 
+/// A node with an associated weight.
+///
+/// The distribution of points to nodes is proportional to the weights of the nodes. For example, a
+/// node with a weight of 3 will receive approximately three times more points than a node with a
+/// weight of 1.
 pub struct Node<'a, T: 'a + Hash + Ord> {
     id: &'a T,
     hash: u64,
