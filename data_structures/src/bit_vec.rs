@@ -40,12 +40,20 @@ pub struct BitVec {
 impl BitVec {
     #[inline]
     fn get_block_bit_count() -> usize {
-        mem::size_of::<u8>()
+        mem::size_of::<u8>() * 8
     }
 
     fn get_block_count(len: usize) -> usize {
         let block_bit_count = Self::get_block_bit_count();
         (len + block_bit_count - 1) / block_bit_count
+    }
+
+    fn reverse_byte(byte: u8) -> u8 {
+        let mut ret = 0;
+        for i in 0..Self::get_block_bit_count() {
+            ret |= (byte >> i & 1) << (Self::get_block_bit_count() - i - 1);
+        }
+        ret
     }
 
     fn clear_extra_bits(&mut self) {
@@ -85,11 +93,33 @@ impl BitVec {
     /// ```
     pub fn from_elem(len: usize, bit: bool) -> Self {
         let mut ret = BitVec {
-            blocks: vec![if bit { 1 } else { 0 }; Self::get_block_count(len)],
+            blocks: vec![if bit { <u8>::max_value() } else { 0 }; Self::get_block_count(len)],
             len,
         };
         ret.clear_extra_bits();
         ret
+    }
+
+    /// Constructs a `BitVec` from a byte-vector. Each byte becomes eight bits, with the most
+    /// signficant bits of each byte coming first.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bit_vec::BitVec;
+    ///
+    /// let bv = BitVec::from_bytes(&[0b11010000]);
+    /// assert_eq!(
+    ///     bv.iter().collect::<Vec<bool>>(),
+    ///     vec![true, true, false, true, false, false, false, false],
+    /// );
+    /// ```
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let len = bytes.len() * Self::get_block_bit_count();
+        println!("{:?} {:?}", bytes.len(), Self::get_block_bit_count());
+        BitVec {
+            blocks: bytes.to_vec().iter().map(|byte| Self::reverse_byte(*byte)).collect(),
+            len,
+        }
     }
 
     /// Constructs a new, empty `BitVec` with a certain capacity.
@@ -376,7 +406,7 @@ impl BitVec {
     /// let mut bv = BitVec::from_elem(5, false);
     /// bv.reserve_exact(10);
     /// assert_eq!(bv.len(), 5);
-    /// assert!(bv.capacity() == 15);
+    /// assert_eq!(bv.capacity(), 16);
     /// ```
     pub fn reserve_exact(&mut self, additional: usize) {
         let desired_cap = self.len + additional;
@@ -498,7 +528,7 @@ impl BitVec {
     /// let mut bv = BitVec::new(0);
     ///
     /// bv.reserve_exact(10);
-    /// assert_eq!(bv.capacity(), 10);
+    /// assert_eq!(bv.capacity(), 16);
     /// ```
     pub fn capacity(&self) -> usize {
         self.blocks.capacity() * Self::get_block_bit_count()
