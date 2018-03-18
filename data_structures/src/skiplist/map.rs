@@ -759,7 +759,7 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// let mut iterator = map.iter();
     /// assert_eq!(iterator.next(), Some((&1, &1)));
-    /// assert_eq!(iterator.next(), Some((&2, &2)));.
+    /// assert_eq!(iterator.next(), Some((&2, &2)));
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter(&self) -> SkipMapIter<T, U> {
