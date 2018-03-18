@@ -107,7 +107,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// assert_eq!(map.contains_key(&1), true);
     /// ```
     pub fn contains_key(&self, key: &T) -> bool {
-        tree::contains(&self.tree, key)
+        self.get(key).is_some()
     }
 
     /// Returns an immutable reference to the value associated with a particular key. It will

@@ -13,4 +13,5 @@ pub mod arena;
 pub mod bptree;
 pub mod skiplist;
 pub mod treap;
+pub mod radix;
 pub mod sync;

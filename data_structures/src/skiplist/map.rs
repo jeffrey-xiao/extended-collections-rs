@@ -229,28 +229,7 @@ impl<T: Ord, U> SkipMap<T, U> {
     /// assert_eq!(map.contains_key(&1), true);
     /// ```
     pub fn contains_key(&self, key: &T) -> bool {
-        let mut curr_height = self.get_starting_height();
-        let mut curr_node = &self.head;
-
-        unsafe {
-            loop {
-                let mut next_node = (**curr_node).get_pointer(curr_height);
-                while !next_node.is_null() && (**next_node).entry.key < *key {
-                    curr_node = mem::replace(&mut next_node, (**next_node).get_pointer(curr_height));
-                }
-
-                if !next_node.is_null() && (**next_node).entry.key == *key {
-                    return true;
-                }
-
-                if curr_height == 0 {
-                    break;
-                }
-
-                curr_height -= 1;
-            }
-            false
-        }
+        self.get(key).is_some()
     }
 
     /// Returns an immutable reference to the value associated with a particular key. It will
