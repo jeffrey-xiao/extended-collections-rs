@@ -28,11 +28,12 @@ fn main () {
     println!("{:?}", root.get(&get_bytes("ru")));
     println!("{:?}", root.get(&get_bytes("ra")));
 
-    for entry in &root {
+    for entry in &mut root {
+        *entry.1 *= 2;
         println!("{:?}", entry);
     }
 
-    for entry in root {
+    for entry in &root {
         println!("{:?}", entry);
     }
 

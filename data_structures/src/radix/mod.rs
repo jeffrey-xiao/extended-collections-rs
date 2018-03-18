@@ -270,6 +270,14 @@ impl<T: Debug> RadixMap<T> {
             stack: Vec::new(),
         }
     }
+
+    pub fn iter_mut(&mut self) -> RadixMapIterMut<T> {
+        RadixMapIterMut {
+            prefix: Vec::new(),
+            current: self.root.as_mut().map(|node| &mut **node),
+            stack: Vec::new(),
+        }
+    }
 }
 
 impl<T: Debug> IntoIterator for RadixMap<T> {
@@ -291,6 +299,15 @@ impl<'a, T: 'a + Debug> IntoIterator for &'a RadixMap<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+impl<'a, T: 'a + Debug> IntoIterator for &'a mut RadixMap<T> {
+    type Item = (Key, &'a mut T);
+    type IntoIter = RadixMapIterMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
@@ -361,6 +378,43 @@ impl<'a, T: 'a + Debug> Iterator for RadixMapIter<'a, T> {
                     let new_len = self.prefix.len() - key_len;
                     self.prefix.split_off(new_len);
                     self.current = next_tree;
+                },
+                None => return None,
+            }
+        }
+    }
+}
+
+/// A mutable iterator for `RadixMap<T>`.
+///
+/// This iterator traverse the elements of the map in lexographic order and yields mutable
+/// references.
+pub struct RadixMapIterMut<'a, T: 'a + Debug> {
+    prefix: Key,
+    current: Option<&'a mut Node<T>>,
+    stack: Vec<(&'a mut Tree<T>, usize)>,
+}
+
+impl<'a, T: 'a + Debug> Iterator for RadixMapIterMut<'a, T> {
+    type Item = (Key, &'a mut T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            while let Some(node) = self.current.take() {
+                let Node { ref key, ref mut value, ref mut next, ref mut child } = *node;
+                let key_len = key.len();
+                self.prefix.extend_from_slice(&mut key.as_slice());
+                self.current = child.as_mut().map(|node| &mut **node);
+                self.stack.push((next, key_len));
+                if value.is_some() {
+                    return value.as_mut().map(|value| (self.prefix.clone(), value));
+                }
+            }
+            match self.stack.pop() {
+                Some((next_tree, key_len)) => {
+                    let new_len = self.prefix.len() - key_len;
+                    self.prefix.split_off(new_len);
+                    self.current = next_tree.as_mut().map(|node| &mut **node);
                 },
                 None => return None,
             }
