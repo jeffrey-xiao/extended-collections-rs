@@ -353,7 +353,7 @@ impl<T: Ord> IntoIterator for TreapSet<T> {
     type IntoIter = TreapSetIntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        TreapSetIntoIter {
+        Self::IntoIter {
             map_iter: self.map.into_iter(),
         }
     }
@@ -368,7 +368,7 @@ impl<'a, T: 'a + Ord> IntoIterator for &'a TreapSet<T> {
     }
 }
 
-/// An owning iterator for `TreapSet<T>`
+/// An owning iterator for `TreapSet<T>`.
 ///
 /// This iterator traverses the elements of the set in-order and yields owned keys.
 pub struct TreapSetIntoIter<T: Ord> {
@@ -383,7 +383,7 @@ impl<T: Ord> Iterator for TreapSetIntoIter<T> {
     }
 }
 
-/// An iterator for `TreapSet<T>`
+/// An iterator for `TreapSet<T>`.
 ///
 /// This iterator traverses the elements of the set in-order and yields immutable references.
 pub struct TreapSetIter<'a, T: 'a + Ord> {

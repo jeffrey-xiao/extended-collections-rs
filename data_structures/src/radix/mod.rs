@@ -2,16 +2,18 @@ use std::mem;
 use std::fmt::Debug;
 use std::cmp::Ordering;
 
+pub type Key = Vec<u8>;
+
 #[derive(Debug)]
 pub struct Node<T> {
-    key: Vec<u8>,
+    key: Key,
     value: Option<T>,
     next: Tree<T>,
     child: Tree<T>,
 }
 
 impl<T> Node<T> {
-    pub fn new(key: Vec<u8>, value: Option<T>) -> Self {
+    pub fn new(key: Key, value: Option<T>) -> Self {
         Self {
             key,
             value: value,
@@ -76,7 +78,7 @@ impl<T> Node<T> {
 
 pub type Tree<T> = Option<Box<Node<T>>>;
 
-pub fn insert<T>(tree: &mut Tree<T>, mut key: Vec<u8>, value: T) -> Option<T> {
+pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<T> {
     let node = match *tree {
         Some(ref mut node) => node,
         _ => unreachable!(),
@@ -124,7 +126,7 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: Vec<u8>, value: T) -> Option<T> {
     }
 }
 
-pub fn remove<T: Debug>(tree: &mut Tree<T>, key: &Vec<u8>, mut index: usize) -> Option<(Vec<u8>, T)> {
+pub fn remove<T: Debug>(tree: &mut Tree<T>, key: &Key, mut index: usize) -> Option<(Key, T)> {
     let mut next_tree = None;
     let ret;
     {
@@ -166,7 +168,7 @@ pub fn remove<T: Debug>(tree: &mut Tree<T>, key: &Vec<u8>, mut index: usize) -> 
     ret
 }
 
-pub fn get<'a, T: Debug>(tree: &'a Tree<T>, key: &Vec<u8>, mut index: usize) -> Option<&'a T> {
+pub fn get<'a, T: Debug>(tree: &'a Tree<T>, key: &Key, mut index: usize) -> Option<&'a T> {
     let node = match *tree {
         Some(ref node) => node,
         None => return None,
@@ -189,7 +191,7 @@ pub fn get<'a, T: Debug>(tree: &'a Tree<T>, key: &Vec<u8>, mut index: usize) -> 
     }
 }
 
-pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &Vec<u8>, mut index: usize) -> Option<&'a mut T> {
+pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &Key, mut index: usize) -> Option<&'a mut T> {
     let node = match *tree {
         Some(ref mut node) => node,
         None => return None,
@@ -213,12 +215,12 @@ pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &Vec<u8>, mut index: usize) ->
 }
 
 #[derive(Debug)]
-pub struct Map<T: Debug> {
+pub struct RadixMap<T: Debug> {
     root: Node<T>,
     len: usize,
 }
 
-impl<T: Debug> Map<T> {
+impl<T: Debug> RadixMap<T> {
     pub fn new() -> Self {
         Self {
             root: Node::new(Vec::new(), None),
@@ -226,20 +228,20 @@ impl<T: Debug> Map<T> {
         }
     }
 
-    pub fn insert(&mut self, key: Vec<u8>, value: T) -> Option<T> {
+    pub fn insert(&mut self, key: Key, value: T) -> Option<T> {
+        self.len += 1;
         if self.root.contains(key[0]) {
             insert(self.root.get_mut(key[0]), key, value).and_then(|value| {
-                self.len += 1;
+                self.len -= 1;
                 Some(value)
             })
         } else {
             self.root.insert_child(Node::new(key, Some(value)));
-            self.len += 1;
             None
         }
     }
 
-    pub fn remove(&mut self, key: &Vec<u8>) -> Option<(Vec<u8>, T)> {
+    pub fn remove(&mut self, key: &Key) -> Option<(Key, T)> {
         if self.root.contains(key[0]) {
             remove(self.root.get_mut(key[0]), key, 0).and_then(|value| {
                 self.len -= 1;
@@ -250,15 +252,15 @@ impl<T: Debug> Map<T> {
         }
     }
 
-    pub fn contains_key(&self, key: &Vec<u8>) -> bool {
+    pub fn contains_key(&self, key: &Key) -> bool {
         self.get(key).is_some()
     }
 
-    pub fn get(&self, key: &Vec<u8>) -> Option<&T> {
+    pub fn get(&self, key: &Key) -> Option<&T> {
         get(self.root.get(key[0]), key, 0)
     }
 
-    pub fn get_mut(&mut self, key: &Vec<u8>) -> Option<&mut T> {
+    pub fn get_mut(&mut self, key: &Key) -> Option<&mut T> {
         get_mut(self.root.get_mut(key[0]), key, 0)
     }
 
@@ -274,15 +276,65 @@ impl<T: Debug> Map<T> {
         self.root.child = None;
     }
 
-    pub fn ceil(&self, key: &Vec<u8>) -> Option<Vec<u8>> {
+    pub fn ceil(&self, key: &Key) -> Option<Key> {
         None
     }
 
-    pub fn min(&self) -> Option<Vec<u8>> {
+    pub fn min(&self) -> Option<Key> {
         None
     }
 
-    pub fn max(&self) -> Option<Vec<u8>> {
+    pub fn max(&self) -> Option<Key> {
         None
+    }
+}
+
+impl<T: Debug> IntoIterator for RadixMap<T> {
+    type Item = (Key, T);
+    type IntoIter = RadixMapIntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Self::IntoIter {
+            prefix: Vec::new(),
+            current: Some(Box::new(self.root)),
+            stack: Vec::new(),
+        }
+    }
+}
+
+/// An owning iterator for `RadixMap<T>`.
+///
+/// This iterator traverse the elements of the map and yields owned entries.
+pub struct RadixMapIntoIter<T: Debug> {
+    prefix: Key,
+    current: Tree<T>,
+    stack: Vec<(Tree<T>, usize)>,
+}
+
+impl<T: Debug> Iterator for RadixMapIntoIter<T> {
+    type Item = (Key, T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            while let Some(node) = self.current.take() {
+                let unboxed_node = *node;
+                let Node { mut key, value, next, mut child } = unboxed_node;
+                let key_len = key.len();
+                self.prefix.append(&mut key);
+                self.current = child.take();
+                self.stack.push((next, key_len));
+                if value.is_some() {
+                    return value.map(|value| (self.prefix.clone(), value));
+                }
+            }
+            match self.stack.pop() {
+                Some((next_tree, key_len)) => {
+                    let new_len = self.prefix.len() - key_len;
+                    self.prefix.split_off(new_len);
+                    self.current = next_tree;
+                },
+                None => return None,
+            }
+        }
     }
 }

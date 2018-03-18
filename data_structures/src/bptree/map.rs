@@ -608,7 +608,7 @@ impl<'a, T: 'a + Ord + Clone + Serialize + DeserializeOwned, U: 'a + Serialize +
     }
 }
 
-/// A mutable iterator for `BPMap<T, U>`
+/// A mutable iterator for `BPMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in ascending order and yields owned entries.
 pub struct BPMapIterMut<'a, T: 'a + Ord + Clone + Serialize + DeserializeOwned, U: 'a + Serialize + DeserializeOwned> {

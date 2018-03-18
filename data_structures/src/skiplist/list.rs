@@ -449,7 +449,7 @@ impl<T> IntoIterator for SkipList<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         unsafe {
-            let ret = SkipListIntoIter { current: (*self.head).links.get_unchecked_mut(0).next };
+            let ret = Self::IntoIter { current: (*self.head).links.get_unchecked_mut(0).next };
             ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
             ret
         }
@@ -474,7 +474,7 @@ impl<'a, T: 'a> IntoIterator for &'a mut SkipList<T> {
     }
 }
 
-/// An owning iterator for `SkipList<T>`
+/// An owning iterator for `SkipList<T>`.
 ///
 /// This iterator traverses the elements of the list and yields owned entries.
 pub struct SkipListIntoIter<T> {
@@ -508,7 +508,7 @@ impl<T> Drop for SkipListIntoIter<T> {
     }
 }
 
-/// An iterator for `SkipList<T>`
+/// An iterator for `SkipList<T>`.
 ///
 /// This iterator traverses the elements of the list in-order and yields immutable references.
 pub struct SkipListIter<'a, T: 'a> {
@@ -531,7 +531,7 @@ impl<'a, T: 'a> Iterator for SkipListIter<'a, T> {
     }
 }
 
-/// A mutable iterator for `SkipList<T>`
+/// A mutable iterator for `SkipList<T>`.
 ///
 /// This iterator traverses the elements of the list in-order and yields mutable references.
 pub struct SkipListIterMut<'a, T: 'a> {

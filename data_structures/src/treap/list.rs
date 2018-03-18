@@ -283,7 +283,7 @@ impl<T> IntoIterator for TreapList<T> {
     type IntoIter = TreapListIntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        TreapListIntoIter {
+        Self::IntoIter {
             current: self.tree,
             stack: Vec::new(),
         }
@@ -308,7 +308,7 @@ impl<'a, T: 'a> IntoIterator for &'a mut TreapList<T> {
     }
 }
 
-/// An owning iterator for `TreapList<T>`
+/// An owning iterator for `TreapList<T>`.
 ///
 /// This iterator traverses the elements of the list and yields owned entries.
 pub struct TreapListIntoIter<T> {
@@ -332,7 +332,7 @@ impl<T> Iterator for TreapListIntoIter<T> {
     }
 }
 
-/// An iterator for `TreapList<T>`
+/// An iterator for `TreapList<T>`.
 ///
 /// This iterator traverses the elements of the list in-order and yields immutable references.
 pub struct TreapListIter<'a, T: 'a> {
@@ -356,7 +356,7 @@ impl<'a, T: 'a> Iterator for TreapListIter<'a, T> {
     }
 }
 
-/// A mutable iterator for `TreapList<T>`
+/// A mutable iterator for `TreapList<T>`.
 ///
 /// This iterator traverses the elements of the list in-order and yields mutable references.
 pub struct TreapListIterMut<'a, T: 'a> {

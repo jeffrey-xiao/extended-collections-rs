@@ -759,7 +759,7 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// let mut iterator = map.iter();
     /// assert_eq!(iterator.next(), Some((&1, &1)));
-    /// assert_eq!(iterator.next(), Some((&2, &2)));
+    /// assert_eq!(iterator.next(), Some((&2, &2)));.
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter(&self) -> SkipMapIter<T, U> {
@@ -808,7 +808,7 @@ impl<T: Ord, U> IntoIterator for SkipMap<T, U> {
 
     fn into_iter(self) -> Self::IntoIter {
         unsafe {
-            let ret = SkipMapIntoIter { current: *(*self.head).links.get_unchecked_mut(0) };
+            let ret = Self::IntoIter { current: *(*self.head).links.get_unchecked_mut(0) };
             ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
             ret
         }
@@ -833,7 +833,7 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut SkipMap<T, U> {
     }
 }
 
-/// An owning iterator for `SkipMap<T, U>`
+/// An owning iterator for `SkipMap<T, U>`.
 ///
 /// This iterator traverses the elements of a map in ascending order and yields owned entries.
 pub struct SkipMapIntoIter<T: Ord, U> {
@@ -867,7 +867,7 @@ impl<T: Ord, U> Drop for SkipMapIntoIter<T, U> {
     }
 }
 
-/// An iterator for `SkipMap<T, U>`
+/// An iterator for `SkipMap<T, U>`.
 ///
 /// This iterator traverses the elements of a map in ascending order and yields immutable
 /// references.
@@ -891,7 +891,7 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for SkipMapIter<'a, T, U> {
     }
 }
 
-/// A mutable iterator for `SkipMap<T, U>`
+/// A mutable iterator for `SkipMap<T, U>`.
 ///
 /// This iterator traverses the elements of a map in ascending order and yields mutable references.
 pub struct SkipMapIterMut<'a, T: 'a + Ord, U: 'a> {
