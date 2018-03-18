@@ -15,7 +15,7 @@ fn main () {
     root.insert(get_bytes("rubicon"), 6);
     root.insert(get_bytes("rubicundus"), 7);
     root.insert(get_bytes("ru"), 8);
-    // println!("{:#?}", root);
+    root.insert(get_bytes("aa"), 9);
     println!("{:?}", root.get(&get_bytes("romane")));
     { *root.get_mut(&get_bytes("romane")).unwrap() += 1; }
     println!("{:?}", root.get(&get_bytes("romane")));
@@ -28,17 +28,22 @@ fn main () {
     println!("{:?}", root.get(&get_bytes("ru")));
     println!("{:?}", root.get(&get_bytes("ra")));
 
+    for entry in &root {
+        println!("{:?}", entry);
+    }
+
     for entry in root {
         println!("{:?}", entry);
     }
 
-    // println!("{:?}", root.remove(&get_bytes("romane")));
-    // println!("{:?}", root.remove(&get_bytes("romulus")));
-    // println!("{:?}", root.remove(&get_bytes("romanus")));
-    // println!("{:?}", root.remove(&get_bytes("rubens")));
-    // println!("{:?}", root.remove(&get_bytes("rubicon")));
-    // println!("{:?}", root.remove(&get_bytes("ruber")));
-    // println!("{:?}", root.remove(&get_bytes("rubicundus")));
-    // println!("{:?}", root.remove(&get_bytes("ru")));
-    // println!("{:#?}", root);
+    // // println!("{:?}", root.remove(&get_bytes("romane")));
+    // // println!("{:?}", root.remove(&get_bytes("romulus")));
+    // // println!("{:?}", root.remove(&get_bytes("romanus")));
+    // // println!("{:?}", root.remove(&get_bytes("rubens")));
+    // // println!("{:?}", root.remove(&get_bytes("rubicon")));
+    // // println!("{:?}", root.remove(&get_bytes("ruber")));
+    // // println!("{:?}", root.remove(&get_bytes("rubicundus")));
+    // // println!("{:#?}", root);
+    // // println!("{:?}", root.remove(&get_bytes("ru")));
+    // // println!("{:#?}", root);
 }
