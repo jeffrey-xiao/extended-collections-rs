@@ -57,7 +57,7 @@ impl BitVec {
     }
 
     fn clear_extra_bits(&mut self) {
-        let extra_bits = self.len() & Self::get_block_bit_count();
+        let extra_bits = self.len() % Self::get_block_bit_count();
         if extra_bits > 0 {
             let mask = (1 << extra_bits) - 1;
             let blocks_len = self.blocks.len();
@@ -115,11 +115,29 @@ impl BitVec {
     /// ```
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let len = bytes.len() * Self::get_block_bit_count();
-        println!("{:?} {:?}", bytes.len(), Self::get_block_bit_count());
         BitVec {
             blocks: bytes.to_vec().iter().map(|byte| Self::reverse_byte(*byte)).collect(),
             len,
         }
+    }
+
+    /// Returns the byte-vector representation of the `BitVec` with the first bit in the `BitVec`
+    /// becoming the high-order bit of the first byte.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bit_vec::BitVec;
+    ///
+    /// let mut bv = BitVec::new(8);
+    ///
+    /// bv.set(0, true);
+    /// bv.set(1, true);
+    /// bv.set(3, true);
+    ///
+    /// assert_eq!(bv.to_bytes(), vec![0b11010000]);
+    /// ```
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.blocks.iter().map(|byte| Self::reverse_byte(*byte)).collect()
     }
 
     /// Constructs a new, empty `BitVec` with a certain capacity.
@@ -134,30 +152,6 @@ impl BitVec {
         BitVec {
             blocks: Vec::with_capacity(Self::get_block_count(len)),
             len,
-        }
-    }
-
-    /// Returns the value at index `index`, or `None` if index is out of bounds.
-    ///
-    /// # Examples
-    /// ```
-    /// use data_structures::bit_vec::BitVec;
-    ///
-    /// let mut bv = BitVec::new(5);
-    /// bv.set(1, true);
-    ///
-    /// assert_eq!(bv.get(0), Some(false));
-    /// assert_eq!(bv.get(1), Some(true));
-    /// ```
-    pub fn get(&self, index: usize) -> Option<bool> {
-        if index >= self.len {
-            None
-        } else {
-            let block_index = index / Self::get_block_bit_count();
-            let bit_index = index % Self::get_block_bit_count();
-            self.blocks.get(block_index).map(|block| {
-                ((block >> bit_index) & 1) != 0
-            })
         }
     }
 
@@ -182,6 +176,30 @@ impl BitVec {
             self.blocks[block_index] |= mask;
         } else {
             self.blocks[block_index] &= !mask;
+        }
+    }
+
+    /// Returns the value at index `index`, or `None` if index is out of bounds.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bit_vec::BitVec;
+    ///
+    /// let mut bv = BitVec::new(5);
+    /// bv.set(1, true);
+    ///
+    /// assert_eq!(bv.get(0), Some(false));
+    /// assert_eq!(bv.get(1), Some(true));
+    /// ```
+    pub fn get(&self, index: usize) -> Option<bool> {
+        if index >= self.len {
+            None
+        } else {
+            let block_index = index / Self::get_block_bit_count();
+            let bit_index = index % Self::get_block_bit_count();
+            self.blocks.get(block_index).map(|block| {
+                ((block >> bit_index) & 1) != 0
+            })
         }
     }
 
@@ -383,9 +401,10 @@ impl BitVec {
     /// use data_structures::bit_vec::BitVec;
     ///
     /// let mut bv = BitVec::from_elem(5, false);
+    ///
     /// bv.reserve(10);
     /// assert_eq!(bv.len(), 5);
-    /// assert!(bv.capacity() >= 15);
+    /// assert!(bv.capacity() >= 16);
     /// ```
     pub fn reserve(&mut self, additional: usize) {
         let desired_cap = self.len + additional;
@@ -603,5 +622,227 @@ impl<'a> Iterator for Blocks<'a> {
 
     fn next(&mut self) -> Option<u8> {
         self.iter.next().cloned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BitVec;
+
+    #[test]
+    fn test_new() {
+        let bv = BitVec::new(5);
+        assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false, false, false, false, false]);
+    }
+
+    #[test]
+    fn test_from_elem() {
+        let bv = BitVec::from_elem(5, true);
+        assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![true, true, true, true, true]);
+    }
+
+    #[test]
+    fn test_from_bytes() {
+        let bv = BitVec::from_bytes(&[0b11010000]);
+        assert_eq!(
+            bv.iter().collect::<Vec<bool>>(),
+            vec![true, true, false, true, false, false, false, false],
+        );
+    }
+
+    #[test]
+    fn test_to_bytes() {
+        let mut bv = BitVec::new(8);
+        bv.set(0, true);
+        bv.set(1, true);
+        bv.set(3, true);
+
+        assert_eq!(bv.to_bytes(), vec![0b11010000]);
+    }
+
+    #[test]
+    fn test_with_capacity() {
+        let bv = BitVec::with_capacity(10);
+
+        assert_eq!(bv.capacity(), 16);
+    }
+
+    #[test]
+    fn test_set_get() {
+        let mut bv = BitVec::new(2);
+        bv.set(0, true);
+        bv.set(1, false);
+
+        assert_eq!(bv.get(0), Some(true));
+        assert_eq!(bv.get(1), Some(false));
+        assert_eq!(bv.get(2), None);
+    }
+
+    #[test]
+    fn test_set_all() {
+        let mut bv = BitVec::new(3);
+
+        bv.set_all(true);
+        assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![true, true, true]);
+
+        bv.set_all(false);
+        assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false, false, false]);
+    }
+
+    #[test]
+    fn test_flip() {
+        let mut bv = BitVec::new(1);
+
+        bv.flip(0);
+        assert_eq!(bv.get(0), Some(true));
+
+        bv.flip(0);
+        assert_eq!(bv.get(0), Some(false));
+    }
+
+    #[test]
+    fn test_flip_all() {
+        let mut bv = BitVec::new(3);
+
+        bv.set_all(true);
+        assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![true, true, true]);
+
+        bv.set_all(false);
+        assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false, false, false]);
+    }
+
+    #[test]
+    fn test_union() {
+        let mut bv1 = BitVec::new(4);
+        bv1.set(0, true);
+        bv1.set(1, true);
+
+        let mut bv2 = BitVec::new(4);
+        bv2.set(0, true);
+        bv2.set(2, true);
+
+        bv1.union(&bv2);
+        assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![true, true, true, false]);
+    }
+
+    #[test]
+    fn test_intersection() {
+        let mut bv1 = BitVec::new(4);
+        bv1.set(0, true);
+        bv1.set(1, true);
+
+        let mut bv2 = BitVec::new(4);
+        bv2.set(0, true);
+        bv2.set(2, true);
+
+        bv1.intersection(&bv2);
+        assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![true, false, false, false]);
+    }
+
+    #[test]
+    fn test_difference() {
+        let mut bv1 = BitVec::new(4);
+        bv1.set(0, true);
+        bv1.set(1, true);
+
+        let mut bv2 = BitVec::new(4);
+        bv2.set(0, true);
+        bv2.set(2, true);
+
+        bv1.difference(&bv2);
+        assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![false, true, false, false]);
+    }
+
+    #[test]
+    fn test_symmetric_difference() {
+        let mut bv1 = BitVec::new(4);
+        bv1.set(0, true);
+        bv1.set(1, true);
+
+        let mut bv2 = BitVec::new(4);
+        bv2.set(0, true);
+        bv2.set(2, true);
+
+        bv1.symmetric_difference(&bv2);
+        assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![false, true, true, false]);
+    }
+
+    #[test]
+    fn test_truncate() {
+        let mut bv = BitVec::from_elem(9, false);
+
+        bv.truncate(1);
+        assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false]);
+    }
+
+    #[test]
+    fn test_reserve() {
+        let mut bv = BitVec::from_elem(1, false);
+
+        bv.reserve(9);
+        assert_eq!(bv.len(), 1);
+        assert!(bv.capacity() >= 16);
+    }
+
+    #[test]
+    fn test_reserve_exact() {
+        let mut bv = BitVec::from_elem(1, false);
+
+        bv.reserve_exact(9);
+        assert_eq!(bv.len(), 1);
+        assert!(bv.capacity() == 16);
+    }
+
+    #[test]
+    fn test_pop() {
+        let mut bv = BitVec::from_elem(1, false);
+
+        assert_eq!(bv.pop(), Some(false));
+        assert_eq!(bv.pop(), None);
+    }
+
+    #[test]
+    fn test_push() {
+        let mut bv = BitVec::from_elem(1, false);
+
+        bv.push(true);
+        assert_eq!(bv.get(1), Some(true));
+    }
+
+    #[test]
+    fn test_is_empty() {
+        let mut bv = BitVec::new(0);
+
+        assert!(bv.is_empty());
+
+        bv.push(true);
+        assert!(!bv.is_empty());
+    }
+
+    #[test]
+    fn test_len() {
+        let mut bv = BitVec::new(0);
+
+        assert_eq!(bv.len(), 0);
+
+        bv.push(true);
+        assert_eq!(bv.len(), 1);
+    }
+
+    #[test]
+    fn test_clone() {
+        let bv = BitVec::from_bytes(&[0b11010000]);
+        let mut cloned = BitVec::new(0);
+
+        assert_eq!(
+            bv.clone().iter().collect::<Vec<bool>>(),
+            vec![true, true, false, true, false, false, false, false],
+        );
+
+        cloned.clone_from(&bv);
+        assert_eq!(
+            cloned.iter().collect::<Vec<bool>>(),
+            vec![true, true, false, true, false, false, false, false],
+        );
     }
 }
