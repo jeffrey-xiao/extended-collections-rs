@@ -501,8 +501,8 @@ impl BitVec {
     /// bv.push(true);
     /// assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false, true]);
     /// ```
-    pub fn iter(&self) -> Iter {
-        Iter { bit_vec: self, range: 0..self.len }
+    pub fn iter(&self) -> BitVecIter {
+        BitVecIter { bit_vec: self, range: 0..self.len }
     }
 
     /// Returns `true` if the `BitVec` is empty.
@@ -565,12 +565,12 @@ impl Clone for BitVec {
     }
 }
 
-pub struct Iter<'a> {
+pub struct BitVecIter<'a> {
     bit_vec: &'a BitVec,
     range: Range<usize>,
 }
 
-impl<'a> Iterator for Iter<'a> {
+impl<'a> Iterator for BitVecIter<'a> {
     type Item = bool;
 
     fn next(&mut self) -> Option<bool> {
@@ -580,20 +580,20 @@ impl<'a> Iterator for Iter<'a> {
 
 impl<'a> IntoIterator for &'a BitVec {
     type Item = bool;
-    type IntoIter = Iter<'a>;
+    type IntoIter = BitVecIter<'a>;
 
-    fn into_iter(self) -> Iter<'a> {
+    fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
 
-pub struct IntoIter {
+pub struct BitVecIntoIter {
     bit_vec: BitVec,
     range: Range<usize>,
 }
 
-impl Iterator for IntoIter {
+impl Iterator for BitVecIntoIter {
     type Item = bool;
 
     fn next(&mut self) -> Option<bool> {
@@ -603,11 +603,11 @@ impl Iterator for IntoIter {
 
 impl IntoIterator for BitVec {
     type Item = bool;
-    type IntoIter = IntoIter;
+    type IntoIter = BitVecIntoIter;
 
-    fn into_iter(self) -> IntoIter {
+    fn into_iter(self) -> Self::IntoIter {
         let len = self.len;
-        IntoIter { bit_vec: self, range: 0..len }
+        Self::IntoIter { bit_vec: self, range: 0..len }
     }
 }
 
@@ -704,10 +704,10 @@ mod tests {
     fn test_flip_all() {
         let mut bv = BitVec::new(3);
 
-        bv.set_all(true);
+        bv.flip_all();
         assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![true, true, true]);
 
-        bv.set_all(false);
+        bv.flip_all();
         assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false, false, false]);
     }
 
@@ -842,6 +842,21 @@ mod tests {
         cloned.clone_from(&bv);
         assert_eq!(
             cloned.iter().collect::<Vec<bool>>(),
+            vec![true, true, false, true, false, false, false, false],
+        );
+    }
+
+    #[test]
+    fn test_iter() {
+        let bv = BitVec::from_bytes(&[0b11010000]);
+
+        assert_eq!(
+            (&bv).into_iter().collect::<Vec<bool>>(),
+            vec![true, true, false, true, false, false, false, false],
+        );
+
+        assert_eq!(
+            bv.into_iter().collect::<Vec<bool>>(),
             vec![true, true, false, true, false, false, false, false],
         );
     }

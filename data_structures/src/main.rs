@@ -1,12 +1,12 @@
 extern crate data_structures;
-use data_structures::radix;
+use data_structures::radix::RadixMap;
 
 fn get_bytes(key: &str) -> Vec<u8> {
     String::from(key).into_bytes()
 }
 
 fn main () {
-    let mut root = radix::RadixMap::new();
+    let mut root = RadixMap::new();
     root.insert(get_bytes("romane"), 1);
     root.insert(get_bytes("romanus"), 2);
     root.insert(get_bytes("romulus"), 3);
