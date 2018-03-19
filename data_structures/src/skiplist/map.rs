@@ -229,28 +229,7 @@ impl<T: Ord, U> SkipMap<T, U> {
     /// assert_eq!(map.contains_key(&1), true);
     /// ```
     pub fn contains_key(&self, key: &T) -> bool {
-        let mut curr_height = self.get_starting_height();
-        let mut curr_node = &self.head;
-
-        unsafe {
-            loop {
-                let mut next_node = (**curr_node).get_pointer(curr_height);
-                while !next_node.is_null() && (**next_node).entry.key < *key {
-                    curr_node = mem::replace(&mut next_node, (**next_node).get_pointer(curr_height));
-                }
-
-                if !next_node.is_null() && (**next_node).entry.key == *key {
-                    return true;
-                }
-
-                if curr_height == 0 {
-                    break;
-                }
-
-                curr_height -= 1;
-            }
-            false
-        }
+        self.get(key).is_some()
     }
 
     /// Returns an immutable reference to the value associated with a particular key. It will
@@ -829,7 +808,7 @@ impl<T: Ord, U> IntoIterator for SkipMap<T, U> {
 
     fn into_iter(self) -> Self::IntoIter {
         unsafe {
-            let ret = SkipMapIntoIter { current: *(*self.head).links.get_unchecked_mut(0) };
+            let ret = Self::IntoIter { current: *(*self.head).links.get_unchecked_mut(0) };
             ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
             ret
         }
@@ -854,7 +833,7 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut SkipMap<T, U> {
     }
 }
 
-/// An owning iterator for `SkipMap<T, U>`
+/// An owning iterator for `SkipMap<T, U>`.
 ///
 /// This iterator traverses the elements of a map in ascending order and yields owned entries.
 pub struct SkipMapIntoIter<T: Ord, U> {
@@ -888,7 +867,7 @@ impl<T: Ord, U> Drop for SkipMapIntoIter<T, U> {
     }
 }
 
-/// An iterator for `SkipMap<T, U>`
+/// An iterator for `SkipMap<T, U>`.
 ///
 /// This iterator traverses the elements of a map in ascending order and yields immutable
 /// references.
@@ -912,7 +891,7 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for SkipMapIter<'a, T, U> {
     }
 }
 
-/// A mutable iterator for `SkipMap<T, U>`
+/// A mutable iterator for `SkipMap<T, U>`.
 ///
 /// This iterator traverses the elements of a map in ascending order and yields mutable references.
 pub struct SkipMapIterMut<'a, T: 'a + Ord, U: 'a> {

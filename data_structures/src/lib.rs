@@ -14,4 +14,5 @@ pub mod bit_vec;
 pub mod bptree;
 pub mod skiplist;
 pub mod treap;
+pub mod radix;
 pub mod sync;

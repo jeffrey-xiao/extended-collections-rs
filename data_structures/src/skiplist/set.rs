@@ -332,7 +332,7 @@ impl<T: Ord> IntoIterator for SkipSet<T> {
     type IntoIter = SkipSetIntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        SkipSetIntoIter {
+        Self::IntoIter {
             map_iter: self.map.into_iter(),
         }
     }

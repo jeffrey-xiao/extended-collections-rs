@@ -117,19 +117,6 @@ pub fn remove<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>> 
     mem::replace(tree, new_tree).map(|node| node.entry)
 }
 
-pub fn contains<T: Ord, U>(tree: &Tree<T, U>, key: &T) -> bool {
-    match *tree {
-        Some(ref node) => {
-            match key.cmp(&node.entry.key) {
-                Ordering::Less => contains(&node.left, key),
-                Ordering::Greater => contains(&node.right, key),
-                Ordering::Equal => true,
-            }
-        },
-        None => false,
-    }
-}
-
 pub fn get<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>> {
     tree.as_ref().and_then(|node| {
         match key.cmp(&node.entry.key) {
