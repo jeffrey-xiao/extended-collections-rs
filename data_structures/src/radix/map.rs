@@ -52,7 +52,7 @@ impl<T> RadixMap<T> {
     /// let map: RadixMap<u32> = RadixMap::new();
     /// ```
     pub fn new() -> Self {
-        Self {
+        RadixMap {
             root: Some(Box::new(Node::new(Vec::new(), None))),
             len: 0,
         }
@@ -440,6 +440,12 @@ impl<'a, T: 'a> Iterator for RadixMapIterMut<'a, T> {
                 None => return None,
             }
         }
+    }
+}
+
+impl<T> Default for RadixMap<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

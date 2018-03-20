@@ -115,7 +115,7 @@ impl<T: Ord> TreapSet<T> {
     /// assert!(set.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.map.len() == 0
+        self.map.is_empty()
     }
 
     /// Clears the set, removing all values.
@@ -325,8 +325,7 @@ impl<T: Ord> TreapSet<T> {
         }
     }
 
-    /// Returns an iterator over the set. The iterator will yield key-value pairs using in-order
-    /// traversal.
+    /// Returns an iterator over the set. The iterator will yield keys using in-order traversal.
     ///
     /// # Examples
     /// ```
