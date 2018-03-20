@@ -619,7 +619,7 @@ mod tests {
     #[test]
     fn test_insert() {
         let mut map = TreapMap::new();
-        map.insert(1, 1);
+        assert_eq!(map.insert(1, 1), None);
         assert!(map.contains_key(&1));
         assert_eq!(map.get(&1), Some(&1));
     }
@@ -627,20 +627,17 @@ mod tests {
     #[test]
     fn test_insert_replace() {
         let mut map = TreapMap::new();
-        let ret_1 = map.insert(1, 1);
-        let ret_2 = map.insert(1, 3);
+        assert_eq!(map.insert(1, 1), None);
+        assert_eq!(map.insert(1, 3), Some((1, 1)));
         assert_eq!(map.get(&1), Some(&3));
-        assert_eq!(ret_1, None);
-        assert_eq!(ret_2, Some((1, 1)));
     }
 
     #[test]
     fn test_remove() {
         let mut map = TreapMap::new();
         map.insert(1, 1);
-        let ret = map.remove(&1);
+        assert_eq!(map.remove(&1), Some((1, 1)));
         assert!(!map.contains_key(&1));
-        assert_eq!(ret, Some((1, 1)));
     }
 
     #[test]

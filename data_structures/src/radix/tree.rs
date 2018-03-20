@@ -123,6 +123,54 @@ pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &Key, mut index: usize) -> Opt
     }
 }
 
+fn push_all_children<T>(tree: &Tree<T>, curr_key: &mut Key, keys: &mut Vec<Key>) {
+    if let Some(ref node) = *tree {
+        let len = curr_key.len();
+
+        curr_key.extend(node.key.iter());
+        if node.value.is_some() {
+            keys.push(curr_key.clone());
+        }
+        push_all_children(&node.child, curr_key, keys);
+
+        curr_key.split_off(len);
+        push_all_children(&node.next, curr_key, keys);
+    }
+}
+
+pub fn get_longest_prefix<T>(tree: &Tree<T>, key: &Key, mut index: usize, curr_key: &mut Key, keys: &mut Vec<Key>) {
+    let node = match *tree {
+        Some(ref node) => node,
+        None => return,
+    };
+    curr_key.extend(node.key.iter());
+    let split_index = node.key.iter().zip(key[index..].iter()).position(|pair| pair.0 != pair.1);
+    match split_index {
+        Some(_) => {
+            if node.value.is_some() {
+                keys.push(curr_key.clone());
+            }
+            push_all_children(&node.child, curr_key, keys);
+        },
+        None => match node.key.len().cmp(&(key.len() - index)) {
+            Ordering::Less => {
+                index += node.key.len();
+                let next_child = node.get(key[index]);
+                match *next_child {
+                    Some(_) => get_longest_prefix(next_child, key, index, curr_key, keys),
+                    None => keys.push(curr_key.clone()),
+                }
+            },
+            _ => {
+                if node.value.is_some() {
+                    keys.push(curr_key.clone());
+                }
+                push_all_children(&node.child, curr_key, keys);
+            }
+        }
+    }
+}
+
 pub fn min<T>(tree: &Tree<T>, mut curr_key: Key) -> Option<Key> {
     let node = match *tree {
         Some(ref node) => node,

@@ -426,26 +426,23 @@ mod tests {
     #[test]
     fn test_insert() {
         let mut set = SkipSet::new();
-        set.insert(1);
+        assert_eq!(set.insert(1), None);
         assert!(set.contains(&1));
     }
 
     #[test]
     fn test_insert_replace() {
         let mut set = SkipSet::new();
-        let ret_1 = set.insert(1);
-        let ret_2 = set.insert(1);
-        assert_eq!(ret_1, None);
-        assert_eq!(ret_2, Some(1));
+        assert_eq!(set.insert(1), None);
+        assert_eq!(set.insert(1), Some(1));
     }
 
     #[test]
     fn test_remove() {
         let mut set = SkipSet::new();
         set.insert(1);
-        let ret = set.remove(&1);
+        assert_eq!(set.remove(&1), Some(1));
         assert!(!set.contains(&1));
-        assert_eq!(ret, Some(1));
     }
 
     #[test]

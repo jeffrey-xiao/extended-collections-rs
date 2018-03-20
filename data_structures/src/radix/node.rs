@@ -66,7 +66,7 @@ impl<T> Node<T> {
     pub fn merge(&mut self) {
         if let Some(mut child_node) = self.child.take() {
             if self.value.is_none() && child_node.next.is_none() {
-                self.key.append(&mut child_node.key);
+                self.key.extend(child_node.key.iter());
                 self.value = child_node.value.take();
                 self.child = child_node.child.take();
             } else {

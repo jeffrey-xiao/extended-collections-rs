@@ -732,7 +732,7 @@ mod tests {
         let test_name = "test_insert";
         run_test(|| {
             let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            map.insert(1, 1);
+            assert_eq!(map.insert(1, 1), None);
             assert!(map.contains_key(&1));
             assert_eq!(map.get(&1), Some(1));
         }, test_name);
@@ -743,11 +743,9 @@ mod tests {
         let test_name = "test_insert_replace";
         run_test(|| {
             let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            let ret_1 = map.insert(1, 1);
-            let ret_2 = map.insert(1, 3);
+            assert_eq!(map.insert(1, 1), None);
+            assert_eq!(map.insert(1, 3), Some((1, 1)));
             assert_eq!(map.get(&1), Some(3));
-            assert_eq!(ret_1, None);
-            assert_eq!(ret_2, Some((1, 1)));
         }, test_name);
     }
 
@@ -757,9 +755,8 @@ mod tests {
         run_test(|| {
             let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
             map.insert(1, 1);
-            let ret = map.remove(&1);
+            assert_eq!(map.remove(&1), Some((1, 1)));
             assert!(!map.contains_key(&1));
-            assert_eq!(ret, Some((1, 1)));
         }, test_name);
     }
 
