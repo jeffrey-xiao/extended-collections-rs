@@ -53,7 +53,7 @@ impl<T: Ord> TreapSet<T> {
     ///
     /// let mut set = TreapSet::new();
     /// assert_eq!(set.insert(1), None);
-    /// assert_eq!(set.contains(&1), true);
+    /// assert!(set.contains(&1));
     /// assert_eq!(set.insert(1), Some(1));
     /// ```
     pub fn insert(&mut self, key: T) -> Option<T> {
@@ -84,8 +84,8 @@ impl<T: Ord> TreapSet<T> {
     ///
     /// let mut set = TreapSet::new();
     /// set.insert(1);
-    /// assert_eq!(set.contains(&0), false);
-    /// assert_eq!(set.contains(&1), true);
+    /// assert!(!set.contains(&0));
+    /// assert!(set.contains(&1));
     /// ```
     pub fn contains(&self, key: &T) -> bool {
         self.map.contains_key(key)

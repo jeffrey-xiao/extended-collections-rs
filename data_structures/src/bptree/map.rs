@@ -381,8 +381,8 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
     ///
     /// let mut map = BPMap::new("example_contains_key.dat")?;
     /// map.insert(1, 1);
-    /// assert_eq!(map.contains_key(&0), false);
-    /// assert_eq!(map.contains_key(&1), true);
+    /// assert!(!map.contains_key(&0));
+    /// assert!(map.contains_key(&1));
     /// # fs::remove_file("example_contains_key.dat")?;
     /// # Ok(())
     /// # }

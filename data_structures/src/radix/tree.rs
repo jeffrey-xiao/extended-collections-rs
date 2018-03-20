@@ -4,7 +4,7 @@ use std::mem;
 
 pub type Tree<T> = Option<Box<Node<T>>>;
 
-pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<T> {
+pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<(Key, T)> {
     let node = match *tree {
         Some(ref mut node) => node,
         _ => unreachable!(),
@@ -42,7 +42,9 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<T> {
                 node.insert_child(split);
                 None
             },
-            Ordering::Equal => mem::replace(&mut node.value, Some(value)),
+            Ordering::Equal => mem::replace(&mut node.value, Some(value)).map(|value| {
+                (key.clone(), value)
+            }),
         }
     }
 }
@@ -158,7 +160,11 @@ pub fn get_longest_prefix<T>(tree: &Tree<T>, key: &Key, mut index: usize, curr_k
                 let next_child = node.get(key[index]);
                 match *next_child {
                     Some(_) => get_longest_prefix(next_child, key, index, curr_key, keys),
-                    None => keys.push(curr_key.clone()),
+                    None => {
+                        if node.value.is_some() {
+                            keys.push(curr_key.clone())
+                        }
+                    },
                 }
             },
             _ => {

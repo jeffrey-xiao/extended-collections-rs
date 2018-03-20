@@ -2,13 +2,55 @@ use radix::node::{Key, Node};
 use radix::tree;
 use std::ops::{Index, IndexMut};
 
-#[derive(Debug)]
+/// An ordered map implemented by a radix tree.
+///
+/// A radix tree is a space optimized trie where nodes are merged with its parent if it is the only
+/// child or if it contains a value. This particular implementation of a radix tree accepts keys as
+/// byte vectors for flexibility. Additionally, in order to conserve memory usage, the children of
+/// a node are represented as a singly linked list rather than an array of pointers. The
+/// performance of this radix tree is relatively fast given that the keys are fairly sparse. The
+/// children should be represented as a fixed length array of size 256 if the tree is dense for
+/// performance.
+///
+/// # Examples
+/// ```
+/// use data_structures::radix::RadixMap;
+///
+/// let mut map = RadixMap::new();
+/// map.insert(String::from("foo").into_bytes(), 0);
+/// map.insert(String::from("foobar").into_bytes(), 1);
+///
+/// assert_eq!(map[&String::from("foo").into_bytes()], 0);
+/// assert_eq!(map.get(&String::from("baz").into_bytes()), None);
+/// assert_eq!(map.len(), 2);
+///
+/// assert_eq!(map.min(), Some(String::from("foo").into_bytes()));
+///
+/// assert_eq!(
+///     map.get_longest_prefix(&String::from("foob").into_bytes()),
+///     vec![String::from("foobar").into_bytes()],
+/// );
+///
+/// map[&String::from("foo").into_bytes()] = 2;
+/// assert_eq!(
+///     map.remove(&String::from("foo").into_bytes()),
+///     Some((String::from("foo").into_bytes(), 2)),
+/// );
+/// ```
 pub struct RadixMap<T> {
     root: tree::Tree<T>,
     len: usize,
 }
 
 impl<T> RadixMap<T> {
+    /// Constructs a new, empty `RadixMap<T>`
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let map: RadixMap<u32> = RadixMap::new();
+    /// ```
     pub fn new() -> Self {
         Self {
             root: Some(Box::new(Node::new(Vec::new(), None))),
@@ -16,14 +58,46 @@ impl<T> RadixMap<T> {
         }
     }
 
-    pub fn insert(&mut self, key: Key, value: T) -> Option<T> {
+    /// Inserts a key-value pair into the map. If the key already exists in the map, it will return
+    /// and replace the old key-value pair.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// assert_eq!(map.insert(String::from("foo").into_bytes(), 1), None);
+    /// assert_eq!(map.get(&String::from("foo").into_bytes()), Some(&1));
+    /// assert_eq!(
+    ///     map.insert(String::from("foo").into_bytes(), 2),
+    ///     Some((String::from("foo").into_bytes(), 1)),
+    /// );
+    /// assert_eq!(map.get(&String::from("foo").into_bytes()), Some(&2));
+    /// ```
+    pub fn insert(&mut self, key: Key, value: T) -> Option<(Key, T)> {
         self.len += 1;
-        tree::insert(&mut self.root, key, value).and_then(|value| {
+        let ret = tree::insert(&mut self.root, key, value);
+        if ret.is_some() {
             self.len -= 1;
-            Some(value)
-        })
+        }
+        ret
     }
 
+    /// Removes a key-value pair from the map. If the key exists in the map, it will return the
+    /// associated key-value pair. Otherwise it will return `None`.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 1);
+    /// assert_eq!(
+    ///     map.remove(&String::from("foo").into_bytes()),
+    ///     Some((String::from("foo").into_bytes(), 1)),
+    /// );
+    /// assert_eq!(map.remove(&String::from("foobar").into_bytes()), None);
+    /// ```
     pub fn remove(&mut self, key: &Key) -> Option<(Key, T)> {
         tree::remove(&mut self.root, key, 0).and_then(|value| {
             self.len -= 1;
@@ -31,30 +105,112 @@ impl<T> RadixMap<T> {
         })
     }
 
+    /// Checks if a key exists in the map.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 1);
+    /// assert!(map.contains_key(&String::from("foo").into_bytes()));
+    /// assert!(!map.contains_key(&String::from("foobar").into_bytes()));
+    /// ```
     pub fn contains_key(&self, key: &Key) -> bool {
         self.get(key).is_some()
     }
 
+    /// Returns an immutable reference to the value associated with a particular key. It will
+    /// return `None` if the key does not exist in the map.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 1);
+    /// assert_eq!(map.get(&String::from("foobar").into_bytes()), None);
+    /// assert_eq!(map.get(&String::from("foo").into_bytes()), Some(&1));
+    /// ```
     pub fn get(&self, key: &Key) -> Option<&T> {
         tree::get(&self.root, key, 0)
     }
 
+    /// Returns a mutable reference to the value associated with a particular key. Returns `None`
+    /// if such a key does not exist.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 1);
+    /// *map.get_mut(&String::from("foo").into_bytes()).unwrap() = 2;
+    /// assert_eq!(map.get(&String::from("foo").into_bytes()), Some(&2));
+    /// ```
     pub fn get_mut(&mut self, key: &Key) -> Option<&mut T> {
         tree::get_mut(&mut self.root, key, 0)
     }
 
+    /// Returns the number of elements in the map.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 1);
+    /// assert_eq!(map.len(), 1);
+    /// ```
     pub fn len(&self) -> usize {
         self.len
     }
 
+    /// Returns `true` if the map is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let map: RadixMap<u32> = RadixMap::new();
+    /// assert!(map.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Clears the map, removing all values.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 1);
+    /// map.insert(String::from("foobar").into_bytes(), 2);
+    /// map.clear();
+    /// assert_eq!(map.is_empty(), true);
+    /// ```
     pub fn clear(&mut self) {
         self.root = Some(Box::new(Node::new(Vec::new(), None)));
+        self.len = 0;
     }
 
+    /// Returns all keys that share the longest common prefix with the specified key.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 0);
+    /// map.insert(String::from("foobar").into_bytes(), 1);
+    ///
+    /// assert_eq!(
+    ///     map.get_longest_prefix(&String::from("foob").into_bytes()),
+    ///     vec![String::from("foobar").into_bytes()],
+    /// );
+    /// ```
     pub fn get_longest_prefix(&self, key: &Key) -> Vec<Key> {
         let mut curr_key = Vec::new();
         let mut keys = Vec::new();
@@ -62,14 +218,52 @@ impl<T> RadixMap<T> {
         keys
     }
 
+    /// Returns the minimum lexographic key of the map. Returns `None` if the map is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 1);
+    /// map.insert(String::from("foobar").into_bytes(), 3);
+    /// assert_eq!(map.min(), Some(String::from("foo").into_bytes()));
+    /// ```
     pub fn min(&self) -> Option<Key> {
         tree::min(&self.root, Vec::new())
     }
 
+    /// Returns the maximum lexographic key of the map. Returns `None` if the map is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 1);
+    /// map.insert(String::from("foobar").into_bytes(), 3);
+    /// assert_eq!(map.max(), Some(String::from("foobar").into_bytes()));
+    /// ```
     pub fn max(&self) -> Option<Key> {
         tree::max(&self.root, Vec::new())
     }
 
+    /// Returns an iterator over the map. The iterator will yield key-value pairs in lexographic
+    /// order.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 1);
+    /// map.insert(String::from("foobar").into_bytes(), 2);
+    ///
+    /// let mut iterator = map.iter();
+    /// assert_eq!(iterator.next(), Some((String::from("foo").into_bytes(), &1)));
+    /// assert_eq!(iterator.next(), Some((String::from("foobar").into_bytes(), &2)));
+    /// assert_eq!(iterator.next(), None);
+    /// ```
     pub fn iter(&self) -> RadixMapIter<T> {
         RadixMapIter {
             prefix: Vec::new(),
@@ -78,6 +272,26 @@ impl<T> RadixMap<T> {
         }
     }
 
+    /// Returns a mutable iterator over the map. The iterator will yield key-value pairs in
+    /// lexographic order.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::radix::RadixMap;
+    ///
+    /// let mut map = RadixMap::new();
+    /// map.insert(String::from("foo").into_bytes(), 1);
+    /// map.insert(String::from("foobar").into_bytes(), 2);
+    ///
+    /// for (key, value) in &mut map {
+    ///   *value += 1;
+    /// }
+    ///
+    /// let mut iterator = map.iter_mut();
+    /// assert_eq!(iterator.next(), Some((String::from("foo").into_bytes(), &mut 2)));
+    /// assert_eq!(iterator.next(), Some((String::from("foobar").into_bytes(), &mut 3)));
+    /// assert_eq!(iterator.next(), None);
+    /// ```
     pub fn iter_mut(&mut self) -> RadixMapIterMut<T> {
         RadixMapIterMut {
             prefix: Vec::new(),
@@ -299,7 +513,10 @@ mod tests {
     fn test_insert_replace() {
         let mut map = RadixMap::new();
         assert_eq!(map.insert(get_bytes("a"), 0), None);
-        assert_eq!(map.insert(get_bytes("a"), 1), Some(0));
+        assert_eq!(
+            map.insert(get_bytes("a"), 1),
+            Some((get_bytes("a"), 0)),
+        );
         assert_eq!(map.get(&get_bytes("a")), Some(&1));
     }
 
@@ -310,19 +527,25 @@ mod tests {
         map.insert(get_bytes("aabb"), 1);
 
         map.insert(get_bytes("bb"), 2);
-        map.insert(get_bytes("bbbb"), 3);
+        map.insert(get_bytes("bbbb"), 4);
+        map.insert(get_bytes("bbaa"), 3);
 
-        map.insert(get_bytes("cccc"), 5);
-        map.insert(get_bytes("cc"), 4);
+        map.insert(get_bytes("cccc"), 6);
+        map.insert(get_bytes("ccdd"), 7);
+        map.insert(get_bytes("cc"), 5);
+
+        assert_eq!(map.remove(&get_bytes("a")), None);
 
         assert_eq!(map.remove(&get_bytes("aaaa")), Some((get_bytes("aaaa"), 0)));
         assert_eq!(map.remove(&get_bytes("aabb")), Some((get_bytes("aabb"), 1)));
 
         assert_eq!(map.remove(&get_bytes("bb")), Some((get_bytes("bb"), 2)));
-        assert_eq!(map.remove(&get_bytes("bbbb")), Some((get_bytes("bbbb"), 3)));
+        assert_eq!(map.remove(&get_bytes("bbbb")), Some((get_bytes("bbbb"), 4)));
+        assert_eq!(map.remove(&get_bytes("bbaa")), Some((get_bytes("bbaa"), 3)));
 
-        assert_eq!(map.remove(&get_bytes("cccc")), Some((get_bytes("cccc"), 5)));
-        assert_eq!(map.remove(&get_bytes("cc")), Some((get_bytes("cc"), 4)));
+        assert_eq!(map.remove(&get_bytes("cccc")), Some((get_bytes("cccc"), 6)));
+        assert_eq!(map.remove(&get_bytes("ccdd")), Some((get_bytes("ccdd"), 7)));
+        assert_eq!(map.remove(&get_bytes("cc")), Some((get_bytes("cc"), 5)));
 
         assert_eq!(map.remove(&get_bytes("a")), None);
     }
@@ -346,6 +569,17 @@ mod tests {
     }
 
     #[test]
+    fn test_get_none() {
+        let mut map = RadixMap::new();
+        map.insert(get_bytes("aa"), 1);
+
+        assert_eq!(map.get(&get_bytes("a")), None);
+        assert_eq!(map.get(&get_bytes("b")), None);
+        assert_eq!(map.get_mut(&get_bytes("a")), None);
+        assert_eq!(map.get_mut(&get_bytes("b")), None);
+    }
+
+    #[test]
     fn test_get_longest_prefix() {
         let mut map = RadixMap::new();
         map.insert(get_bytes("aaaa"), 0);
@@ -356,7 +590,7 @@ mod tests {
 
         let mut map = RadixMap::new();
         map.insert(get_bytes("aaaa"), 0);
-        map.insert(get_bytes("aaab"), 0);
+        map.insert(get_bytes("aaab"), 1);
         assert_eq!(
             map.get_longest_prefix(&get_bytes("aaa")),
             vec![get_bytes("aaaa"), get_bytes("aaab")],
@@ -364,8 +598,8 @@ mod tests {
 
         let mut map = RadixMap::new();
         map.insert(get_bytes("aaa"), 0);
-        map.insert(get_bytes("aaaa"), 0);
-        map.insert(get_bytes("aaab"), 0);
+        map.insert(get_bytes("aaaa"), 1);
+        map.insert(get_bytes("aaab"), 2);
         assert_eq!(
             map.get_longest_prefix(&get_bytes("aaa")),
             vec![get_bytes("aaa"), get_bytes("aaaa"), get_bytes("aaab")],
@@ -377,6 +611,18 @@ mod tests {
             map.get_longest_prefix(&get_bytes("aaa")),
             vec![get_bytes("aa")],
         );
+
+        let mut map = RadixMap::new();
+        map.insert(get_bytes("aaba"), 0);
+        map.insert(get_bytes("aabb"), 1);
+        assert_eq!(
+            map.get_longest_prefix(&get_bytes("aaa")),
+            vec![get_bytes("aaba"), get_bytes("aabb")],
+        );
+
+        let mut map = RadixMap::new();
+        map.insert(get_bytes("b"), 0);
+        assert_eq!(map.get_longest_prefix(&get_bytes("aaa")).len(), 0);
     }
 
     #[test]
@@ -413,7 +659,7 @@ mod tests {
         map.insert(get_bytes("aa"), 4);
 
         assert_eq!(
-            map.iter().collect::<Vec<(Key, &u32)>>(),
+            (&map).into_iter().collect::<Vec<(Key, &u32)>>(),
             vec![(get_bytes("a"), &2), (get_bytes("aa"), &4), (get_bytes("ab"), &6)],
         );
     }
@@ -430,7 +676,7 @@ mod tests {
         }
 
         assert_eq!(
-            map.iter().collect::<Vec<(Key, &u32)>>(),
+            (&map).into_iter().collect::<Vec<(Key, &u32)>>(),
             vec![(get_bytes("a"), &3), (get_bytes("aa"), &5), (get_bytes("ab"), &7)],
         );
     }

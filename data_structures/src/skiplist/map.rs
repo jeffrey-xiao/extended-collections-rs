@@ -225,8 +225,8 @@ impl<T: Ord, U> SkipMap<T, U> {
     ///
     /// let mut map = SkipMap::new();
     /// map.insert(1, 1);
-    /// assert_eq!(map.contains_key(&0), false);
-    /// assert_eq!(map.contains_key(&1), true);
+    /// assert!(!map.contains_key(&0));
+    /// assert!(map.contains_key(&1));
     /// ```
     pub fn contains_key(&self, key: &T) -> bool {
         self.get(key).is_some()

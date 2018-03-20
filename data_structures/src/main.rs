@@ -37,14 +37,12 @@ fn main () {
         println!("{:?}", entry);
     }
 
-    // // println!("{:?}", root.remove(&get_bytes("romane")));
-    // // println!("{:?}", root.remove(&get_bytes("romulus")));
-    // // println!("{:?}", root.remove(&get_bytes("romanus")));
-    // // println!("{:?}", root.remove(&get_bytes("rubens")));
-    // // println!("{:?}", root.remove(&get_bytes("rubicon")));
-    // // println!("{:?}", root.remove(&get_bytes("ruber")));
-    // // println!("{:?}", root.remove(&get_bytes("rubicundus")));
-    // // println!("{:#?}", root);
-    // // println!("{:?}", root.remove(&get_bytes("ru")));
-    // // println!("{:#?}", root);
+    println!("{:?}", root.remove(&get_bytes("romane")));
+    println!("{:?}", root.remove(&get_bytes("romulus")));
+    println!("{:?}", root.remove(&get_bytes("romanus")));
+    println!("{:?}", root.remove(&get_bytes("rubens")));
+    println!("{:?}", root.remove(&get_bytes("rubicon")));
+    println!("{:?}", root.remove(&get_bytes("ruber")));
+    println!("{:?}", root.remove(&get_bytes("rubicundus")));
+    println!("{:?}", root.remove(&get_bytes("ru")));
 }
