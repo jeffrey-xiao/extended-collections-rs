@@ -59,11 +59,11 @@ impl<T> RadixMap<T> {
     }
 
     pub fn min(&self) -> Option<Key> {
-        None
+        tree::min(&self.root, Vec::new())
     }
 
     pub fn max(&self) -> Option<Key> {
-        None
+        tree::max(&self.root, Vec::new())
     }
 
     pub fn iter(&self) -> RadixMapIter<T> {
@@ -222,5 +222,36 @@ impl<'a, T: 'a> Iterator for RadixMapIterMut<'a, T> {
                 None => return None,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RadixMap;
+
+    fn get_bytes(key: &str) -> Vec<u8> {
+        String::from(key).into_bytes()
+    }
+
+    #[test]
+    fn test_min() {
+        let mut map = RadixMap::new();
+
+        map.insert(get_bytes("a"), 0);
+        map.insert(get_bytes("aa"), 1);
+        map.insert(get_bytes("b"), 2);
+
+        assert_eq!(map.min(), Some(get_bytes("a")));
+    }
+
+    #[test]
+    fn test_max() {
+        let mut map = RadixMap::new();
+
+        map.insert(get_bytes("a"), 0);
+        map.insert(get_bytes("ba"), 1);
+        map.insert(get_bytes("bb"), 2);
+
+        assert_eq!(map.max(), Some(get_bytes("bb")));
     }
 }

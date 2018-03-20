@@ -74,4 +74,19 @@ impl<T> Node<T> {
             }
         }
     }
+
+    pub fn min(&self) -> &Tree<T> {
+        &self.child
+    }
+
+    pub fn max(&self) -> &Tree<T> {
+        let mut curr_tree = &self.child;
+        while let Some(ref curr_node) = *curr_tree {
+            if (*curr_node).next.is_none() {
+                return curr_tree;
+            }
+            curr_tree = &curr_node.next;
+        }
+        &None
+    }
 }

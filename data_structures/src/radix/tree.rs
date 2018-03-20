@@ -123,3 +123,32 @@ pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &Key, mut index: usize) -> Opt
     }
 }
 
+pub fn min<T>(tree: &Tree<T>, mut curr_key: Key) -> Option<Key> {
+    let node = match *tree {
+        Some(ref node) => node,
+        None => return None,
+    };
+
+    curr_key.extend_from_slice(node.key.as_slice());
+
+    if node.value.is_some() {
+       Some(curr_key)
+    } else {
+        min(node.min(), curr_key)
+    }
+}
+
+pub fn max<T>(tree: &Tree<T>, mut curr_key: Key) -> Option<Key> {
+    let node = match *tree {
+        Some(ref node) => node,
+        None => return None,
+    };
+
+    curr_key.extend_from_slice(node.key.as_slice());
+
+    if node.value.is_some() && node.child.is_none() {
+        Some(curr_key)
+    } else {
+        max(node.max(), curr_key)
+    }
+}
