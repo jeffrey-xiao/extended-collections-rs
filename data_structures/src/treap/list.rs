@@ -13,8 +13,8 @@ use treap::node::ImplicitNode;
 /// expected height of the tree is proportional to the logarithm of the number of keys.
 ///
 /// An implicit treap is a treap where the key of a node is implicitly determined by the size of
-/// its left subtree. This property allows the list get, remove, and insert at an arbitrary index
-/// in O(log N) time.
+/// its left subtree. This property allows the list to get, remove, and insert at an arbitrary index
+/// in `O(log N)` time.
 ///
 /// # Examples
 /// ```

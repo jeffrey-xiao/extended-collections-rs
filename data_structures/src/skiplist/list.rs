@@ -67,6 +67,36 @@ impl<T> Node<T> {
     }
 }
 
+/// A list implemented by a skiplist.
+///
+/// A skiplist is a probabilistic data structure that allows for binary search tree operations by
+/// maintaining a linked hierarchy of subsequences. The first subsequence is essentially a sorted
+/// linked list of all the elements that it contains. Each successive subsequence contains
+/// approximately half the elements of the previous subsequence. Using the sparser subsequences,
+/// elements can be skipped and searching, insertion, and deletion of keys can be done in
+/// approximately logarithm time.
+///
+/// Each link in this skiplist store the width of the link. The width is defined as the number of
+/// bottom layer links being traversed by each of the higher layer links. This augmentation allows
+/// the list to get, remove, and insert at an arbitrary index in `O(log N)` time.
+///
+/// # Examples
+/// ```
+/// use data_structures::skiplist::SkipList;
+///
+/// let mut list = SkipList::new();
+/// list.insert(0, 1);
+/// list.push_back(2);
+/// list.push_front(3);
+///
+/// assert_eq!(list.get(0), Some(&3));
+/// assert_eq!(list.get(3), None);
+/// assert_eq!(list.len(), 3);
+///
+/// *list.get_mut(0).unwrap() += 1;
+/// assert_eq!(list.pop_front(), 4);
+/// assert_eq!(list.pop_back(), 2);
+/// ```
 pub struct SkipList<T> {
     head: *mut Node<T>,
     rng: XorShiftRng,

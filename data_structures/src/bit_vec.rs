@@ -565,6 +565,9 @@ impl Clone for BitVec {
     }
 }
 
+/// An owning iterator for `BitVec`.
+///
+/// This iterator yields bits in order.
 pub struct BitVecIter<'a> {
     bit_vec: &'a BitVec,
     range: Range<usize>,
@@ -588,6 +591,9 @@ impl<'a> IntoIterator for &'a BitVec {
 }
 
 
+/// An iterator for `BitVec`.
+///
+/// This iterator yields bits in order.
 pub struct BitVecIntoIter {
     bit_vec: BitVec,
     range: Range<usize>,
@@ -611,9 +617,9 @@ impl IntoIterator for BitVec {
     }
 }
 
-pub type BlocksMut<'a> = slice::IterMut<'a, u8>;
+type BlocksMut<'a> = slice::IterMut<'a, u8>;
 
-pub struct Blocks<'a> {
+struct Blocks<'a> {
     iter: slice::Iter<'a, u8>,
 }
 
