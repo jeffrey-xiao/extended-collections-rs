@@ -1,5 +1,5 @@
 use std::mem;
-use std::ops::Range;
+use std::ops::{Index, Range};
 use std::slice;
 
 /// A growable list of bits implemented using a `Vec<u8>`
@@ -631,6 +631,21 @@ impl<'a> Iterator for Blocks<'a> {
     }
 }
 
+static TRUE: bool = true;
+static FALSE: bool = false;
+
+impl Index<usize> for BitVec {
+    type Output = bool;
+
+    fn index(&self, i: usize) -> &bool {
+        if self.get(i).expect("Index out of bounds.") {
+            &TRUE
+        } else {
+            &FALSE
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::BitVec;
@@ -679,8 +694,8 @@ mod tests {
         bv.set(0, true);
         bv.set(1, false);
 
-        assert_eq!(bv.get(0), Some(true));
-        assert_eq!(bv.get(1), Some(false));
+        assert_eq!(bv[0], true);
+        assert_eq!(bv[1], false);
         assert_eq!(bv.get(2), None);
     }
 

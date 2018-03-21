@@ -190,13 +190,13 @@ impl<T> TypedArena<T> {
 impl<T> Index<Entry> for TypedArena<T> {
     type Output = T;
     fn index(&self, entry: Entry) -> &Self::Output {
-        self.get(&entry).unwrap()
+        self.get(&entry).expect("Entry out of bounds.")
     }
 }
 
 impl<T> IndexMut<Entry> for TypedArena<T> {
     fn index_mut(&mut self, entry: Entry) -> &mut Self::Output {
-        self.get_mut(&entry).unwrap()
+        self.get_mut(&entry).expect("Entry out of bounds.")
     }
 }
 

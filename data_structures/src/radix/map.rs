@@ -452,13 +452,13 @@ impl<T> Default for RadixMap<T> {
 impl<'a, T> Index<&'a Key> for RadixMap<T> {
     type Output = T;
     fn index(&self, key: &Key) -> &Self::Output {
-        self.get(key).unwrap()
+        self.get(key).expect("Key does not exist.")
     }
 }
 
 impl<'a, T> IndexMut<&'a Key> for RadixMap<T> {
     fn index_mut(&mut self, key: &Key) -> &mut Self::Output {
-        self.get_mut(key).unwrap()
+        self.get_mut(key).expect("Key does not exist.")
     }
 }
 

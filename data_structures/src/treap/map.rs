@@ -583,13 +583,13 @@ impl<T: Ord, U> Sub for TreapMap<T, U> {
 impl<'a, T: Ord, U> Index<&'a T> for TreapMap<T, U> {
     type Output = U;
     fn index(&self, key: &T) -> &Self::Output {
-        self.get(key).unwrap()
+        self.get(key).expect("Key does not exist.")
     }
 }
 
 impl<'a, T: Ord, U> IndexMut<&'a T> for TreapMap<T, U> {
     fn index_mut(&mut self, key: &T) -> &mut Self::Output {
-        self.get_mut(key).unwrap()
+        self.get_mut(key).expect("Key does not exist.")
     }
 }
 

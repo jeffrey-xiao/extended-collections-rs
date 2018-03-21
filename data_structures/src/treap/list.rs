@@ -408,14 +408,14 @@ impl<T> Add for TreapList<T> {
 
 impl<T> Index<usize> for TreapList<T> {
     type Output = T;
-    fn index(&self, key: usize) -> &Self::Output {
-        self.get(key).unwrap()
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index).expect("Index out of bounds.")
     }
 }
 
 impl<T> IndexMut<usize> for TreapList<T> {
-    fn index_mut(&mut self, key: usize) -> &mut Self::Output {
-        self.get_mut(key).unwrap()
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.get_mut(index).expect("Index out of bounds.")
     }
 }
 
