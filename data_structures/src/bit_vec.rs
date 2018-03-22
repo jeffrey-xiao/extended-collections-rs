@@ -35,6 +35,7 @@ use std::slice;
 pub struct BitVec {
     blocks: Vec<u8>,
     len: usize,
+    one_count: usize,
 }
 
 impl BitVec {
@@ -79,6 +80,7 @@ impl BitVec {
         Self {
             blocks: vec![0; Self::get_block_count(len)],
             len,
+            one_count: 0,
         }
     }
 
@@ -95,6 +97,7 @@ impl BitVec {
         let mut ret = BitVec {
             blocks: vec![if bit { <u8>::max_value() } else { 0 }; Self::get_block_count(len)],
             len,
+            one_count: if bit { len } else { 0 },
         };
         ret.clear_extra_bits();
         ret
@@ -118,6 +121,7 @@ impl BitVec {
         BitVec {
             blocks: bytes.to_vec().iter().map(|byte| Self::reverse_byte(*byte)).collect(),
             len,
+            one_count: bytes.to_vec().iter().map(|byte| byte.count_ones() as usize).sum(),
         }
     }
 
@@ -151,7 +155,8 @@ impl BitVec {
     pub fn with_capacity(len: usize) -> Self {
         BitVec {
             blocks: Vec::with_capacity(Self::get_block_count(len)),
-            len,
+            len: 0,
+            one_count: 0,
         }
     }
 
@@ -172,9 +177,16 @@ impl BitVec {
         let block_index = index / Self::get_block_bit_count();
         let bit_index = index % Self::get_block_bit_count();
         let mask = 1 << bit_index;
+        let prev = ((self.blocks[block_index] >> bit_index) & 1) != 0;
         if bit {
+            if !prev {
+                self.one_count += 1;
+            }
             self.blocks[block_index] |= mask;
         } else {
+            if prev {
+                self.one_count -= 1;
+            }
             self.blocks[block_index] &= !mask;
         }
     }
@@ -215,7 +227,14 @@ impl BitVec {
     /// assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![true, true, true, true, true]);
     /// ```
     pub fn set_all(&mut self, bit: bool)  {
-        let mask = { if bit { !0 } else { 0 } };
+        let mask;
+        if bit {
+            mask = !0;
+            self.one_count = self.len;
+        } else {
+            mask = 0;
+            self.one_count = 0;
+        }
         for block in &mut self.blocks {
             *block = mask;
         }
@@ -242,8 +261,10 @@ impl BitVec {
         let bit_index = index % Self::get_block_bit_count();
         let mask = 1 << bit_index;
         if (self.blocks[block_index] >> bit_index) & 1 == 0 {
+            self.one_count += 1;
             self.blocks[block_index] |= mask;
         } else {
+            self.one_count -= 1;
             self.blocks[block_index] &= !mask;
         }
     }
@@ -263,6 +284,7 @@ impl BitVec {
     /// assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false, false, false, false, false]);
     /// ```
     pub fn flip_all(&mut self) {
+        self.one_count = self.len - self.one_count;
         for block in &mut self.blocks {
             *block = !*block;
         }
@@ -273,6 +295,15 @@ impl BitVec {
         assert_eq!(self.blocks.len(), other.blocks.len());
         for (x, y) in self.blocks_mut().zip(other.blocks()) {
             *x = op(*x, y);
+        }
+        self.one_count = 0;
+        for index in 0..self.blocks.len() {
+            if index == self.blocks.len() - 1 && self.len() % Self::get_block_bit_count() != 0 {
+                let shift = Self::get_block_bit_count() - self.len() % Self::get_block_bit_count();
+                self.one_count += (self.blocks[index] << shift).count_ones() as usize;
+            } else {
+                self.one_count += self.blocks[index].count_ones() as usize;
+            }
         }
     }
 
@@ -552,11 +583,37 @@ impl BitVec {
     pub fn capacity(&self) -> usize {
         self.blocks.capacity() * Self::get_block_bit_count()
     }
+
+    /// Returns the number of set bits in the `BitVec`.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bit_vec::BitVec;
+    ///
+    /// let bv = BitVec::from_bytes(&[0b11010000]);
+    /// assert_eq!(bv.count_ones(), 3);
+    /// ```
+    pub fn count_ones(&self) -> usize {
+        self.one_count
+    }
+
+    /// Returns the number of unset bits in the `BitVec`.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bit_vec::BitVec;
+    ///
+    /// let bv = BitVec::from_bytes(&[0b11010000]);
+    /// assert_eq!(bv.count_zeros(), 5);
+    /// ```
+    pub fn count_zeros(&self) -> usize {
+        self.len - self.one_count
+    }
 }
 
 impl Clone for BitVec {
     fn clone(&self) -> Self {
-        BitVec { blocks: self.blocks.clone(), len: self.len }
+        BitVec { blocks: self.blocks.clone(), len: self.len, one_count: self.one_count }
     }
 
     fn clone_from(&mut self, source: &Self) {
@@ -654,12 +711,16 @@ mod tests {
     fn test_new() {
         let bv = BitVec::new(5);
         assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false, false, false, false, false]);
+        assert_eq!(bv.count_ones(), 0);
+        assert_eq!(bv.count_zeros(), 5);
     }
 
     #[test]
     fn test_from_elem() {
         let bv = BitVec::from_elem(5, true);
         assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![true, true, true, true, true]);
+        assert_eq!(bv.count_ones(), 5);
+        assert_eq!(bv.count_zeros(), 0);
     }
 
     #[test]
@@ -669,6 +730,8 @@ mod tests {
             bv.iter().collect::<Vec<bool>>(),
             vec![true, true, false, true, false, false, false, false],
         );
+        assert_eq!(bv.count_ones(), 3);
+        assert_eq!(bv.count_zeros(), 5);
     }
 
     #[test]
@@ -686,6 +749,8 @@ mod tests {
         let bv = BitVec::with_capacity(10);
 
         assert_eq!(bv.capacity(), 16);
+        assert_eq!(bv.count_ones(), 0);
+        assert_eq!(bv.count_zeros(), 0);
     }
 
     #[test]
@@ -697,6 +762,8 @@ mod tests {
         assert_eq!(bv[0], true);
         assert_eq!(bv[1], false);
         assert_eq!(bv.get(2), None);
+        assert_eq!(bv.count_ones(), 1);
+        assert_eq!(bv.count_zeros(), 1);
     }
 
     #[test]
@@ -727,9 +794,13 @@ mod tests {
 
         bv.flip_all();
         assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![true, true, true]);
+        assert_eq!(bv.count_ones(), 3);
+        assert_eq!(bv.count_zeros(), 0);
 
         bv.flip_all();
         assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false, false, false]);
+        assert_eq!(bv.count_ones(), 0);
+        assert_eq!(bv.count_zeros(), 3);
     }
 
     #[test]
@@ -744,6 +815,8 @@ mod tests {
 
         bv1.union(&bv2);
         assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![true, true, true, false]);
+        assert_eq!(bv1.count_ones(), 3);
+        assert_eq!(bv1.count_zeros(), 1);
     }
 
     #[test]
@@ -758,6 +831,8 @@ mod tests {
 
         bv1.intersection(&bv2);
         assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![true, false, false, false]);
+        assert_eq!(bv1.count_ones(), 1);
+        assert_eq!(bv1.count_zeros(), 3);
     }
 
     #[test]
@@ -772,6 +847,8 @@ mod tests {
 
         bv1.difference(&bv2);
         assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![false, true, false, false]);
+        assert_eq!(bv1.count_ones(), 1);
+        assert_eq!(bv1.count_zeros(), 3);
     }
 
     #[test]
@@ -786,6 +863,8 @@ mod tests {
 
         bv1.symmetric_difference(&bv2);
         assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![false, true, true, false]);
+        assert_eq!(bv1.count_ones(), 2);
+        assert_eq!(bv1.count_zeros(), 2);
     }
 
     #[test]
@@ -794,6 +873,8 @@ mod tests {
 
         bv.truncate(1);
         assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false]);
+        assert_eq!(bv.count_ones(), 0);
+        assert_eq!(bv.count_zeros(), 1);
     }
 
     #[test]
@@ -815,10 +896,28 @@ mod tests {
     }
 
     #[test]
-    fn test_pop() {
-        let mut bv = BitVec::from_elem(1, false);
+    fn test_push_pop() {
+        let mut bv = BitVec::new(0);
+        assert_eq!(bv.count_ones(), 0);
+        assert_eq!(bv.count_zeros(), 0);
+
+        bv.push(true);
+        assert_eq!(bv.count_ones(), 1);
+        assert_eq!(bv.count_zeros(), 0);
+
+        bv.push(false);
+        assert_eq!(bv.count_ones(), 1);
+        assert_eq!(bv.count_zeros(), 1);
+
 
         assert_eq!(bv.pop(), Some(false));
+        assert_eq!(bv.count_ones(), 1);
+        assert_eq!(bv.count_zeros(), 0);
+
+        assert_eq!(bv.pop(), Some(true));
+        assert_eq!(bv.count_ones(), 0);
+        assert_eq!(bv.count_zeros(), 0);
+
         assert_eq!(bv.pop(), None);
     }
 
@@ -826,8 +925,11 @@ mod tests {
     fn test_push() {
         let mut bv = BitVec::from_elem(1, false);
 
+
         bv.push(true);
         assert_eq!(bv.get(1), Some(true));
+        assert_eq!(bv.count_ones(), 1);
+        assert_eq!(bv.count_zeros(), 1);
     }
 
     #[test]
