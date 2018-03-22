@@ -45,7 +45,7 @@ fn int_test_treapmap() {
             let old_val = map.get_mut(&entry.0);
             *old_val.unwrap() = val_2;
         }
-        *entry = (entry.0, val_2);
+        entry.1 = val_2;
         assert_eq!(map.get(&entry.0), Some(&val_2));
     }
 

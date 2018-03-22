@@ -51,7 +51,6 @@ impl<T> Node<T> {
                 Some(ref mut node) => {
                     if node.key[0] > new_node.key[0] {
                         mem::swap(node, &mut new_node);
-                        new_node.next = node.next.take();
                         node.next = Some(new_node);
                     } else {
                         insert_inner(&mut node.next, new_node);
