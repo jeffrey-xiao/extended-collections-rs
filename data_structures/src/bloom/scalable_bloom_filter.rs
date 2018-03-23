@@ -215,13 +215,29 @@ mod tests {
         assert!(!filter.contains(&"foo"));
         filter.insert(&"foo");
         assert!(filter.contains(&"foo"));
+        assert_eq!(filter.approximate_bits_used, 7);
         assert_eq!(filter.count_ones(), 7);
         assert_eq!(filter.count_zeros(), 93);
 
         filter.clear();
         assert!(!filter.contains(&"foo"));
+        assert_eq!(filter.approximate_bits_used, 0);
 
         assert_eq!(filter.len(), 100);
         assert_eq!(filter.filter_count(), 1);
+    }
+
+    #[test]
+    fn test_grow() {
+        let mut filter  = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
+        
+        for i in 0..15 {
+            filter.insert(&i);
+        }
+
+        assert_eq!(filter.len(), 300);
+        assert_eq!(filter.filter_count(), 2);
+        assert_eq!(filter.filters[0].hasher_count(), 7);
+        assert_eq!(filter.filters[1].hasher_count(), 8);
     }
 }
