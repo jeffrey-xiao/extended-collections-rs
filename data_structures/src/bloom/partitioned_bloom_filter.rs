@@ -13,9 +13,9 @@ use std::marker::PhantomData;
 ///
 /// # Examples
 /// ```
-/// use data_structures::bloom::BloomFilter;
+/// use data_structures::bloom::PartitionedBloomFilter;
 ///
-/// let mut filter = BloomFilter::new(10, 0.01);
+/// let mut filter = PartitionedBloomFilter::from_item_count(10, 0.01);
 ///
 /// assert!(!filter.contains(&"foo"));
 /// filter.insert(&"foo");
@@ -24,17 +24,19 @@ use std::marker::PhantomData;
 /// filter.clear();
 /// assert!(!filter.contains(&"foo"));
 ///
-/// assert_eq!(filter.len(), 96);
+/// assert_eq!(filter.len(), 98);
+/// assert_eq!(filter.bit_count(), 14);
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
-pub struct BloomFilter<T: Hash> {
+pub struct PartitionedBloomFilter<T: Hash> {
     bit_vec: BitVec,
     hashers: [SipHasher; 2],
+    bit_count: usize,
     hasher_count: usize,
     _marker: PhantomData<T>,
 }
 
-impl<T: Hash> BloomFilter<T> {
+impl<T: Hash> PartitionedBloomFilter<T> {
     fn get_hashers() -> [SipHasher; 2] {
         let mut rng = XorShiftRng::new_unseeded();
         [
@@ -44,63 +46,46 @@ impl<T: Hash> BloomFilter<T> {
     }
 
     fn get_hasher_count(fpp: f64) -> usize {
-        (1.0 / fpp).log(2)
+        (1.0 / fpp).log(2.0).ceil() as usize
     }
 
-    /// Constructs a new, empty `BloomFilter<T>` with an estimated max capacity of `item_count`
-    /// items and a maximum false positive probability of `fpp`.
+    /// Constructs a new, empty `PartitionedBloomFilter<T>` with an estimated max capacity of
+    /// `item_count` items and a maximum false positive probability of `fpp`.
     ///
     /// # Examples
     /// ```
-    /// use data_structures::bloom::BloomFilter;
+    /// use data_structures::bloom::PartitionedBloomFilter;
     ///
-    /// let filter: BloomFilter<u32> = BloomFilter::new(10, 0.01);
+    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
     /// ```
-    pub fn new(item_count: usize, fpp: f64) -> Self {
-        let hasher_count = get_hasher_count(fpp);
-        let bit_count = (-item_count * fpp.ln() / 2f64.log(2).powi(2) / (hasher_count as f64)).ceil() as usize;
-        BloomFilter {
+    pub fn from_item_count(item_count: usize, fpp: f64) -> Self {
+        let hasher_count = Self::get_hasher_count(fpp);
+        let bit_count = (item_count as f64 * fpp.ln() / -2f64.ln().powi(2) / (hasher_count as f64)).ceil() as usize;
+        PartitionedBloomFilter {
             bit_vec: BitVec::new(bit_count * hasher_count),
+            hashers: Self::get_hashers(),
+            bit_count,
             hasher_count,
-            hashers: Self::get_hashers(),
             _marker: PhantomData,
         }
     }
 
-    /// Constructs a new, empty `BloomFilter<T>` with `bit_count` bits and an estimated max
-    /// capacity of `item_count` items.
+    /// Constructs a new, empty `PartitionedBloomFilter<T>` with `bit_count` bits per partition and
+    /// a maximum false positive probability of `fpp`.
     ///
     /// # Examples
     /// ```
-    /// use data_structures::bloom::BloomFilter;
+    /// use data_structures::bloom::PartitionedBloomFilter;
     ///
-    /// let filter: BloomFilter<u32> = BloomFilter::from_item_count(100, 10);
+    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_bit_count(10, 0.01);
     /// ```
-    pub fn from_item_count(bit_count: usize, item_count: usize) -> Self {
-        let hasher_count = get_hasher_count
-        BloomFilter {
-            bit_vec: BitVec::new(bit_count),
-            hasher_count: Self::get_hasher_count(bit_count, item_count),
+    pub fn from_bit_count(bit_count: usize, fpp: f64) -> Self {
+        let hasher_count = Self::get_hasher_count(fpp);
+        PartitionedBloomFilter {
+            bit_vec: BitVec::new(bit_count * hasher_count),
             hashers: Self::get_hashers(),
-            _marker: PhantomData,
-        }
-    }
-
-    /// Constructs a new, empty `BloomFilter<T>` with `bit_count` bits and a maximum false positive
-    /// probability of `fpp`.
-    ///
-    /// # Examples
-    /// ```
-    /// use data_structures::bloom::BloomFilter;
-    ///
-    /// let filter: BloomFilter<u32> = BloomFilter::from_fpp(100, 0.01);
-    /// ```
-    pub fn from_fpp(bit_count: usize, fpp: f64) -> Self {
-        let item_count = (-2f64.ln() * (bit_count as f64) / fpp.log(2.0)).floor() as usize;
-        BloomFilter {
-            bit_vec: BitVec::new(bit_count),
-            hasher_count: Self::get_hasher_count(bit_count, item_count),
-            hashers: Self::get_hashers(),
+            bit_count,
+            hasher_count,
             _marker: PhantomData,
         }
     }
@@ -119,9 +104,9 @@ impl<T: Hash> BloomFilter<T> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::bloom::BloomFilter;
+    /// use data_structures::bloom::PartitionedBloomFilter;
     ///
-    /// let mut filter = BloomFilter::new(10, 0.01);
+    /// let mut filter = PartitionedBloomFilter::from_item_count(10, 0.01);
     ///
     /// filter.insert(&"foo");
     /// ```
@@ -130,7 +115,8 @@ impl<T: Hash> BloomFilter<T> {
         for index in 0..self.hasher_count {
             let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xffffffffffffffc5;
             offset = hashes[0].wrapping_add(offset);
-            offset = offset % self.bit_vec.len() as u64;
+            offset = offset % self.bit_count as u64;
+            offset = offset + (index * self.bit_count) as u64;
             self.bit_vec.set(offset as usize, true);
         }
     }
@@ -139,9 +125,9 @@ impl<T: Hash> BloomFilter<T> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::bloom::BloomFilter;
+    /// use data_structures::bloom::PartitionedBloomFilter;
     ///
-    /// let mut filter = BloomFilter::new(10, 0.01);
+    /// let mut filter = PartitionedBloomFilter::from_item_count(10, 0.01);
     ///
     /// assert!(!filter.contains(&"foo"));
     /// filter.insert(&"foo");
@@ -152,7 +138,8 @@ impl<T: Hash> BloomFilter<T> {
         (0..self.hasher_count).all(|index| {
             let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xffffffffffffffc5;
             offset = hashes[0].wrapping_add(offset);
-            offset = offset % self.bit_vec.len() as u64;
+            offset = offset % self.bit_count as u64;
+            offset = offset + (index * self.bit_count) as u64;
             self.bit_vec[offset as usize]
         })
     }
@@ -161,25 +148,39 @@ impl<T: Hash> BloomFilter<T> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::bloom::BloomFilter;
+    /// use data_structures::bloom::PartitionedBloomFilter;
     ///
-    /// let filter: BloomFilter<u32> = BloomFilter::from_fpp(100, 0.01);
+    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
     ///
-    /// assert_eq!(filter.len(), 100);
+    /// assert_eq!(filter.len(), 98);
     /// ```
     pub fn len(&self) -> usize {
         self.bit_vec.len()
+    }
+
+    /// Returns the number of bits in each partition in the bloom filter.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bloom::PartitionedBloomFilter;
+    ///
+    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
+    ///
+    /// assert_eq!(filter.bit_count(), 14);
+    /// ```
+    pub fn bit_count(&self) -> usize {
+        self.bit_count
     }
 
     /// Returns the number of hash functions used by the bloom filter.
     ///
     /// # Examples
     /// ```
-    /// use data_structures::bloom::BloomFilter;
+    /// use data_structures::bloom::PartitionedBloomFilter;
     ///
-    /// let filter: BloomFilter<u32> = BloomFilter::new(10, 0.01);
+    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
     ///
-    /// assert_eq!(filter.hasher_count(), 7);
+    /// assert_eq!(filter.bit_count(), 14);
     /// ```
     pub fn hasher_count(&self) -> usize {
         self.hasher_count
@@ -189,9 +190,9 @@ impl<T: Hash> BloomFilter<T> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::bloom::BloomFilter;
+    /// use data_structures::bloom::PartitionedBloomFilter;
     ///
-    /// let mut filter = BloomFilter::new(10, 0.01);
+    /// let mut filter = PartitionedBloomFilter::from_item_count(10, 0.01);
     ///
     /// filter.insert(&"foo");
     /// filter.clear();
@@ -206,9 +207,9 @@ impl<T: Hash> BloomFilter<T> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::bloom::BloomFilter;
+    /// use data_structures::bloom::PartitionedBloomFilter;
     ///
-    /// let mut filter = BloomFilter::from_fpp(100, 0.01);
+    /// let mut filter = PartitionedBloomFilter::from_item_count(10, 0.01);
     /// filter.insert(&"foo");
     ///
     /// assert_eq!(filter.count_ones(), 7);
@@ -221,12 +222,12 @@ impl<T: Hash> BloomFilter<T> {
     ///
     /// # Examples
     /// ```
-    /// use data_structures::bloom::BloomFilter;
+    /// use data_structures::bloom::PartitionedBloomFilter;
     ///
-    /// let mut filter = BloomFilter::from_fpp(100, 0.01);
+    /// let mut filter = PartitionedBloomFilter::from_item_count(10, 0.01);
     /// filter.insert(&"foo");
     ///
-    /// assert_eq!(filter.count_zeros(), 93);
+    /// assert_eq!(filter.count_zeros(), 91);
     /// ```
     pub fn count_zeros(&self) -> usize {
         self.bit_vec.count_zeros()
@@ -235,56 +236,41 @@ impl<T: Hash> BloomFilter<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::BloomFilter;
-
-    #[test]
-    fn test_new() {
-        let mut filter = BloomFilter::new(10, 0.01);
-
-        assert!(!filter.contains(&"foo"));
-        filter.insert(&"foo");
-        assert!(filter.contains(&"foo"));
-        assert_eq!(filter.count_ones(), 7);
-        assert_eq!(filter.count_zeros(), 89);
-
-        filter.clear();
-        assert!(!filter.contains(&"foo"));
-
-        assert_eq!(filter.len(), 96);
-        assert_eq!(filter.hasher_count(), 7);
-    }
-
-    #[test]
-    fn test_from_fpp() {
-        let mut filter = BloomFilter::from_fpp(100, 0.01);
-
-        assert!(!filter.contains(&"foo"));
-        filter.insert(&"foo");
-        assert!(filter.contains(&"foo"));
-        assert_eq!(filter.count_ones(), 7);
-        assert_eq!(filter.count_zeros(), 93);
-
-        filter.clear();
-        assert!(!filter.contains(&"foo"));
-
-        assert_eq!(filter.len(), 100);
-        assert_eq!(filter.hasher_count(), 7);
-    }
+    use super::PartitionedBloomFilter;
 
     #[test]
     fn test_from_item_count() {
-        let mut filter = BloomFilter::from_item_count(100, 10);
+        let mut filter = PartitionedBloomFilter::from_item_count(10, 0.01);
 
         assert!(!filter.contains(&"foo"));
         filter.insert(&"foo");
         assert!(filter.contains(&"foo"));
         assert_eq!(filter.count_ones(), 7);
-        assert_eq!(filter.count_zeros(), 93);
+        assert_eq!(filter.count_zeros(), 91);
 
         filter.clear();
         assert!(!filter.contains(&"foo"));
 
-        assert_eq!(filter.len(), 100);
+        assert_eq!(filter.len(), 98);
+        assert_eq!(filter.bit_count(), 14);
+        assert_eq!(filter.hasher_count(), 7);
+    }
+
+    #[test]
+    fn test_from_bit_count() {
+        let mut filter = PartitionedBloomFilter::from_bit_count(10, 0.01);
+
+        assert!(!filter.contains(&"foo"));
+        filter.insert(&"foo");
+        assert!(filter.contains(&"foo"));
+        assert_eq!(filter.count_ones(), 7);
+        assert_eq!(filter.count_zeros(), 63);
+
+        filter.clear();
+        assert!(!filter.contains(&"foo"));
+
+        assert_eq!(filter.len(), 70);
+        assert_eq!(filter.bit_count(), 10);
         assert_eq!(filter.hasher_count(), 7);
     }
 }

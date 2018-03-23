@@ -62,8 +62,8 @@ impl<T: Hash> BloomFilter<T> {
         let bit_count = (-fpp.log(2.0) * (item_count as f64) / 2f64.ln()).ceil() as usize;
         BloomFilter {
             bit_vec: BitVec::new(bit_count),
-            hasher_count: Self::get_hasher_count(bit_count, item_count),
             hashers: Self::get_hashers(),
+            hasher_count: Self::get_hasher_count(bit_count, item_count),
             _marker: PhantomData,
         }
     }
@@ -80,8 +80,8 @@ impl<T: Hash> BloomFilter<T> {
     pub fn from_item_count(bit_count: usize, item_count: usize) -> Self {
         BloomFilter {
             bit_vec: BitVec::new(bit_count),
-            hasher_count: Self::get_hasher_count(bit_count, item_count),
             hashers: Self::get_hashers(),
+            hasher_count: Self::get_hasher_count(bit_count, item_count),
             _marker: PhantomData,
         }
     }
@@ -99,8 +99,8 @@ impl<T: Hash> BloomFilter<T> {
         let item_count = (-2f64.ln() * (bit_count as f64) / fpp.log(2.0)).floor() as usize;
         BloomFilter {
             bit_vec: BitVec::new(bit_count),
-            hasher_count: Self::get_hasher_count(bit_count, item_count),
             hashers: Self::get_hashers(),
+            hasher_count: Self::get_hasher_count(bit_count, item_count),
             _marker: PhantomData,
         }
     }
