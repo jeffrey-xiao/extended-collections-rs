@@ -5,3 +5,5 @@
  > Guy E. Blelloch and Margaret Reid-Miller. 1998. Fast set operations using treaps. In Proceedings of the tenth annual ACM symposium on Parallel algorithms and architectures (SPAA '98). ACM, New York, NY, USA, 16-26. DOI=http://dx.doi.org/10.1145/277651.277660
  - [A Skip List Cookbook.](https://dl.acm.org/citation.cfm?id=93711)
  > William Pugh. 1990. A Skip List Cookbook. Technical Report. University of Maryland at College Park, College Park, MD, USA.
+ - [Scalable Bloom Filters](https://dl.acm.org/citation.cfm?id=1224501)
+ > Paulo Sérgio Almeida, Carlos Baquero, Nuno Preguiça, and David Hutchison. 2007. Scalable Bloom Filters. Inf. Process. Lett. 101, 6 (March 2007), 255-261. DOI=http://dx.doi.org/10.1016/j.ipl.2006.10.007
