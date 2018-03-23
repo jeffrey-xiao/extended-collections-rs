@@ -2,6 +2,7 @@ extern crate data_structures;
 extern crate rand;
 
 use data_structures::radix::RadixMap;
+use std::iter;
 use std::vec::Vec;
 use self::rand::{thread_rng, Rng};
 
@@ -10,10 +11,13 @@ fn int_test_radixmap() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut map = RadixMap::new();
     let mut expected = Vec::new();
-    for _ in 0..10 {
+    for _ in 0..100_000 {
         // generate a random length from [10, 99)
         let len = rng.gen_range(10, 99);
-        let key = rng.gen_iter::<u8>().take(len).collect::<Vec<u8>>();
+        let key = iter::repeat(())
+            .map(|()| rng.gen::<u8>())
+            .take(len)
+            .collect::<Vec<u8>>();
         let val = rng.gen::<u32>();
 
         map.insert(key.clone(), val);

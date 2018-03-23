@@ -180,7 +180,7 @@ impl<T: Hash> PartitionedBloomFilter<T> {
     ///
     /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
     ///
-    /// assert_eq!(filter.bit_count(), 14);
+    /// assert_eq!(filter.hasher_count(), 7);
     /// ```
     pub fn hasher_count(&self) -> usize {
         self.hasher_count

@@ -4,7 +4,7 @@ use std::mem;
 
 pub type Tree<T> = Option<Box<Node<T>>>;
 
-pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<(Key, T)> {
+pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<T> {
     let node = match *tree {
         Some(ref mut node) => node,
         _ => unreachable!(),
@@ -43,7 +43,7 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<(Key, T)>
                 None
             },
             Ordering::Equal => mem::replace(&mut node.value, Some(value)).map(|value| {
-                (key.clone(), value)
+                value
             }),
         }
     }

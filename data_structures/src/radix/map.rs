@@ -76,7 +76,8 @@ impl<T> RadixMap<T> {
     /// ```
     pub fn insert(&mut self, key: Key, value: T) -> Option<(Key, T)> {
         self.len += 1;
-        let ret = tree::insert(&mut self.root, key, value);
+        let cloned_key = key.clone();
+        let ret = tree::insert(&mut self.root, key, value).map(|value| (cloned_key, value));
         if ret.is_some() {
             self.len -= 1;
         }
