@@ -525,12 +525,15 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIter<'a, T, U> {
     }
 }
 
+type BorrowedIterEntryMut<'a, T, U> = Option<(&'a mut Entry<T, U>, BorrowedTreeMut<'a, T, U>)>;
+type BorrowedTreeMut<'a, T, U> = Option<&'a mut Node<T, U>>;
+
 /// A mutable iterator for `TreapMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields mutable references.
 pub struct TreapMapIterMut<'a, T: 'a + Ord, U: 'a> {
     current: Option<&'a mut Node<T, U>>,
-    stack: Vec<Option<(&'a mut Entry<T, U>, Option<&'a mut Node<T, U>>)>>,
+    stack: Vec<BorrowedIterEntryMut<'a, T, U>>,
 }
 
 impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIterMut<'a, T, U> {

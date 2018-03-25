@@ -6,6 +6,8 @@ use serde::de::DeserializeOwned;
 use std::io::Error;
 use std::mem;
 
+type SearchHistory<T, U> = Vec<(u64, Node<T, U>, usize)>;
+
 /// An ordered map implemented by an on-disk B+ tree.
 ///
 /// A B+ is an N-ary tree with a variable number of children per node. A B+ tree is a B-tree in
@@ -97,7 +99,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
         Ok(BPMap { pager: Pager::open(file_path)? })
     }
 
-    fn search_node(&mut self, key: &T) -> (u64, Node<T, U>, Vec<(u64, Node<T, U>, usize)>) {
+    fn search_node(&mut self, key: &T) -> (u64, Node<T, U>, SearchHistory<T, U>) {
         let mut curr_page = self.pager.get_root_page();
         let mut curr_node = self.pager.get_page(curr_page);
 
@@ -140,16 +142,16 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
             Node::Leaf(mut curr_leaf_node) => {
                 match curr_leaf_node.insert(Entry { key, value }) {
                     Some(InsertCases::Split { split_key, split_node }) => {
-                        let split_node_index = self.pager.allocate_node(split_node);
+                        let split_node_index = self.pager.allocate_node(&split_node);
                         curr_leaf_node.next_leaf = Some(split_node_index);
                         split_node_entry = Some((split_key, split_node_index));
-                        self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
+                        self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node));
                     },
                     Some(InsertCases::Entry(entry)) => {
-                        self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
+                        self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node));
                         return Some((entry.key, entry.value));
                     },
-                    None => self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node)),
+                    None => self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node)),
                 }
             },
             _ => unreachable!(),
@@ -158,10 +160,10 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
         while let Some((split_key, split_pointer)) = split_node_entry {
             match stack.pop() {
                 Some((parent_page, mut parent_node, _)) => {
-                    match &mut parent_node {
-                        &mut Node::Internal(ref mut node) => {
+                    match parent_node {
+                        Node::Internal(ref mut node) => {
                             if let Some((split_key, split_node)) = node.insert(split_key, split_pointer, true) {
-                                let split_node_index = self.pager.allocate_node(split_node);
+                                let split_node_index = self.pager.allocate_node(&split_node);
                                 split_node_entry = Some((split_key, split_node_index));
                             } else {
                                 split_node_entry = None
@@ -171,7 +173,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
                     }
                     curr_node = parent_node;
                     curr_page = parent_page;
-                    self.pager.write_node(curr_page, curr_node);
+                    self.pager.write_node(curr_page, &curr_node);
                 },
                 None => {
                     let mut new_root = InternalNode::new(self.pager.get_internal_degree());
@@ -179,7 +181,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
                     new_root.pointers[0] = curr_page;
                     new_root.pointers[1] = split_pointer;
                     new_root.len = 1;
-                    let new_root_page = self.pager.allocate_node(Node::Internal(new_root));
+                    let new_root_page = self.pager.allocate_node(&Node::Internal(new_root));
                     self.pager.set_root_page(new_root_page);
                     split_node_entry = None;
                 },
@@ -245,12 +247,12 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
                                 curr_leaf_node.merge(&mut sibling_leaf_node);
                                 delete_entry = Some((curr_index, parent_page, parent_internal_node));
                                 self.pager.deallocate_node(sibling_page);
-                                self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
+                                self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node));
                             } else {
                                 sibling_leaf_node.merge(&mut curr_leaf_node);
                                 delete_entry = Some((sibling_index, parent_page, parent_internal_node));
                                 self.pager.deallocate_node(curr_page);
-                                self.pager.write_node(sibling_page, Node::Leaf(sibling_leaf_node));
+                                self.pager.write_node(sibling_page, &Node::Leaf(sibling_leaf_node));
                             }
                         }
                         // take one entry
@@ -271,9 +273,9 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
                                 parent_internal_node.keys[sibling_index] = Some(removed_entry.key.clone());
                                 curr_leaf_node.insert(removed_entry);
                             }
-                            self.pager.write_node(parent_page, Node::Internal(parent_internal_node));
-                            self.pager.write_node(sibling_page, Node::Leaf(sibling_leaf_node));
-                            self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
+                            self.pager.write_node(parent_page, &Node::Internal(parent_internal_node));
+                            self.pager.write_node(sibling_page, &Node::Leaf(sibling_leaf_node));
+                            self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node));
                         }
                     }
                     let new_len = self.pager.get_len() - 1;
@@ -281,7 +283,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
                 } else if ret.is_some() {
                     let new_len = self.pager.get_len() - 1;
                     self.pager.set_len(new_len);
-                    self.pager.write_node(curr_page, Node::Leaf(curr_leaf_node));
+                    self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node));
                 }
             },
             _ => unreachable!(),
@@ -323,7 +325,7 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
                             curr_internal_node.merge(parent_key, &mut sibling_internal_node);
                             delete_entry = Some((curr_index, parent_page, parent_internal_node));
                             self.pager.deallocate_node(sibling_page);
-                            self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
+                            self.pager.write_node(curr_page, &Node::Internal(curr_internal_node));
                         } else {
                             let parent_key = match parent_internal_node.keys[sibling_index] {
                                 Some(ref key) => key.clone(),
@@ -332,40 +334,38 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
                             sibling_internal_node.merge(parent_key, &mut curr_internal_node);
                             delete_entry = Some((sibling_index, parent_page, parent_internal_node));
                             self.pager.deallocate_node(curr_page);
-                            self.pager.write_node(sibling_page, Node::Internal(sibling_internal_node));
+                            self.pager.write_node(sibling_page, &Node::Internal(sibling_internal_node));
                         }
+                    } else if sibling_index == curr_index + 1 {
+                        let (mut removed_key, removed_pointer) = sibling_internal_node.remove_at(0, false);
+                        let removed_key = match mem::replace(&mut parent_internal_node.keys[curr_index], Some(removed_key)) {
+                            Some(key) => key,
+                            _ => unreachable!(),
+                        };
+                        curr_internal_node.insert(removed_key, removed_pointer, true);
+                        self.pager.write_node(parent_page, &Node::Internal(parent_internal_node));
+                        self.pager.write_node(sibling_page, &Node::Internal(sibling_internal_node));
+                        self.pager.write_node(curr_page, &Node::Internal(curr_internal_node));
                     } else {
-                        if sibling_index == curr_index + 1 {
-                            let (mut removed_key, removed_pointer) = sibling_internal_node.remove_at(0, false);
-                            let removed_key = match mem::replace(&mut parent_internal_node.keys[curr_index], Some(removed_key)) {
-                                Some(key) => key,
-                                _ => unreachable!(),
-                            };
-                            curr_internal_node.insert(removed_key, removed_pointer, true);
-                            self.pager.write_node(parent_page, Node::Internal(parent_internal_node));
-                            self.pager.write_node(sibling_page, Node::Internal(sibling_internal_node));
-                            self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
-                        } else {
-                            let remove_index = sibling_internal_node.len - 1;
-                            let (mut removed_key, removed_pointer) = sibling_internal_node.remove_at(remove_index, true);
-                            let removed_key = match mem::replace(&mut parent_internal_node.keys[sibling_index], Some(removed_key)) {
-                                Some(key) => key,
-                                _ => unreachable!(),
-                            };
-                            curr_internal_node.insert(removed_key, removed_pointer, false);
-                            self.pager.write_node(parent_page, Node::Internal(parent_internal_node));
-                            self.pager.write_node(sibling_page, Node::Internal(sibling_internal_node));
-                            self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
-                        }
+                        let remove_index = sibling_internal_node.len - 1;
+                        let (mut removed_key, removed_pointer) = sibling_internal_node.remove_at(remove_index, true);
+                        let removed_key = match mem::replace(&mut parent_internal_node.keys[sibling_index], Some(removed_key)) {
+                            Some(key) => key,
+                            _ => unreachable!(),
+                        };
+                        curr_internal_node.insert(removed_key, removed_pointer, false);
+                        self.pager.write_node(parent_page, &Node::Internal(parent_internal_node));
+                        self.pager.write_node(sibling_page, &Node::Internal(sibling_internal_node));
+                        self.pager.write_node(curr_page, &Node::Internal(curr_internal_node));
                     }
                 } else if curr_internal_node.len == 0 {
                     self.pager.set_root_page(curr_internal_node.pointers[0]);
                     self.pager.deallocate_node(curr_page);
                 } else {
-                    self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
+                    self.pager.write_node(curr_page, &Node::Internal(curr_internal_node));
                 }
             } else {
-                self.pager.write_node(curr_page, Node::Internal(curr_internal_node));
+                self.pager.write_node(curr_page, &Node::Internal(curr_internal_node));
             }
         }
         ret.map(|entry| (entry.key, entry.value))

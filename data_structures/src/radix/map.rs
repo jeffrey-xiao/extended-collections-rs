@@ -388,8 +388,8 @@ impl<'a, T: 'a> Iterator for RadixMapIter<'a, T> {
             while let Some(ref node) = *self.current {
                 let Node { ref key, ref value, ref next, ref child } = **node;
                 let key_len = key.len();
-                self.prefix.extend_from_slice(&mut key.as_slice());
-                self.current = &child;
+                self.prefix.extend_from_slice(key.as_slice());
+                self.current = child;
                 self.stack.push((next, key_len));
                 if let Some(ref value) = *value {
                     return Some((self.prefix.clone(), value));
@@ -425,7 +425,7 @@ impl<'a, T: 'a> Iterator for RadixMapIterMut<'a, T> {
             while let Some(node) = self.current.take() {
                 let Node { ref key, ref mut value, ref mut next, ref mut child } = *node;
                 let key_len = key.len();
-                self.prefix.extend_from_slice(&mut key.as_slice());
+                self.prefix.extend_from_slice(key.as_slice());
                 self.current = child.as_mut().map(|node| &mut **node);
                 self.stack.push((next, key_len));
                 if value.is_some() {

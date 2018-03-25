@@ -30,9 +30,9 @@ impl FingerprintVec {
                 if byte_offset % 8 == 0 {
                     bytes[byte_offset / 8]
                 } else if (8 - byte_offset % 8) >= bits_left + curr_bits {
-                    (bytes[byte_offset / 8]) >> byte_offset % 8
+                    (bytes[byte_offset / 8]) >> (byte_offset % 8)
                 } else {
-                    (bytes[byte_offset / 8] >> byte_offset % 8) | (bytes[byte_offset / 8 + 1] << (8 - byte_offset % 8))
+                    (bytes[byte_offset / 8] >> (byte_offset % 8)) | (bytes[byte_offset / 8 + 1] << (8 - byte_offset % 8))
                 }
             };
 
@@ -58,9 +58,9 @@ impl FingerprintVec {
                 if bits_offset % 8 == 0 {
                     self.blocks[bits_offset / 8]
                 } else if 8 - bits_offset % 8 >= curr_bits {
-                    self.blocks[bits_offset / 8] >> bits_offset % 8
+                    self.blocks[bits_offset / 8] >> (bits_offset % 8)
                 } else {
-                    (self.blocks[bits_offset / 8] >> bits_offset % 8) | (self.blocks[bits_offset / 8 + 1] << (8 - bits_offset % 8))
+                    (self.blocks[bits_offset / 8] >> (bits_offset % 8)) | (self.blocks[bits_offset / 8 + 1] << (8 - bits_offset % 8))
                 }
             };
 

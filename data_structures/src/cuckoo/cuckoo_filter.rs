@@ -58,10 +58,10 @@ impl<T: Hash> CuckooFilter<T> {
 
     fn get_hashes(&self, item: &T) -> [u64; 2] {
         let mut ret = [0; 2];
-        for index in 0..2 {
-            let sip = &mut self.hashers[index].clone();
-            item.hash(sip);
-            ret[index] = sip.finish();
+        for (index, hash) in ret.iter_mut().enumerate() {
+            let mut sip = self.hashers[index];
+            item.hash(&mut sip);
+            *hash = sip.finish();
         }
         ret
     }
@@ -73,7 +73,7 @@ impl<T: Hash> CuckooFilter<T> {
     fn get_raw_fingerprint(fingerprint: &Vec<u8>) -> u64 {
         let mut ret = 0u64;
         for (index, byte) in fingerprint.iter().enumerate() {
-            ret |= (*byte as u64) << (index * 8)
+            ret |= (u64::from(*byte)) << (index * 8)
         }
         ret
     }
@@ -85,8 +85,8 @@ impl<T: Hash> CuckooFilter<T> {
 
         // rehash when fingerprint is all 0s
         while raw_fingerprint == 0 {
-            let sip = &mut self.hashers[0].clone();
-            hashes[0].hash(sip);
+            let mut sip = self.hashers[0];
+            hashes[0].hash(&mut sip);
             hashes[0] = sip.finish();
             raw_fingerprint = hashes[0] << trailing_zeros >> trailing_zeros;
             fingerprint = Self::get_fingerprint(raw_fingerprint);
@@ -127,9 +127,9 @@ impl<T: Hash> CuckooFilter<T> {
     }
 
     fn insert_fingerprint(&mut self, fingerprint: Vec<u8>, index: usize) -> bool {
-        for bucket in self.fingerprint_buckets.iter_mut() {
+        for bucket in &mut self.fingerprint_buckets {
             if bucket.get(index).iter().all(|byte| *byte == 0) {
-                bucket.set(index, fingerprint.clone());
+                bucket.set(index, fingerprint);
                 return true;
             }
         }
@@ -147,7 +147,7 @@ impl<T: Hash> CuckooFilter<T> {
         if let Some(index) = self.extra_items.iter().position(|item| *item == (raw_fingerprint, min_index)) {
             self.extra_items.swap_remove(index);
         }
-        for bucket in self.fingerprint_buckets.iter_mut() {
+        for bucket in &mut self.fingerprint_buckets {
             if Self::get_raw_fingerprint(&bucket.get(index_1)) == raw_fingerprint {
                 bucket.set(index_1, Self::get_fingerprint(0));
             }
@@ -163,7 +163,7 @@ impl<T: Hash> CuckooFilter<T> {
     }
 
     fn contains_fingerprint(&self, fingerprint: &Vec<u8>, index_1: usize, index_2: usize) -> bool {
-        let raw_fingerprint = Self::get_raw_fingerprint(&fingerprint);
+        let raw_fingerprint = Self::get_raw_fingerprint(fingerprint);
         let min_index = cmp::min(index_1, index_2);
         if self.extra_items.contains(&(raw_fingerprint, min_index)) {
             return true;
@@ -176,6 +176,10 @@ impl<T: Hash> CuckooFilter<T> {
 
     pub fn len(&self) -> usize {
         self.fingerprint_buckets.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.fingerprint_buckets.is_empty()
     }
 
     pub fn bucket_len(&self) -> usize {
@@ -221,6 +225,7 @@ mod tests {
     fn test_new() {
         let filter: CuckooFilter<u32> = CuckooFilter::new(100);
         assert_eq!(filter.len(), 4);
+        assert!(!filter.is_empty());
         assert_eq!(filter.bucket_len(), 25);
         assert_eq!(filter.fingerprint_bit_count(), 8);
     }
@@ -229,6 +234,7 @@ mod tests {
     fn test_from_parameters() {
         let filter: CuckooFilter<u32> = CuckooFilter::from_parameters(100, 16, 8, 256);
         assert_eq!(filter.len(), 8);
+        assert!(!filter.is_empty());
         assert_eq!(filter.bucket_len(), 13);
         assert_eq!(filter.fingerprint_bit_count(), 16);
     }

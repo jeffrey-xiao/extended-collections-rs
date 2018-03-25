@@ -356,12 +356,14 @@ impl<'a, T: 'a> Iterator for TreapListIter<'a, T> {
     }
 }
 
+type BorrowedTreeMut<'a, T> = Option<&'a mut ImplicitNode<T>>;
+
 /// A mutable iterator for `TreapList<T>`.
 ///
 /// This iterator traverses the elements of the list in-order and yields mutable references.
 pub struct TreapListIterMut<'a, T: 'a> {
     current: Option<&'a mut ImplicitNode<T>>,
-    stack: Vec<Option<(&'a mut T, Option<&'a mut ImplicitNode<T>>)>>,
+    stack: Vec<Option<(&'a mut T, BorrowedTreeMut<'a, T>)>>,
 }
 
 impl<'a, T: 'a> Iterator for TreapListIterMut<'a, T> {

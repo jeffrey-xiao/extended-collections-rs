@@ -96,7 +96,7 @@ impl<T: Hash> BloomFilter<T> {
     /// let filter: BloomFilter<u32> = BloomFilter::from_fpp(100, 0.01);
     /// ```
     pub fn from_fpp(bit_count: usize, fpp: f64) -> Self {
-        let item_count = (-2f64.ln() * (bit_count as f64) / fpp.log(2.0)).floor() as usize;
+        let item_count = -(2f64.ln() * (bit_count as f64) / fpp.log(2.0)).floor() as usize;
         BloomFilter {
             bit_vec: BitVec::new(bit_count),
             hashers: Self::get_hashers(),
@@ -107,10 +107,10 @@ impl<T: Hash> BloomFilter<T> {
 
     fn get_hashes(&self, item: &T) -> [u64; 2] {
         let mut ret = [0; 2];
-        for index in 0..2 {
-            let sip = &mut self.hashers[index].clone();
-            item.hash(sip);
-            ret[index] = sip.finish();
+        for (index, hash) in ret.iter_mut().enumerate() {
+            let mut sip = self.hashers[index];
+            item.hash(&mut sip);
+            *hash = sip.finish();
         }
         ret
     }
@@ -128,9 +128,9 @@ impl<T: Hash> BloomFilter<T> {
     pub fn insert(&mut self, item: &T) {
         let hashes = self.get_hashes(item);
         for index in 0..self.hasher_count {
-            let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xffffffffffffffc5;
+            let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
             offset = hashes[0].wrapping_add(offset);
-            offset = offset % self.bit_vec.len() as u64;
+            offset %= self.bit_vec.len() as u64;
             self.bit_vec.set(offset as usize, true);
         }
     }
@@ -150,9 +150,9 @@ impl<T: Hash> BloomFilter<T> {
     pub fn contains(&self, item: &T) -> bool {
         let hashes = self.get_hashes(item);
         (0..self.hasher_count).all(|index| {
-            let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xffffffffffffffc5;
+            let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
             offset = hashes[0].wrapping_add(offset);
-            offset = offset % self.bit_vec.len() as u64;
+            offset %= self.bit_vec.len() as u64;
             self.bit_vec[offset as usize]
         })
     }
@@ -169,6 +169,20 @@ impl<T: Hash> BloomFilter<T> {
     /// ```
     pub fn len(&self) -> usize {
         self.bit_vec.len()
+    }
+
+    /// Returns `true` if the bloom filter is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bloom::BloomFilter;
+    ///
+    /// let filter: BloomFilter<u32> = BloomFilter::from_fpp(100, 0.01);
+    ///
+    /// assert!(!filter.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.bit_vec.is_empty()
     }
 
     /// Returns the number of hash functions used by the bloom filter.

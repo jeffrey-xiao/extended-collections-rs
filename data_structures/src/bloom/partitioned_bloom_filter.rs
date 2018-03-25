@@ -92,10 +92,10 @@ impl<T: Hash> PartitionedBloomFilter<T> {
 
     fn get_hashes(&self, item: &T) -> [u64; 2] {
         let mut ret = [0; 2];
-        for index in 0..2 {
-            let sip = &mut self.hashers[index].clone();
-            item.hash(sip);
-            ret[index] = sip.finish();
+        for (index, hash) in ret.iter_mut().enumerate() {
+            let mut sip = self.hashers[index];
+            item.hash(&mut sip);
+            *hash = sip.finish();
         }
         ret
     }
@@ -113,10 +113,10 @@ impl<T: Hash> PartitionedBloomFilter<T> {
     pub fn insert(&mut self, item: &T) {
         let hashes = self.get_hashes(item);
         for index in 0..self.hasher_count {
-            let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xffffffffffffffc5;
+            let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
             offset = hashes[0].wrapping_add(offset);
-            offset = offset % self.bit_count as u64;
-            offset = offset + (index * self.bit_count) as u64;
+            offset %= self.bit_count as u64;
+            offset += (index * self.bit_count) as u64;
             self.bit_vec.set(offset as usize, true);
         }
     }
@@ -136,10 +136,10 @@ impl<T: Hash> PartitionedBloomFilter<T> {
     pub fn contains(&self, item: &T) -> bool {
         let hashes = self.get_hashes(item);
         (0..self.hasher_count).all(|index| {
-            let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xffffffffffffffc5;
+            let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
             offset = hashes[0].wrapping_add(offset);
-            offset = offset % self.bit_count as u64;
-            offset = offset + (index * self.bit_count) as u64;
+            offset %= self.bit_count as u64;
+            offset += (index * self.bit_count) as u64;
             self.bit_vec[offset as usize]
         })
     }
@@ -156,6 +156,20 @@ impl<T: Hash> PartitionedBloomFilter<T> {
     /// ```
     pub fn len(&self) -> usize {
         self.bit_vec.len()
+    }
+
+    /// Returns `true` if the bloom filter is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bloom::PartitionedBloomFilter;
+    ///
+    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
+    ///
+    /// assert!(!filter.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Returns the number of bits in each partition in the bloom filter.

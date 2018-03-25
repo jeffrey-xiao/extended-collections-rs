@@ -136,6 +136,20 @@ impl<T: Hash> ScalableBloomFilter<T> {
         self.filters.iter().map(|filter| filter.len()).sum()
     }
 
+    /// Returns `true` if the scalable bloom filter is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bloom::ScalableBloomFilter;
+    ///
+    /// let filter: ScalableBloomFilter<u32> = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
+    ///
+    /// assert!(!filter.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns the number of bloom filters used by the scalable bloom filter.
     ///
     /// # Examples
