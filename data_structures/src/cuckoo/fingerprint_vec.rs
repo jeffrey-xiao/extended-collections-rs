@@ -17,7 +17,7 @@ impl FingerprintVec {
         }
     }
 
-    pub fn set(&mut self, index: usize, bytes: Vec<u8>) {
+    pub fn set(&mut self, index: usize, bytes: &[u8]) {
         let mut bits_left = self.fingerprint_bit_count;
         let mut bits_offset = index * self.fingerprint_bit_count;
         let mut byte_offset = 0;
@@ -89,7 +89,7 @@ mod tests {
     fn test_bit_count_8() {
         let mut fpv = FingerprintVec::new(5, 8);
         for i in 0..8 {
-            fpv.set(i, vec![(i as u8)]);
+            fpv.set(i, &[(i as u8)]);
         }
 
         for i in 0..8 {
@@ -101,7 +101,7 @@ mod tests {
     fn test_bit_count_13() {
         let mut fpv = FingerprintVec::new(13, 8);
         for i in 0..8 {
-            fpv.set(i, vec![(i as u8), !0]);
+            fpv.set(i, &[(i as u8), !0]);
         }
 
         for i in 0..8 {
@@ -113,7 +113,7 @@ mod tests {
     fn test_bit_count_21() {
         let mut fpv = FingerprintVec::new(21, 8);
         for i in 0..8 {
-            fpv.set(i, vec![(i as u8), !0, !0]);
+            fpv.set(i, &[(i as u8), !0, !0]);
         }
 
         for i in 0..8 {

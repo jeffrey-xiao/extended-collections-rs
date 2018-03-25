@@ -20,8 +20,8 @@ fn int_test_radixmap() {
             .collect::<Vec<u8>>();
         let val = rng.gen::<u32>();
 
-        map.insert(key.clone(), val);
-        expected.push((key.clone(), val));
+        map.insert(key.as_slice(), val);
+        expected.push((key, val));
     }
 
     expected.reverse();
@@ -42,7 +42,7 @@ fn int_test_radixmap() {
         let val_1 = rng.gen::<u32>();
         let val_2 = rng.gen::<u32>();
 
-        let old_entry = map.insert(entry.0.clone(), val_1);
+        let old_entry = map.insert(entry.0.as_slice(), val_1);
         assert_eq!(old_entry, Some((entry.0.clone(), entry.1)));
         {
             let old_val = map.get_mut(&entry.0);

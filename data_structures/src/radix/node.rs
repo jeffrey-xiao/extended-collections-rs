@@ -1,18 +1,16 @@
 use radix::tree::Tree;
 use std::mem;
 
-pub type Key = Vec<u8>;
-
 #[derive(Debug)]
 pub struct Node<T> {
-    pub key: Key,
+    pub key: Vec<u8>,
     pub value: Option<T>,
     pub next: Tree<T>,
     pub child: Tree<T>,
 }
 
 impl<T> Node<T> {
-    pub fn new(key: Key, value: Option<T>) -> Self {
+    pub fn new(key: Vec<u8>, value: Option<T>) -> Self {
         Self {
             key,
             value: value,

@@ -1,4 +1,3 @@
-use radix::node::Key;
 use radix::map::{RadixMap, RadixMapIntoIter, RadixMapIter};
 
 /// An ordered set implemented by a radix tree.
@@ -16,20 +15,20 @@ use radix::map::{RadixMap, RadixMapIntoIter, RadixMapIter};
 /// use data_structures::radix::RadixSet;
 ///
 /// let mut set = RadixSet::new();
-/// set.insert(String::from("foo").into_bytes());
-/// set.insert(String::from("foobar").into_bytes());
+/// set.insert("foo".as_bytes());
+/// set.insert("foobar".as_bytes());
 ///
 /// assert_eq!(set.len(), 2);
 ///
 /// assert_eq!(set.min(), Some(String::from("foo").into_bytes()));
 ///
 /// assert_eq!(
-///     set.get_longest_prefix(&String::from("foob").into_bytes()),
+///     set.get_longest_prefix(&"foob".as_bytes()),
 ///     vec![String::from("foobar").into_bytes()],
 /// );
 ///
 /// assert_eq!(
-///     set.remove(&String::from("foo").into_bytes()),
+///     set.remove("foo".as_bytes()),
 ///     Some(String::from("foo").into_bytes()),
 /// );
 /// ```
@@ -60,14 +59,14 @@ impl RadixSet {
     /// use data_structures::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// assert_eq!(set.insert(String::from("foo").into_bytes()), None);
-    /// assert!(set.contains(&String::from("foo").into_bytes()));
+    /// assert_eq!(set.insert("foo".as_bytes()), None);
+    /// assert!(set.contains("foo".as_bytes()));
     /// assert_eq!(
-    ///     set.insert(String::from("foo").into_bytes()),
+    ///     set.insert("foo".as_bytes()),
     ///     Some(String::from("foo").into_bytes()),
     /// );
     /// ```
-    pub fn insert(&mut self, key: Key) -> Option<Key> {
+    pub fn insert(&mut self, key: &[u8]) -> Option<Vec<u8>> {
         self.map.insert(key, ()).map(|pair| pair.0)
     }
 
@@ -79,14 +78,14 @@ impl RadixSet {
     /// use data_structures::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert(String::from("foo").into_bytes());
+    /// set.insert("foo".as_bytes());
     /// assert_eq!(
-    ///     set.remove(&String::from("foo").into_bytes()),
+    ///     set.remove("foo".as_bytes()),
     ///     Some(String::from("foo").into_bytes()),
     /// );
-    /// assert_eq!(set.remove(&String::from("foobar").into_bytes()), None);
+    /// assert_eq!(set.remove("foobar".as_bytes()), None);
     /// ```
-    pub fn remove(&mut self, key: &Key) -> Option<Key> {
+    pub fn remove(&mut self, key: &[u8]) -> Option<Vec<u8>> {
         self.map.remove(key).map(|pair| pair.0)
     }
 
@@ -97,11 +96,11 @@ impl RadixSet {
     /// use data_structures::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert(String::from("foo").into_bytes());
-    /// assert!(set.contains(&String::from("foo").into_bytes()));
-    /// assert!(!set.contains(&String::from("foobar").into_bytes()));
+    /// set.insert("foo".as_bytes());
+    /// assert!(set.contains("foo".as_bytes()));
+    /// assert!(!set.contains("foobar".as_bytes()));
     /// ```
-    pub fn contains(&self, key: &Key) -> bool {
+    pub fn contains(&self, key: &[u8]) -> bool {
         self.map.contains_key(key)
     }
 
@@ -112,7 +111,7 @@ impl RadixSet {
     /// use data_structures::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert(String::from("foo").into_bytes());
+    /// set.insert("foo".as_bytes());
     /// assert_eq!(set.len(), 1);
     /// ```
     pub fn len(&self) -> usize {
@@ -139,8 +138,8 @@ impl RadixSet {
     /// use data_structures::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert(String::from("foo").into_bytes());
-    /// set.insert(String::from("foobar").into_bytes());
+    /// set.insert("foo".as_bytes());
+    /// set.insert("foobar".as_bytes());
     /// set.clear();
     /// assert_eq!(set.is_empty(), true);
     /// ```
@@ -155,15 +154,15 @@ impl RadixSet {
     /// use data_structures::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert(String::from("foo").into_bytes());
-    /// set.insert(String::from("foobar").into_bytes());
+    /// set.insert("foo".as_bytes());
+    /// set.insert("foobar".as_bytes());
     ///
     /// assert_eq!(
-    ///     set.get_longest_prefix(&String::from("foob").into_bytes()),
+    ///     set.get_longest_prefix(&"foob".as_bytes()),
     ///     vec![String::from("foobar").into_bytes()],
     /// );
     /// ```
-    pub fn get_longest_prefix(&self, key: &Key) -> Vec<Key> {
+    pub fn get_longest_prefix(&self, key: &[u8]) -> Vec<Vec<u8>> {
         self.map.get_longest_prefix(key)
     }
 
@@ -174,11 +173,11 @@ impl RadixSet {
     /// use data_structures::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert(String::from("foo").into_bytes());
-    /// set.insert(String::from("foobar").into_bytes());
+    /// set.insert("foo".as_bytes());
+    /// set.insert("foobar".as_bytes());
     /// assert_eq!(set.min(), Some(String::from("foo").into_bytes()));
     /// ```
-    pub fn min(&self) -> Option<Key> {
+    pub fn min(&self) -> Option<Vec<u8>> {
         self.map.min()
     }
 
@@ -189,11 +188,11 @@ impl RadixSet {
     /// use data_structures::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert(String::from("foo").into_bytes());
-    /// set.insert(String::from("foobar").into_bytes());
+    /// set.insert("foo".as_bytes());
+    /// set.insert("foobar".as_bytes());
     /// assert_eq!(set.max(), Some(String::from("foobar").into_bytes()));
     /// ```
-    pub fn max(&self) -> Option<Key> {
+    pub fn max(&self) -> Option<Vec<u8>> {
         self.map.max()
     }
 
@@ -204,8 +203,8 @@ impl RadixSet {
     /// use data_structures::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert(String::from("foo").into_bytes());
-    /// set.insert(String::from("foobar").into_bytes());
+    /// set.insert("foo".as_bytes());
+    /// set.insert("foobar".as_bytes());
     ///
     /// let mut iterator = set.iter();
     /// assert_eq!(iterator.next(), Some(String::from("foo").into_bytes()));
@@ -220,7 +219,7 @@ impl RadixSet {
 }
 
 impl IntoIterator for RadixSet {
-    type Item = Key;
+    type Item = Vec<u8>;
     type IntoIter = RadixSetIntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -231,7 +230,7 @@ impl IntoIterator for RadixSet {
 }
 
 impl<'a> IntoIterator for &'a RadixSet {
-    type Item = Key;
+    type Item = Vec<u8>;
     type IntoIter = RadixSetIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -247,7 +246,7 @@ pub struct RadixSetIntoIter {
 }
 
 impl Iterator for RadixSetIntoIter {
-    type Item = Key;
+    type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.map_iter.next().map(|pair| pair.0)
@@ -262,7 +261,7 @@ pub struct RadixSetIter<'a> {
 }
 
 impl<'a> Iterator for RadixSetIter<'a> {
-    type Item = Key;
+    type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.map_iter.next().map(|pair| pair.0)
@@ -278,9 +277,12 @@ impl Default for RadixSet {
 #[cfg(test)]
 mod tests {
     use super::RadixSet;
-    use radix::node::Key;
 
-    fn get_bytes(key: &str) -> Key {
+    fn get_bytes_slice(key: &str) -> &[u8] {
+        key.as_bytes()
+    }
+
+    fn get_bytes_vec(key: &str) -> Vec<u8> {
         String::from(key).into_bytes()
     }
 
@@ -306,24 +308,24 @@ mod tests {
     #[test]
     fn test_insert() {
         let mut set = RadixSet::new();
-        assert_eq!(set.insert(get_bytes("aaaa")), None);
-        assert_eq!(set.insert(get_bytes("aabb")), None);
+        assert_eq!(set.insert(get_bytes_slice("aaaa")), None);
+        assert_eq!(set.insert(get_bytes_slice("aabb")), None);
 
-        assert_eq!(set.insert(get_bytes("bb")), None);
-        assert_eq!(set.insert(get_bytes("bbbb")), None);
+        assert_eq!(set.insert(get_bytes_slice("bb")), None);
+        assert_eq!(set.insert(get_bytes_slice("bbbb")), None);
 
-        assert_eq!(set.insert(get_bytes("cccc")), None);
-        assert_eq!(set.insert(get_bytes("cc")), None);
+        assert_eq!(set.insert(get_bytes_slice("cccc")), None);
+        assert_eq!(set.insert(get_bytes_slice("cc")), None);
 
         assert_eq!(
-            set.iter().collect::<Vec<Key>>(),
+            set.iter().collect::<Vec<Vec<u8>>>(),
             [
-                get_bytes("aaaa"),
-                get_bytes("aabb"),
-                get_bytes("bb"),
-                get_bytes("bbbb"),
-                get_bytes("cc"),
-                get_bytes("cccc"),
+                get_bytes_vec("aaaa"),
+                get_bytes_vec("aabb"),
+                get_bytes_vec("bb"),
+                get_bytes_vec("bbbb"),
+                get_bytes_vec("cc"),
+                get_bytes_vec("cccc"),
             ]
         );
     }
@@ -331,132 +333,132 @@ mod tests {
     #[test]
     fn test_insert_replace() {
         let mut set = RadixSet::new();
-        assert_eq!(set.insert(get_bytes("a")), None);
+        assert_eq!(set.insert(get_bytes_slice("a")), None);
         assert_eq!(
-            set.insert(get_bytes("a")),
-            Some(get_bytes("a")),
+            set.insert(get_bytes_slice("a")),
+            Some(get_bytes_vec("a")),
         );
     }
 
     #[test]
     fn test_remove() {
         let mut set = RadixSet::new();
-        set.insert(get_bytes("aaaa"));
-        set.insert(get_bytes("aabb"));
+        set.insert(get_bytes_slice("aaaa"));
+        set.insert(get_bytes_slice("aabb"));
 
-        set.insert(get_bytes("bb"));
-        set.insert(get_bytes("bbbb"));
-        set.insert(get_bytes("bbaa"));
+        set.insert(get_bytes_slice("bb"));
+        set.insert(get_bytes_slice("bbbb"));
+        set.insert(get_bytes_slice("bbaa"));
 
-        set.insert(get_bytes("cccc"));
-        set.insert(get_bytes("ccdd"));
-        set.insert(get_bytes("cc"));
+        set.insert(get_bytes_slice("cccc"));
+        set.insert(get_bytes_slice("ccdd"));
+        set.insert(get_bytes_slice("cc"));
 
-        assert_eq!(set.remove(&get_bytes("a")), None);
+        assert_eq!(set.remove(get_bytes_slice("a")), None);
 
-        assert_eq!(set.remove(&get_bytes("aaaa")), Some(get_bytes("aaaa")));
-        assert_eq!(set.remove(&get_bytes("aabb")), Some(get_bytes("aabb")));
+        assert_eq!(set.remove(get_bytes_slice("aaaa")), Some(get_bytes_vec("aaaa")));
+        assert_eq!(set.remove(get_bytes_slice("aabb")), Some(get_bytes_vec("aabb")));
 
-        assert_eq!(set.remove(&get_bytes("bb")), Some(get_bytes("bb")));
-        assert_eq!(set.remove(&get_bytes("bbbb")), Some(get_bytes("bbbb")));
-        assert_eq!(set.remove(&get_bytes("bbaa")), Some(get_bytes("bbaa")));
+        assert_eq!(set.remove(get_bytes_slice("bb")), Some(get_bytes_vec("bb")));
+        assert_eq!(set.remove(get_bytes_slice("bbbb")), Some(get_bytes_vec("bbbb")));
+        assert_eq!(set.remove(get_bytes_slice("bbaa")), Some(get_bytes_vec("bbaa")));
 
-        assert_eq!(set.remove(&get_bytes("cccc")), Some(get_bytes("cccc")));
-        assert_eq!(set.remove(&get_bytes("ccdd")), Some(get_bytes("ccdd")));
-        assert_eq!(set.remove(&get_bytes("cc")), Some(get_bytes("cc")));
+        assert_eq!(set.remove(get_bytes_slice("cccc")), Some(get_bytes_vec("cccc")));
+        assert_eq!(set.remove(get_bytes_slice("ccdd")), Some(get_bytes_vec("ccdd")));
+        assert_eq!(set.remove(get_bytes_slice("cc")), Some(get_bytes_vec("cc")));
 
-        assert_eq!(set.remove(&get_bytes("a")), None);
+        assert_eq!(set.remove(get_bytes_slice("a")), None);
     }
 
     #[test]
     fn test_contains_key() {
         let mut set = RadixSet::new();
-        assert_eq!(set.insert(get_bytes("a")), None);
-        assert!(set.contains(&get_bytes("a")));
+        assert_eq!(set.insert(get_bytes_slice("a")), None);
+        assert!(set.contains(get_bytes_slice("a")));
     }
 
     #[test]
     fn test_get_longest_prefix() {
         let mut set = RadixSet::new();
-        set.insert(get_bytes("aaaa"));
+        set.insert(get_bytes_slice("aaaa"));
         assert_eq!(
-            set.get_longest_prefix(&get_bytes("aaa")),
-            vec![get_bytes("aaaa")],
+            set.get_longest_prefix(&get_bytes_slice("aaa")),
+            vec![get_bytes_vec("aaaa")],
         );
 
         let mut set = RadixSet::new();
-        set.insert(get_bytes("aaaa"));
-        set.insert(get_bytes("aaab"));
+        set.insert(get_bytes_slice("aaaa"));
+        set.insert(get_bytes_slice("aaab"));
         assert_eq!(
-            set.get_longest_prefix(&get_bytes("aaa")),
-            vec![get_bytes("aaaa"), get_bytes("aaab")],
+            set.get_longest_prefix(&get_bytes_slice("aaa")),
+            vec![get_bytes_vec("aaaa"), get_bytes_vec("aaab")],
         );
 
         let mut set = RadixSet::new();
-        set.insert(get_bytes("aaa"));
-        set.insert(get_bytes("aaaa"));
-        set.insert(get_bytes("aaab"));
+        set.insert(get_bytes_slice("aaa"));
+        set.insert(get_bytes_slice("aaaa"));
+        set.insert(get_bytes_slice("aaab"));
         assert_eq!(
-            set.get_longest_prefix(&get_bytes("aaa")),
-            vec![get_bytes("aaa"), get_bytes("aaaa"), get_bytes("aaab")],
+            set.get_longest_prefix(&get_bytes_slice("aaa")),
+            vec![get_bytes_vec("aaa"), get_bytes_vec("aaaa"), get_bytes_vec("aaab")],
         );
 
         let mut set = RadixSet::new();
-        set.insert(get_bytes("aa"));
+        set.insert(get_bytes_slice("aa"));
         assert_eq!(
-            set.get_longest_prefix(&get_bytes("aaa")),
-            vec![get_bytes("aa")],
+            set.get_longest_prefix(&get_bytes_slice("aaa")),
+            vec![get_bytes_vec("aa")],
         );
 
         let mut set = RadixSet::new();
-        set.insert(get_bytes("aaba"));
-        set.insert(get_bytes("aabb"));
+        set.insert(get_bytes_slice("aaba"));
+        set.insert(get_bytes_slice("aabb"));
         assert_eq!(
-            set.get_longest_prefix(&get_bytes("aaa")),
-            vec![get_bytes("aaba"), get_bytes("aabb")],
+            set.get_longest_prefix(&get_bytes_slice("aaa")),
+            vec![get_bytes_vec("aaba"), get_bytes_vec("aabb")],
         );
 
         let mut set = RadixSet::new();
-        set.insert(get_bytes("b"));
-        assert_eq!(set.get_longest_prefix(&get_bytes("aaa")).len(), 0);
+        set.insert(get_bytes_slice("b"));
+        assert_eq!(set.get_longest_prefix(&get_bytes_slice("aaa")).len(), 0);
     }
 
     #[test]
     fn test_min_max() {
         let mut set = RadixSet::new();
 
-        set.insert(get_bytes("a"));
-        set.insert(get_bytes("aa"));
-        set.insert(get_bytes("ba"));
-        set.insert(get_bytes("bb"));
+        set.insert(get_bytes_slice("a"));
+        set.insert(get_bytes_slice("aa"));
+        set.insert(get_bytes_slice("ba"));
+        set.insert(get_bytes_slice("bb"));
 
-        assert_eq!(set.min(), Some(get_bytes("a")));
-        assert_eq!(set.max(), Some(get_bytes("bb")));
+        assert_eq!(set.min(), Some(get_bytes_vec("a")));
+        assert_eq!(set.max(), Some(get_bytes_vec("bb")));
     }
 
     #[test]
     fn test_into_iter() {
         let mut set = RadixSet::new();
-        set.insert(get_bytes("a"));
-        set.insert(get_bytes("ab"));
-        set.insert(get_bytes("aa"));
+        set.insert(get_bytes_slice("a"));
+        set.insert(get_bytes_slice("ab"));
+        set.insert(get_bytes_slice("aa"));
 
         assert_eq!(
-            set.into_iter().collect::<Vec<Key>>(),
-            vec![get_bytes("a"), get_bytes("aa"), get_bytes("ab")],
+            set.into_iter().collect::<Vec<Vec<u8>>>(),
+            vec![get_bytes_vec("a"), get_bytes_vec("aa"), get_bytes_vec("ab")],
         );
     }
 
     #[test]
     fn test_iter() {
         let mut set = RadixSet::new();
-        set.insert(get_bytes("a"));
-        set.insert(get_bytes("ab"));
-        set.insert(get_bytes("aa"));
+        set.insert(get_bytes_slice("a"));
+        set.insert(get_bytes_slice("ab"));
+        set.insert(get_bytes_slice("aa"));
 
         assert_eq!(
-            (&set).into_iter().collect::<Vec<Key>>(),
-            vec![get_bytes("a"), get_bytes("aa"), get_bytes("ab")],
+            (&set).into_iter().collect::<Vec<Vec<u8>>>(),
+            vec![get_bytes_vec("a"), get_bytes_vec("aa"), get_bytes_vec("ab")],
         );
     }
 }

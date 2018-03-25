@@ -1,10 +1,10 @@
-use radix::node::{Key, Node};
+use radix::node::{Node};
 use std::cmp::Ordering;
 use std::mem;
 
 pub type Tree<T> = Option<Box<Node<T>>>;
 
-pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<T> {
+pub fn insert<T>(tree: &mut Tree<T>, mut key: &[u8], value: T) -> Option<T> {
     let node = match *tree {
         Some(ref mut node) => node,
         _ => unreachable!(),
@@ -15,7 +15,7 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<T> {
             let mut split_key = node.key.split_off(split_index);
             mem::swap(&mut split_key, &mut node.key);
             let mut split = mem::replace(&mut **node, Node::new(split_key, None));
-            let mut child = Node::new(key.split_off(split_index), Some(value));
+            let mut child = Node::new(key.split_at(split_index).1.to_vec(), Some(value));
 
             node.next = split.next.take();
             node.insert_child(split);
@@ -24,12 +24,12 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<T> {
         },
         None => match node.key.len().cmp(&key.len()) {
             Ordering::Less => {
-                key = key.split_off(node.key.len());
+                key = key.split_at(node.key.len()).1;
                 let byte = key[0];
                 if node.contains(byte) {
                     insert(node.get_mut(byte), key, value)
                 } else {
-                    node.insert_child(Node::new(key, Some(value)));
+                    node.insert_child(Node::new(key.to_vec(), Some(value)));
                     None
                 }
             },
@@ -49,7 +49,7 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: Key, value: T) -> Option<T> {
     }
 }
 
-pub fn remove<T>(tree: &mut Tree<T>, key: &Key, mut index: usize) -> Option<(Key, T)> {
+pub fn remove<T>(tree: &mut Tree<T>, key: &[u8], mut index: usize) -> Option<(Vec<u8>, T)> {
     let mut next_tree = None;
     let ret;
     {
@@ -72,7 +72,7 @@ pub fn remove<T>(tree: &mut Tree<T>, key: &Key, mut index: usize) -> Option<(Key
                 },
                 Ordering::Greater => return None,
                 Ordering::Equal => {
-                    ret = node.value.take().map(|value| (key.clone(), value));
+                    ret = node.value.take().map(|value| (key.to_vec(), value));
                     node.merge();
                     if node.value.is_none() && node.child.is_none() {
                         next_tree = Some(node.next.take());
@@ -87,7 +87,7 @@ pub fn remove<T>(tree: &mut Tree<T>, key: &Key, mut index: usize) -> Option<(Key
     ret
 }
 
-pub fn get<'a, T>(tree: &'a Tree<T>, key: &Key, mut index: usize) -> Option<&'a T> {
+pub fn get<'a, T>(tree: &'a Tree<T>, key: &[u8], mut index: usize) -> Option<&'a T> {
     let node = match *tree {
         Some(ref node) => node,
         None => return None,
@@ -106,7 +106,7 @@ pub fn get<'a, T>(tree: &'a Tree<T>, key: &Key, mut index: usize) -> Option<&'a 
     }
 }
 
-pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &Key, mut index: usize) -> Option<&'a mut T> {
+pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &[u8], mut index: usize) -> Option<&'a mut T> {
     let node = match *tree {
         Some(ref mut node) => node,
         None => return None,
@@ -125,7 +125,7 @@ pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &Key, mut index: usize) -> Opt
     }
 }
 
-fn push_all_children<T>(tree: &Tree<T>, curr_key: &mut Key, keys: &mut Vec<Key>) {
+fn push_all_children<T>(tree: &Tree<T>, mut curr_key: Vec<u8>, keys: &mut Vec<Vec<u8>>) {
     if let Some(ref node) = *tree {
         let len = curr_key.len();
 
@@ -133,14 +133,14 @@ fn push_all_children<T>(tree: &Tree<T>, curr_key: &mut Key, keys: &mut Vec<Key>)
         if node.value.is_some() {
             keys.push(curr_key.clone());
         }
-        push_all_children(&node.child, curr_key, keys);
+        push_all_children(&node.child, curr_key.clone(), keys);
 
         curr_key.split_off(len);
         push_all_children(&node.next, curr_key, keys);
     }
 }
 
-pub fn get_longest_prefix<T>(tree: &Tree<T>, key: &Key, mut index: usize, curr_key: &mut Key, keys: &mut Vec<Key>) {
+pub fn get_longest_prefix<T>(tree: &Tree<T>, key: &[u8], mut index: usize, mut curr_key: Vec<u8>, keys: &mut Vec<Vec<u8>>) {
     let node = match *tree {
         Some(ref node) => node,
         None => return,
@@ -177,7 +177,7 @@ pub fn get_longest_prefix<T>(tree: &Tree<T>, key: &Key, mut index: usize, curr_k
     }
 }
 
-pub fn min<T>(tree: &Tree<T>, mut curr_key: Key) -> Option<Key> {
+pub fn min<T>(tree: &Tree<T>, mut curr_key: Vec<u8>) -> Option<Vec<u8>> {
     let node = match *tree {
         Some(ref node) => node,
         None => return None,
@@ -192,7 +192,7 @@ pub fn min<T>(tree: &Tree<T>, mut curr_key: Key) -> Option<Key> {
     }
 }
 
-pub fn max<T>(tree: &Tree<T>, mut curr_key: Key) -> Option<Key> {
+pub fn max<T>(tree: &Tree<T>, mut curr_key: Vec<u8>) -> Option<Vec<u8>> {
     let node = match *tree {
         Some(ref node) => node,
         None => return None,
