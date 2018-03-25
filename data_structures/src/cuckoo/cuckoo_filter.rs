@@ -9,6 +9,30 @@ const DEFAULT_FINGERPRINT_BIT_COUNT: usize = 8;
 const DEFAULT_ENTRIES_PER_INDEX: usize = 4;
 const DEFAULT_MAX_KICKS: usize = 512;
 
+/// A space-efficient probabilistic data structure to test for membership in a set. Cuckoo filters
+/// also provide the flexibility to remove items.
+///
+/// A cuckoo filter is based on cuckoo hashing and is essentially a cuckoo hash table storing
+/// each keys' fingerprint. Cuckoo filters can be highly compact and serve as an improvement over
+/// variations of tradition Bloom filters that support deletion (E.G. counting Bloom filters).
+///
+/// # Examples
+/// ```
+/// use data_structures::cuckoo::CuckooFilter;
+///
+/// let mut filter = CuckooFilter::new(100);
+///
+/// assert!(!filter.contains(&"foo"));
+/// filter.insert(&"foo");
+/// assert!(filter.contains(&"foo"));
+///
+/// filter.remove(&"foo");
+/// assert!(!filter.contains(&"foo"));
+///
+/// assert_eq!(filter.len(), 4);
+/// assert_eq!(filter.bucket_len(), 25);
+/// assert_eq!(filter.fingerprint_bit_count(), 8);
+/// ```
 pub struct CuckooFilter<T: Hash> {
     max_kicks: usize,
     fingerprint_buckets: Vec<FingerprintVec>,
@@ -26,6 +50,16 @@ impl<T: Hash> CuckooFilter<T> {
         ]
     }
 
+    /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`.
+    /// By defauly, the cuckoo filter will have 8 bits per item fingerprint, 4 entries per index,
+    /// and a maximum of 512 item displacements before terminating the insertion process.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    /// ```
     pub fn new(item_count: usize) -> Self {
         assert!(item_count > 0);
         let bucket_len = (item_count + DEFAULT_ENTRIES_PER_INDEX - 1) / DEFAULT_ENTRIES_PER_INDEX;
@@ -41,6 +75,16 @@ impl<T: Hash> CuckooFilter<T> {
         }
     }
 
+    /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`, a
+    /// fingerprint bit count of `fingerprint_bit_count`, `entries_per_index` entries per index,
+    /// and a maximum of `max_kicks` displacements when inserting fingerprints.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let filter: CuckooFilter<u32> = CuckooFilter::from_parameters(100, 16, 8, 256);
+    /// ```
     pub fn from_parameters(item_count: usize, fingerprint_bit_count: usize, entries_per_index: usize, max_kicks: usize) -> Self {
         assert!(item_count > 0);
         let bucket_len = (item_count + entries_per_index - 1) / entries_per_index;
@@ -97,7 +141,15 @@ impl<T: Hash> CuckooFilter<T> {
         (fingerprint, index_1, index_2)
     }
 
-
+    /// Inserts an element into the bloom filter.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let mut filter = CuckooFilter::new(100);
+    /// filter.insert(&"foo");
+    /// ```
     pub fn insert(&mut self, item: &T) {
         let (mut fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(self.get_hashes(item));
         if !self.contains_fingerprint(&fingerprint, index_1, index_2) {
@@ -136,6 +188,20 @@ impl<T: Hash> CuckooFilter<T> {
         false
     }
 
+    /// Removes an element from the cuckoo filter.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let mut filter = CuckooFilter::new(100);
+    ///
+    /// filter.insert(&"foo");
+    /// assert!(filter.contains(&"foo"));
+    ///
+    /// filter.remove(&"foo");
+    /// assert!(!filter.contains(&"foo"));
+    /// ```
     pub fn remove(&mut self, item: &T) {
         let (fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(self.get_hashes(item));
         self.remove_fingerprint(&fingerprint, index_1, index_2)
@@ -157,6 +223,17 @@ impl<T: Hash> CuckooFilter<T> {
         }
     }
 
+    /// Checks if an element is possibly in the bloom filter.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let mut filter = CuckooFilter::new(100);
+    ///
+    /// filter.insert(&"foo");
+    /// assert!(filter.contains(&"foo"));
+    /// ```
     pub fn contains(&self, item: &T) -> bool {
         let (fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(self.get_hashes(item));
         self.contains_fingerprint(&fingerprint, index_1, index_2)
@@ -174,14 +251,66 @@ impl<T: Hash> CuckooFilter<T> {
         })
     }
 
+    /// Clears the cuckoo filter, removing all elements.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let mut filter = CuckooFilter::new(100);
+    ///
+    /// filter.insert(&"foo");
+    /// filter.clear();
+    ///
+    /// assert!(!filter.contains(&"foo"));
+    /// ```
+    pub fn clear(&mut self) {
+        let bucket_len = self.bucket_len();
+        for buckets in &mut self.fingerprint_buckets {
+            for index in 0..bucket_len {
+                buckets.set(index, Self::get_fingerprint(0).as_slice());
+            }
+        }
+    }
+
+    /// Returns the number of entries per index in the cuckoo filter.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    ///
+    /// assert_eq!(filter.len(), 4);
+    /// ```
     pub fn len(&self) -> usize {
         self.fingerprint_buckets.len()
     }
 
+    /// Returns `true` if the cuckoo filter is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    ///
+    /// assert!(!filter.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.fingerprint_buckets.is_empty()
     }
 
+    /// Returns the len of each bucket in the cuckoo filter.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    ///
+    /// assert_eq!(filter.bucket_len(), 25);
+    /// ```
     pub fn bucket_len(&self) -> usize {
         match self.fingerprint_buckets.first() {
             Some(bucket) => bucket.len(),
@@ -189,19 +318,53 @@ impl<T: Hash> CuckooFilter<T> {
         }
     }
 
+    /// Returns the number of items that could not be inserted into the CuckooFilter.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let mut filter = CuckooFilter::from_parameters(1, 8, 1, 256);
+    ///
+    /// filter.insert(&"foo");
+    /// filter.insert(&"foobar");
+    /// assert_eq!(filter.extra_items_len(), 1);
+    /// ```
     pub fn extra_items_len(&self) -> usize {
         self.extra_items.len()
     }
 
+    /// Returns `true` if there are any items that could not be inserted into the cuckoo filter.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let mut filter = CuckooFilter::from_parameters(1, 8, 1, 256);
+    ///
+    /// filter.insert(&"foo");
+    /// filter.insert(&"foobar");
+    /// assert!(filter.is_nearly_full());
+    /// ```
+    pub fn is_nearly_full(&self) -> bool {
+        !self.extra_items.is_empty()
+    }
+
+    /// Returns the number of bits in each item fingerprint.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    ///
+    /// assert_eq!(filter.fingerprint_bit_count(), 8);
+    /// ```
     pub fn fingerprint_bit_count(&self) -> usize {
         match self.fingerprint_buckets.first() {
             Some(bucket) => bucket.fingerprint_bit_count(),
             _ => unreachable!(),
         }
-    }
-
-    pub fn is_nearly_full(&self) -> bool {
-        !self.extra_items.is_empty()
     }
 }
 
