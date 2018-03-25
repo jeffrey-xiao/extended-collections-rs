@@ -14,6 +14,7 @@ pub mod arena;
 pub mod bit_vec;
 pub mod bloom;
 pub mod bptree;
+pub mod cuckoo;
 pub mod skiplist;
 pub mod treap;
 pub mod radix;

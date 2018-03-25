@@ -88,8 +88,8 @@ impl<T: Hash> BSBloomFilter<T> {
     /// filter.insert(&"foo");
     /// ```
     pub fn insert(&mut self, item: &T) {
-        if !self.contains(item) {
-            let hashes = self.get_hashes(item);
+        let hashes = self.get_hashes(item);
+        if !self.contains_hashes(hashes) {
             let bit_count = self.bit_count();
 
             (0..self.hasher_count).for_each(|index| {
@@ -122,6 +122,10 @@ impl<T: Hash> BSBloomFilter<T> {
     /// ```
     pub fn contains(&self, item: &T) -> bool {
         let hashes = self.get_hashes(item);
+        self.contains_hashes(hashes)
+    }
+
+    fn contains_hashes(&self, hashes: [u64; 2]) -> bool {
         (0..self.hasher_count).all(|index| {
             let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xffffffffffffffc5;
             offset = hashes[0].wrapping_add(offset);
