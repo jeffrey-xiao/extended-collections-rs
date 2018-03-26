@@ -97,7 +97,7 @@ pub struct SkipMap<T: Ord, U> {
 }
 
 impl<T: Ord, U> SkipMap<T, U> {
-    /// Constructs a new, empty `SkipMap<T, U>`
+    /// Constructs a new, empty `SkipMap<T, U>`.
     ///
     /// # Examples
     /// ```

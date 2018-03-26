@@ -31,7 +31,7 @@ pub struct SkipSet<T: Ord> {
 }
 
 impl<T: Ord> SkipSet<T> {
-    /// Constructs a new, empty `SkipSet<T>`
+    /// Constructs a new, empty `SkipSet<T>`.
     ///
     /// # Examples
     /// ```

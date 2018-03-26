@@ -38,7 +38,7 @@ pub struct TreapMap<T: Ord, U> {
 }
 
 impl<T: Ord, U> TreapMap<T, U> {
-    /// Constructs a new, empty `TreapMap<T, U>`
+    /// Constructs a new, empty `TreapMap<T, U>`.
     ///
     /// # Examples
     /// ```

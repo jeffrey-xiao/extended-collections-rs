@@ -54,6 +54,9 @@ impl<T: Hash> CuckooFilter<T> {
     /// By defauly, the cuckoo filter will have 8 bits per item fingerprint, 4 entries per index,
     /// and a maximum of 512 item displacements before terminating the insertion process.
     ///
+    /// # Panics
+    /// Panics if `item_count` is zero.
+    ///
     /// # Examples
     /// ```
     /// use data_structures::cuckoo::CuckooFilter;
@@ -78,6 +81,9 @@ impl<T: Hash> CuckooFilter<T> {
     /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`, a
     /// fingerprint bit count of `fingerprint_bit_count`, `entries_per_index` entries per index,
     /// and a maximum of `max_kicks` displacements when inserting fingerprints.
+    ///
+    /// # Panics
+    /// Panics if `item_count` is zero.
     ///
     /// # Examples
     /// ```

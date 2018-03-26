@@ -43,7 +43,7 @@ pub struct RadixMap<T> {
 }
 
 impl<T> RadixMap<T> {
-    /// Constructs a new, empty `RadixMap<T>`
+    /// Constructs a new, empty `RadixMap<T>`.
     ///
     /// # Examples
     /// ```

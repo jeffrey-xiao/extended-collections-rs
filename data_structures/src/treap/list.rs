@@ -39,7 +39,7 @@ pub struct TreapList<T> {
 }
 
 impl<T> TreapList<T> {
-    /// Constructs a new, empty `TreapList<T>`
+    /// Constructs a new, empty `TreapList<T>`.
     ///
     /// # Examples
     /// ```

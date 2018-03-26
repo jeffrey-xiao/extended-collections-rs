@@ -104,7 +104,7 @@ pub struct SkipList<T> {
 }
 
 impl<T> SkipList<T> {
-    /// Constructs a new, empty `SkipList<T>`
+    /// Constructs a new, empty `SkipList<T>`.
     ///
     /// # Examples
     /// ```

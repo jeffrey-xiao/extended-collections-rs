@@ -37,7 +37,7 @@ pub struct RadixSet {
 }
 
 impl RadixSet {
-    /// Constructs a new, empty `RadixSet`
+    /// Constructs a new, empty `RadixSet`.
     ///
     /// # Examples
     /// ```
