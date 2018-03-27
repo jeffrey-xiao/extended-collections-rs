@@ -46,7 +46,7 @@ impl<T: Hash> PartitionedBloomFilter<T> {
     }
 
     fn get_hasher_count(fpp: f64) -> usize {
-        (1.0 / fpp).log(2.0).ceil() as usize
+        (1.0 / fpp).log2().ceil() as usize
     }
 
     /// Constructs a new, empty `PartitionedBloomFilter<T>` with an estimated max capacity of

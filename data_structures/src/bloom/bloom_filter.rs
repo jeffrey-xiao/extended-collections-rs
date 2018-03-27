@@ -59,7 +59,7 @@ impl<T: Hash> BloomFilter<T> {
     /// let filter: BloomFilter<u32> = BloomFilter::new(10, 0.01);
     /// ```
     pub fn new(item_count: usize, fpp: f64) -> Self {
-        let bit_count = (-fpp.log(2.0) * (item_count as f64) / 2f64.ln()).ceil() as usize;
+        let bit_count = (-fpp.log2() * (item_count as f64) / 2f64.ln()).ceil() as usize;
         BloomFilter {
             bit_vec: BitVec::new(bit_count),
             hashers: Self::get_hashers(),
@@ -96,7 +96,7 @@ impl<T: Hash> BloomFilter<T> {
     /// let filter: BloomFilter<u32> = BloomFilter::from_fpp(100, 0.01);
     /// ```
     pub fn from_fpp(bit_count: usize, fpp: f64) -> Self {
-        let item_count = -(2f64.ln() * (bit_count as f64) / fpp.log(2.0)).floor() as usize;
+        let item_count = -(2f64.ln() * (bit_count as f64) / fpp.log2()).floor() as usize;
         BloomFilter {
             bit_vec: BitVec::new(bit_count),
             hashers: Self::get_hashers(),

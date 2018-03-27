@@ -52,10 +52,11 @@ impl<T: Hash> CuckooFilter<T> {
 
     /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`.
     /// By defauly, the cuckoo filter will have 8 bits per item fingerprint, 4 entries per index,
-    /// and a maximum of 512 item displacements before terminating the insertion process.
+    /// and a maximum of 512 item displacements before terminating the insertion process. The
+    /// cuckoo filter will have an estimated maximum false positive probability of 3%.
     ///
     /// # Panics
-    /// Panics if `item_count` is zero.
+    /// Panics if `item_count` is 0.
     ///
     /// # Examples
     /// ```
@@ -80,22 +81,93 @@ impl<T: Hash> CuckooFilter<T> {
 
     /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`, a
     /// fingerprint bit count of `fingerprint_bit_count`, `entries_per_index` entries per index,
-    /// and a maximum of `max_kicks` displacements when inserting fingerprints.
+    /// and a maximum of 512 item displacements before terminating the insertion process. This
+    /// method provides no guarantees on the false positive probability of the cuckoo filter.
     ///
     /// # Panics
-    /// Panics if `item_count` is zero.
+    /// Panics if `item_count` is 0, if `fingerprint_bit_count` less than 1 or greater than 64, or
+    /// if `entries_per_index` is 0.
     ///
     /// # Examples
     /// ```
     /// use data_structures::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::from_parameters(100, 16, 8, 256);
+    /// let filter: CuckooFilter<u32> = CuckooFilter::from_parameters(100, 16, 8);
     /// ```
-    pub fn from_parameters(item_count: usize, fingerprint_bit_count: usize, entries_per_index: usize, max_kicks: usize) -> Self {
-        assert!(item_count > 0);
+    pub fn from_parameters(item_count: usize, fingerprint_bit_count: usize, entries_per_index: usize) -> Self {
+        assert!(
+            item_count > 0 &&
+            fingerprint_bit_count > 1 &&
+            fingerprint_bit_count <= 64 &&
+            entries_per_index > 0
+        );
         let bucket_len = (item_count + entries_per_index - 1) / entries_per_index;
         CuckooFilter {
-            max_kicks,
+            max_kicks: DEFAULT_MAX_KICKS,
+            fingerprint_buckets: vec![FingerprintVec::new(
+                fingerprint_bit_count,
+                bucket_len,
+            ); entries_per_index],
+            extra_items: Vec::new(),
+            hashers: Self::get_hashers(),
+            _marker: PhantomData,
+        }
+    }
+
+    /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`,
+    /// an estimated maximum false positive probability of `fpp`, a fingerprint bit count of
+    /// `fingerprint_bit_count`, and a maximum of 512 item displacements before terminating the
+    /// insertion process.
+    ///
+    /// # Panics
+    /// Panics if `item_count` is 0 or if `entries_per_index` is 0.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let filter: CuckooFilter<u32> = CuckooFilter::from_entries_per_index(100, 0.01, 4);
+    /// ```
+    pub fn from_entries_per_index(item_count: usize, fpp: f64, entries_per_index: usize) -> Self {
+        assert!(item_count > 0 && entries_per_index > 0);
+        let power = 2.0 / (1.0 - (1.0 - fpp).powf(1.0 / (2.0 * entries_per_index as f64)));
+        let fingerprint_bit_count = power.log2().ceil() as usize;
+        let bucket_len = (item_count + entries_per_index - 1) / entries_per_index;
+        CuckooFilter {
+            max_kicks: DEFAULT_MAX_KICKS,
+            fingerprint_buckets: vec![FingerprintVec::new(
+                fingerprint_bit_count,
+                bucket_len,
+            ); entries_per_index],
+            extra_items: Vec::new(),
+            hashers: Self::get_hashers(),
+            _marker: PhantomData,
+        }
+    }
+
+    /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`,
+    /// an estimated maximum false positive probability of `fpp`, `entries_per_index` entries per
+    /// index, and a maximum of 512 item displacements before terminating the insertion process.
+    ///
+    /// # Panics
+    /// Panics if `item_count` is 0, if `fingerprint_bit_count` is less than 1 or greater than 64,
+    /// or if it is impossible to achieve the given maximum false positive probability.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let filter: CuckooFilter<u32> = CuckooFilter::from_fingerprint_bit_count(100, 0.01, 10);
+    /// ```
+    pub fn from_fingerprint_bit_count(item_count: usize, fpp: f64, fingerprint_bit_count: usize) -> Self {
+        assert!(item_count > 0 && fingerprint_bit_count > 1 && fingerprint_bit_count <= 64);
+        let fingerprints_count = 2.0f64.powi(fingerprint_bit_count as i32);
+        let single_fpp = (fingerprints_count - 2.0) / (fingerprints_count - 1.0);
+        let entries_per_index = ((1.0 - fpp).log(single_fpp) / 2.0).floor() as usize;
+        assert!(entries_per_index > 0);
+        let bucket_len = (item_count + entries_per_index - 1) / entries_per_index;
+        CuckooFilter {
+            max_kicks: DEFAULT_MAX_KICKS,
             fingerprint_buckets: vec![FingerprintVec::new(
                 fingerprint_bit_count,
                 bucket_len,
@@ -330,7 +402,7 @@ impl<T: Hash> CuckooFilter<T> {
     /// ```
     /// use data_structures::cuckoo::CuckooFilter;
     ///
-    /// let mut filter = CuckooFilter::from_parameters(1, 8, 1, 256);
+    /// let mut filter = CuckooFilter::from_parameters(1, 8, 1);
     ///
     /// filter.insert(&"foo");
     /// filter.insert(&"foobar");
@@ -346,7 +418,7 @@ impl<T: Hash> CuckooFilter<T> {
     /// ```
     /// use data_structures::cuckoo::CuckooFilter;
     ///
-    /// let mut filter = CuckooFilter::from_parameters(1, 8, 1, 256);
+    /// let mut filter = CuckooFilter::from_parameters(1, 8, 1);
     ///
     /// filter.insert(&"foo");
     /// filter.insert(&"foobar");
@@ -371,6 +443,26 @@ impl<T: Hash> CuckooFilter<T> {
             Some(bucket) => bucket.fingerprint_bit_count(),
             _ => unreachable!(),
         }
+    }
+
+    /// Returns the estimated false positive probability of the cuckoo filter. This value will
+    /// increase as more items are added.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::cuckoo::CuckooFilter;
+    ///
+    /// let mut filter = CuckooFilter::new(100);
+    /// assert!(filter.estimate_fpp() < 1e-6);
+    ///
+    /// filter.insert(&0);
+    /// assert!((filter.estimate_fpp() - 0.000628487) < 1e-6);
+    pub fn estimate_fpp(&self) -> f64 {
+        let fingerprints_count = 2.0f64.powi(self.fingerprint_bit_count() as i32);
+        let single_fpp = (fingerprints_count - 2.0) / (fingerprints_count - 1.0);
+        let occupied_len: usize = self.fingerprint_buckets.iter().map(|bucket| bucket.occupied_len()).sum();
+        let occupied_ratio = occupied_len as f64 / (self.len() * self.bucket_len()) as f64;
+        return 1.0 - single_fpp.powf(2.0 * self.len() as f64 * occupied_ratio);
     }
 }
 
@@ -401,11 +493,29 @@ mod tests {
 
     #[test]
     fn test_from_parameters() {
-        let filter: CuckooFilter<u32> = CuckooFilter::from_parameters(100, 16, 8, 256);
+        let filter: CuckooFilter<u32> = CuckooFilter::from_parameters(100, 16, 8);
         assert_eq!(filter.len(), 8);
         assert!(!filter.is_empty());
         assert_eq!(filter.bucket_len(), 13);
         assert_eq!(filter.fingerprint_bit_count(), 16);
+    }
+
+    #[test]
+    fn test_from_entries_per_index() {
+        let filter: CuckooFilter<u32> = CuckooFilter::from_entries_per_index(100, 0.01, 4);
+        assert_eq!(filter.len(), 4);
+        assert!(!filter.is_empty());
+        assert_eq!(filter.bucket_len(), 25);
+        assert_eq!(filter.fingerprint_bit_count(), 11);
+    }
+
+    #[test]
+    fn test_from_fingerprint_bit_count() {
+        let filter: CuckooFilter<u32> = CuckooFilter::from_fingerprint_bit_count(100, 0.01, 10);
+        assert_eq!(filter.len(), 5);
+        assert!(!filter.is_empty());
+        assert_eq!(filter.bucket_len(), 20);
+        assert_eq!(filter.fingerprint_bit_count(), 10);
     }
 
     #[test]
@@ -425,7 +535,7 @@ mod tests {
 
     #[test]
     fn test_insert_extra_items() {
-        let mut filter = CuckooFilter::from_parameters(1, 8, 1, 256);
+        let mut filter = CuckooFilter::from_parameters(1, 8, 1);
 
         filter.insert(&"foo");
         filter.insert(&"foobar");
@@ -447,7 +557,7 @@ mod tests {
 
     #[test]
     fn test_remove_extra_items() {
-        let mut filter = CuckooFilter::from_parameters(1, 8, 1, 256);
+        let mut filter = CuckooFilter::from_parameters(1, 8, 1);
 
         filter.insert(&"foo");
         filter.insert(&"foobar");
@@ -460,7 +570,7 @@ mod tests {
     }
     #[test]
     fn test_remove_both_indexes() {
-        let mut filter = CuckooFilter::from_parameters(2, 8, 1, 256);
+        let mut filter = CuckooFilter::from_parameters(2, 8, 1);
 
         filter.insert(&"baz");
         filter.insert(&"qux");
@@ -476,5 +586,15 @@ mod tests {
         assert!(!filter.contains(&"qux"));
         assert!(!filter.contains(&"foobar"));
         assert!(!filter.contains(&"barfoo"));
+    }
+
+    #[test]
+    fn test_estimate_fpp() {
+        let mut filter = CuckooFilter::new(100);
+        assert!(filter.estimate_fpp() < 1e-6);
+       
+        filter.insert(&0);
+        println!("{}", filter.estimate_fpp());
+        assert!((filter.estimate_fpp() - 0.000628487) < 1e-6);
     }
 }
