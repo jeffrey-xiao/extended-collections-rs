@@ -18,13 +18,13 @@ struct Node<T> {
 ///
 /// let mut s = Stack::new();
 ///
-/// stack.push(0);
-/// stack.push(1);
-/// assert_eq!(stack.len(), 2);
+/// s.push(0);
+/// s.push(1);
+/// assert_eq!(s.len(), 2);
 ///
-/// assert_eq!(stack.try_pop(), Some(1));
-/// assert_eq!(stack.try_pop(), Some(0));
-/// assert_eq!(stack.len(), 0);
+/// assert_eq!(s.try_pop(), Some(1));
+/// assert_eq!(s.try_pop(), Some(0));
+/// assert_eq!(s.len(), 0);
 /// ```
 pub struct Stack<T> {
     head: Atomic<Node<T>>,
@@ -86,9 +86,9 @@ impl<T> Stack<T> {
     /// let mut s = Stack::new();
     ///
     /// s.push(0);
-    /// 
-    /// assert_eq!(s.pop(), Some(0));
-    /// assert_eq!(s.pop(), None);
+    ///
+    /// assert_eq!(s.try_pop(), Some(0));
+    /// assert_eq!(s.try_pop(), None);
     /// ```
     pub fn try_pop(&self) -> Option<T> {
         let guard = &epoch::pin();

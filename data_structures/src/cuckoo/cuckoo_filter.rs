@@ -35,7 +35,8 @@ const DEFAULT_MAX_KICKS: usize = 512;
 /// ```
 pub struct CuckooFilter<T: Hash> {
     max_kicks: usize,
-    fingerprint_buckets: Vec<FingerprintVec>,
+    entries_per_index: usize,
+    fingerprint_vec: FingerprintVec,
     extra_items: Vec<(u64, usize)>,
     hashers: [SipHasher; 2],
     _marker: PhantomData<T>,
@@ -69,10 +70,11 @@ impl<T: Hash> CuckooFilter<T> {
         let bucket_len = (item_count + DEFAULT_ENTRIES_PER_INDEX - 1) / DEFAULT_ENTRIES_PER_INDEX;
         CuckooFilter {
             max_kicks: DEFAULT_MAX_KICKS,
-            fingerprint_buckets: vec![FingerprintVec::new(
+            entries_per_index: DEFAULT_ENTRIES_PER_INDEX,
+            fingerprint_vec: FingerprintVec::new(
                 DEFAULT_FINGERPRINT_BIT_COUNT,
-                bucket_len,
-            ); DEFAULT_ENTRIES_PER_INDEX],
+                bucket_len * DEFAULT_ENTRIES_PER_INDEX,
+            ),
             extra_items: Vec::new(),
             hashers: Self::get_hashers(),
             _marker: PhantomData,
@@ -104,10 +106,11 @@ impl<T: Hash> CuckooFilter<T> {
         let bucket_len = (item_count + entries_per_index - 1) / entries_per_index;
         CuckooFilter {
             max_kicks: DEFAULT_MAX_KICKS,
-            fingerprint_buckets: vec![FingerprintVec::new(
+            entries_per_index,
+            fingerprint_vec: FingerprintVec::new(
                 fingerprint_bit_count,
-                bucket_len,
-            ); entries_per_index],
+                bucket_len * entries_per_index,
+            ),
             extra_items: Vec::new(),
             hashers: Self::get_hashers(),
             _marker: PhantomData,
@@ -135,10 +138,11 @@ impl<T: Hash> CuckooFilter<T> {
         let bucket_len = (item_count + entries_per_index - 1) / entries_per_index;
         CuckooFilter {
             max_kicks: DEFAULT_MAX_KICKS,
-            fingerprint_buckets: vec![FingerprintVec::new(
+            entries_per_index,
+            fingerprint_vec: FingerprintVec::new(
                 fingerprint_bit_count,
-                bucket_len,
-            ); entries_per_index],
+                bucket_len * entries_per_index,
+            ),
             extra_items: Vec::new(),
             hashers: Self::get_hashers(),
             _marker: PhantomData,
@@ -168,10 +172,11 @@ impl<T: Hash> CuckooFilter<T> {
         let bucket_len = (item_count + entries_per_index - 1) / entries_per_index;
         CuckooFilter {
             max_kicks: DEFAULT_MAX_KICKS,
-            fingerprint_buckets: vec![FingerprintVec::new(
+            entries_per_index,
+            fingerprint_vec: FingerprintVec::new(
                 fingerprint_bit_count,
-                bucket_len,
-            ); entries_per_index],
+                bucket_len * entries_per_index,
+            ),
             extra_items: Vec::new(),
             hashers: Self::get_hashers(),
             _marker: PhantomData,
@@ -198,6 +203,11 @@ impl<T: Hash> CuckooFilter<T> {
             ret |= (u64::from(*byte)) << (index * 8)
         }
         ret
+    }
+
+    #[inline]
+    fn get_vec_index(&self, index: usize, bucket_index: usize) -> usize {
+        index * self.entries_per_index + bucket_index
     }
 
     fn get_fingerprint_and_indexes(&self, mut hashes: [u64; 2]) -> (Vec<u8>, usize, usize) {
@@ -241,9 +251,10 @@ impl<T: Hash> CuckooFilter<T> {
             let mut prev_index = index;
 
             for _ in 0..self.max_kicks {
-                let bucket_index = rng.gen_range(0, self.fingerprint_buckets.len());
-                let new_fingerprint = self.fingerprint_buckets[bucket_index].get(index);
-                self.fingerprint_buckets[bucket_index].set(index, fingerprint.as_slice());
+                let bucket_index = rng.gen_range(0, self.entries_per_index);
+                let vec_index = self.get_vec_index(index, bucket_index);
+                let new_fingerprint = self.fingerprint_vec.get(vec_index);
+                self.fingerprint_vec.set(vec_index, fingerprint.as_slice());
                 fingerprint = new_fingerprint;
                 prev_index = index;
                 index = (prev_index ^ Self::get_raw_fingerprint(&fingerprint) as usize) % self.bucket_len();
@@ -257,9 +268,11 @@ impl<T: Hash> CuckooFilter<T> {
     }
 
     fn insert_fingerprint(&mut self, fingerprint: &[u8], index: usize) -> bool {
-        for bucket in &mut self.fingerprint_buckets {
-            if bucket.get(index).iter().all(|byte| *byte == 0) {
-                bucket.set(index, fingerprint);
+        let entries_per_index = self.entries_per_index;
+        for bucket_index in 0..entries_per_index {
+            let vec_index = self.get_vec_index(index, bucket_index);
+            if self.fingerprint_vec.get(vec_index).iter().all(|byte| *byte == 0) {
+                self.fingerprint_vec.set(vec_index, fingerprint);
                 return true;
             }
         }
@@ -288,15 +301,18 @@ impl<T: Hash> CuckooFilter<T> {
     fn remove_fingerprint(&mut self, fingerprint: &[u8], index_1: usize, index_2: usize) {
         let raw_fingerprint = Self::get_raw_fingerprint(fingerprint);
         let min_index = cmp::min(index_1, index_2);
+        let entries_per_index = self.entries_per_index;
         if let Some(index) = self.extra_items.iter().position(|item| *item == (raw_fingerprint, min_index)) {
             self.extra_items.swap_remove(index);
         }
-        for bucket in &mut self.fingerprint_buckets {
-            if Self::get_raw_fingerprint(&bucket.get(index_1)) == raw_fingerprint {
-                bucket.set(index_1, Self::get_fingerprint(0).as_slice());
+        for bucket_index in 0..entries_per_index {
+            let vec_index_1 = self.get_vec_index(index_1, bucket_index);
+            let vec_index_2 = self.get_vec_index(index_2, bucket_index);
+            if Self::get_raw_fingerprint(&self.fingerprint_vec.get(vec_index_1)) == raw_fingerprint {
+                self.fingerprint_vec.set(vec_index_1, Self::get_fingerprint(0).as_slice());
             }
-            if Self::get_raw_fingerprint(&bucket.get(index_2)) == raw_fingerprint {
-                bucket.set(index_2, Self::get_fingerprint(0).as_slice());
+            if Self::get_raw_fingerprint(&self.fingerprint_vec.get(vec_index_2)) == raw_fingerprint {
+                self.fingerprint_vec.set(vec_index_2, Self::get_fingerprint(0).as_slice());
             }
         }
     }
@@ -320,12 +336,15 @@ impl<T: Hash> CuckooFilter<T> {
     fn contains_fingerprint(&self, fingerprint: &[u8], index_1: usize, index_2: usize) -> bool {
         let raw_fingerprint = Self::get_raw_fingerprint(fingerprint);
         let min_index = cmp::min(index_1, index_2);
+        let entries_per_index = self.entries_per_index;
         if self.extra_items.contains(&(raw_fingerprint, min_index)) {
             return true;
         }
-        self.fingerprint_buckets.iter().any(|fingerprint_vec| {
-            fingerprint_vec.get(index_1).iter().zip(fingerprint).all(|pair| pair.0 == pair.1) ||
-            fingerprint_vec.get(index_2).iter().zip(fingerprint).all(|pair| pair.0 == pair.1)
+        (0..entries_per_index).any(|bucket_index| {
+            let vec_index_1 = self.get_vec_index(index_1, bucket_index);
+            let vec_index_2 = self.get_vec_index(index_2, bucket_index);
+            self.fingerprint_vec.get(vec_index_1).iter().zip(fingerprint).all(|pair| pair.0 == pair.1) ||
+            self.fingerprint_vec.get(vec_index_2).iter().zip(fingerprint).all(|pair| pair.0 == pair.1)
         })
     }
 
@@ -343,12 +362,7 @@ impl<T: Hash> CuckooFilter<T> {
     /// assert!(!filter.contains(&"foo"));
     /// ```
     pub fn clear(&mut self) {
-        let bucket_len = self.bucket_len();
-        for buckets in &mut self.fingerprint_buckets {
-            for index in 0..bucket_len {
-                buckets.set(index, Self::get_fingerprint(0).as_slice());
-            }
-        }
+        self.fingerprint_vec.clear();
     }
 
     /// Returns the number of entries per index in the cuckoo filter.
@@ -362,7 +376,7 @@ impl<T: Hash> CuckooFilter<T> {
     /// assert_eq!(filter.len(), 4);
     /// ```
     pub fn len(&self) -> usize {
-        self.fingerprint_buckets.len()
+        self.entries_per_index
     }
 
     /// Returns `true` if the cuckoo filter is empty.
@@ -376,7 +390,7 @@ impl<T: Hash> CuckooFilter<T> {
     /// assert!(!filter.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
-        self.fingerprint_buckets.is_empty()
+        self.fingerprint_vec.is_empty()
     }
 
     /// Returns the len of each bucket in the cuckoo filter.
@@ -390,10 +404,7 @@ impl<T: Hash> CuckooFilter<T> {
     /// assert_eq!(filter.bucket_len(), 25);
     /// ```
     pub fn bucket_len(&self) -> usize {
-        match self.fingerprint_buckets.first() {
-            Some(bucket) => bucket.len(),
-            _ => unreachable!(),
-        }
+        self.fingerprint_vec.len() / self.entries_per_index
     }
 
     /// Returns the number of items that could not be inserted into the CuckooFilter.
@@ -439,10 +450,7 @@ impl<T: Hash> CuckooFilter<T> {
     /// assert_eq!(filter.fingerprint_bit_count(), 8);
     /// ```
     pub fn fingerprint_bit_count(&self) -> usize {
-        match self.fingerprint_buckets.first() {
-            Some(bucket) => bucket.fingerprint_bit_count(),
-            _ => unreachable!(),
-        }
+        self.fingerprint_vec.fingerprint_bit_count()
     }
 
     /// Returns the estimated false positive probability of the cuckoo filter. This value will
@@ -460,7 +468,7 @@ impl<T: Hash> CuckooFilter<T> {
     pub fn estimate_fpp(&self) -> f64 {
         let fingerprints_count = 2.0f64.powi(self.fingerprint_bit_count() as i32);
         let single_fpp = (fingerprints_count - 2.0) / (fingerprints_count - 1.0);
-        let occupied_len: usize = self.fingerprint_buckets.iter().map(|bucket| bucket.occupied_len()).sum();
+        let occupied_len = self.fingerprint_vec.occupied_len();
         let occupied_ratio = occupied_len as f64 / (self.len() * self.bucket_len()) as f64;
         return 1.0 - single_fpp.powf(2.0 * self.len() as f64 * occupied_ratio);
     }
@@ -572,10 +580,10 @@ mod tests {
     fn test_remove_both_indexes() {
         let mut filter = CuckooFilter::from_parameters(2, 8, 1);
 
-        filter.insert(&"baz");
-        filter.insert(&"qux");
         filter.insert(&"foobar");
         filter.insert(&"barfoo");
+        filter.insert(&"baz");
+        filter.insert(&"qux");
 
         filter.remove(&"baz");
         filter.remove(&"qux");
@@ -592,9 +600,8 @@ mod tests {
     fn test_estimate_fpp() {
         let mut filter = CuckooFilter::new(100);
         assert!(filter.estimate_fpp() < 1e-6);
-       
+
         filter.insert(&0);
-        println!("{}", filter.estimate_fpp());
         assert!((filter.estimate_fpp() - 0.000628487) < 1e-6);
     }
 }

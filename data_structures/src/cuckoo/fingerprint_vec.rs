@@ -85,8 +85,19 @@ impl FingerprintVec {
         ret
     }
 
+    pub fn clear(&mut self) {
+        self.occupied_len = 0;
+        for byte in &mut self.blocks {
+            *byte = 0;
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn occupied_len(&self) -> usize {

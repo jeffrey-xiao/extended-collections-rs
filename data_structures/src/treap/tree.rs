@@ -110,9 +110,7 @@ pub fn remove<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>> 
                 }
             }
         }
-        None => {
-            return None;
-        }
+        None => return None,
     }
     mem::replace(tree, new_tree).map(|node| node.entry)
 }
