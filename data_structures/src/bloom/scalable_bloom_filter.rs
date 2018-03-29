@@ -8,7 +8,7 @@ use std::hash::Hash;
 /// soon as the number of ones exceeds 50% of the total bits, then another bloom filter is added to
 /// the scalable bloom filter. The new filter will have its size based on the growth ratio, and the
 /// number of hash functions based on the tightening ratio. The overall false positive probability
-/// percentage of the scalable bloom filter will be `initial_fpp * 1 / (1 - tightening_ratio)`.
+/// of the scalable bloom filter will be `initial_fpp * 1 / (1 - tightening_ratio)`.
 ///
 /// # Examples
 /// ```
@@ -36,7 +36,7 @@ pub struct ScalableBloomFilter<T: Hash> {
 
 impl<T: Hash> ScalableBloomFilter<T> {
     /// Constructs a new, empty `ScalableBloomFilter<T>` with initially `initial_bit_count` bits
-    /// and a initial maximum false positive probability of `fpp`. Every time a new bloom filter is
+    /// and an initial maximum false positive probability of `fpp`. Every time a new bloom filter is
     /// added, the size will be `growth_ratio` multiplied by the previous size, and the false
     /// positive probability will be `tightening_ratio` multipled by the previous false positive
     /// probability.
@@ -70,7 +70,7 @@ impl<T: Hash> ScalableBloomFilter<T> {
                 if self.approximate_bits_used * 2 >= filter.len() {
                     let exponent = self.filters.len() as i32;
                     new_filter = Some(BloomFilter::from_fpp(
-                        (filter.len() as f64* self.growth_ratio).ceil() as usize,
+                        (filter.len() as f64 * self.growth_ratio).ceil() as usize,
                         self.initial_fpp * self.tightening_ratio.powi(exponent),
                     ));
                     self.approximate_bits_used = 0;
@@ -94,7 +94,7 @@ impl<T: Hash> ScalableBloomFilter<T> {
     /// filter.insert(&"foo");
     /// ```
     pub fn insert(&mut self, item: &T) {
-        if !self.filters.iter().rev().skip(1).any(|ref mut filter| filter.contains(item)) {
+        if !self.filters.iter().any(|ref mut filter| filter.contains(item)) {
             let filter = match self.filters.last_mut() {
                 Some(filter) => filter,
                 _ => unreachable!(),
@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn test_grow() {
         let mut filter  = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
-        
+
         for i in 0..15 {
             filter.insert(&i);
         }

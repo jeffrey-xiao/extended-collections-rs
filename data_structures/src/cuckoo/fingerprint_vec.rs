@@ -92,12 +92,8 @@ impl FingerprintVec {
         }
     }
 
-    pub fn len(&self) -> usize {
+    pub fn capacity(&self) -> usize {
         self.len
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
     }
 
     pub fn occupied_len(&self) -> usize {
@@ -182,7 +178,7 @@ mod tests {
     #[test]
     fn test_len() {
         let fpv = FingerprintVec::new(8, 10);
-        assert_eq!(fpv.len(), 10);
+        assert_eq!(fpv.capacity(), 10);
     }
 
     #[test]
