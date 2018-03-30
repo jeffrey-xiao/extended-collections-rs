@@ -245,6 +245,24 @@ impl<T: Hash> BloomFilter<T> {
     pub fn count_zeros(&self) -> usize {
         self.bit_vec.count_zeros()
     }
+
+    /// Returns the estimated false positive probability of the bloom filter. This value will
+    /// increase as more items are added.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bloom::BloomFilter;
+    ///
+    /// let mut filter = BloomFilter::new(100, 0.01);
+    /// assert!(filter.estimate_fpp() < 1e-6);
+    ///
+    /// filter.insert(&0);
+    /// assert!(filter.estimate_fpp() < 0.01);
+    /// ```
+    pub fn estimate_fpp(&self) -> f64 {
+        let single_fpp = self.bit_vec.count_ones() as f64 / self.bit_vec.len() as f64;
+        single_fpp.powi(self.hasher_count as i32)
+    }
 }
 
 #[cfg(test)]
@@ -300,5 +318,16 @@ mod tests {
 
         assert_eq!(filter.len(), 100);
         assert_eq!(filter.hasher_count(), 7);
+    }
+
+    #[test]
+    fn test_estimate_fpp() {
+        let mut filter = BloomFilter::new(100, 0.01);
+        assert!(filter.estimate_fpp() < 1e-6);
+
+        filter.insert(&0);
+
+        let expected_fpp = (7f64 / 959f64).powi(7);
+        assert!((filter.estimate_fpp() - expected_fpp).abs() < 1e-15);
     }
 }

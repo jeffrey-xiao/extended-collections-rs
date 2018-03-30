@@ -216,6 +216,23 @@ impl<T: Hash> ScalableBloomFilter<T> {
     pub fn count_zeros(&self) -> usize {
         self.filters.iter().map(|filter| filter.count_zeros()).sum()
     }
+
+    /// Returns the estimated false positive probability of the scalable bloom filter. This value
+    /// will increase as more items are added.
+    ///
+    /// # Examples
+    /// ```
+    /// use data_structures::bloom::ScalableBloomFilter;
+    ///
+    /// let mut filter = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
+    /// assert!(filter.estimate_fpp() < 1e-6);
+    ///
+    /// filter.insert(&0);
+    /// assert!(filter.estimate_fpp() < 0.01);
+    /// ```
+    pub fn estimate_fpp(&self) -> f64 {
+        1.0 - self.filters.iter().map(|filter| 1.0 - filter.estimate_fpp()).product::<f64>()
+    }
 }
 
 #[cfg(test)]
@@ -243,7 +260,7 @@ mod tests {
 
     #[test]
     fn test_grow() {
-        let mut filter  = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
+        let mut filter = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
 
         for i in 0..15 {
             filter.insert(&i);
@@ -253,5 +270,18 @@ mod tests {
         assert_eq!(filter.filter_count(), 2);
         assert_eq!(filter.filters[0].hasher_count(), 7);
         assert_eq!(filter.filters[1].hasher_count(), 8);
+    }
+
+    #[test]
+    fn test_estimate_fpp() {
+        let mut filter = ScalableBloomFilter::new(700, 0.01, 2.0, 0.5);
+        assert!(filter.estimate_fpp() < 1e-6);
+
+        for item in 0..200 {
+            filter.insert(&item);
+        }
+
+        let expected_fpp = 1.0 - (1.0 - filter.filters[0].estimate_fpp()) * (1.0 - filter.filters[1].estimate_fpp());
+        assert!((filter.estimate_fpp() - expected_fpp).abs() < 1e-15);
     }
 }

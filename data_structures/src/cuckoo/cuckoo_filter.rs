@@ -239,7 +239,7 @@ impl<T: Hash> CuckooFilter<T> {
         (fingerprint, index_1, index_2)
     }
 
-    /// Inserts an element into the bloom filter.
+    /// Inserts an element into the cuckoo filter.
     ///
     /// # Examples
     /// ```
@@ -250,7 +250,6 @@ impl<T: Hash> CuckooFilter<T> {
     /// ```
     pub fn insert(&mut self, item: &T) {
         let (mut fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(self.get_hashes(item));
-        println!("insert {} {} {}", Self::get_raw_fingerprint(&fingerprint), index_1, index_2);
         if !self.contains_fingerprint(&fingerprint, index_1, index_2) {
             if self.insert_fingerprint(fingerprint.as_slice(), index_1) || self.insert_fingerprint(fingerprint.as_slice(), index_2) {
                 return;
@@ -265,7 +264,6 @@ impl<T: Hash> CuckooFilter<T> {
                 let bucket_index = rng.gen_range(0, self.entries_per_index);
                 let vec_index = self.get_vec_index(index, bucket_index);
                 let new_fingerprint = self.fingerprint_vec.get(vec_index);
-                println!("SETTING {} AT {} {}", Self::get_raw_fingerprint(&fingerprint), vec_index, index);
                 self.fingerprint_vec.set(vec_index, fingerprint.as_slice());
                 fingerprint = new_fingerprint;
                 prev_index = index;
@@ -275,7 +273,6 @@ impl<T: Hash> CuckooFilter<T> {
                 }
             }
 
-            println!("PUSHING {}", Self::get_raw_fingerprint(&fingerprint));
             self.extra_items.push((Self::get_raw_fingerprint(&fingerprint), cmp::min(prev_index, index)));
         }
     }
@@ -330,7 +327,7 @@ impl<T: Hash> CuckooFilter<T> {
         }
     }
 
-    /// Checks if an element is possibly in the bloom filter.
+    /// Checks if an element is possibly in the cuckoo filter.
     ///
     /// # Examples
     /// ```
@@ -343,7 +340,6 @@ impl<T: Hash> CuckooFilter<T> {
     /// ```
     pub fn contains(&self, item: &T) -> bool {
         let (fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(self.get_hashes(item));
-        println!("contains {} {} {}", Self::get_raw_fingerprint(&fingerprint), index_1, index_2);
         self.contains_fingerprint(&fingerprint, index_1, index_2)
     }
 
@@ -377,6 +373,7 @@ impl<T: Hash> CuckooFilter<T> {
     /// ```
     pub fn clear(&mut self) {
         self.fingerprint_vec.clear();
+        self.extra_items.clear();
     }
 
     /// Returns the number of occupied entries in the cuckoo filter. It does not account for items
@@ -508,7 +505,7 @@ impl<T: Hash> CuckooFilter<T> {
     /// assert!(filter.estimate_fpp() < 1e-6);
     ///
     /// filter.insert(&0);
-    /// assert!((filter.estimate_fpp() - 0.000628487) < 1e-6);
+    /// assert!((filter.estimate_fpp() - 0.01) < 1e-6);
     pub fn estimate_fpp(&self) -> f64 {
         let fingerprints_count = 2.0f64.powi(self.fingerprint_bit_count() as i32);
         let single_fpp = (fingerprints_count - 2.0) / (fingerprints_count - 1.0);
@@ -662,11 +659,30 @@ mod tests {
     }
 
     #[test]
+    fn test_clear() {
+        let mut filter = CuckooFilter::from_parameters(2, 8, 1);
+
+        filter.insert(&"foobar");
+        filter.insert(&"barfoo");
+        filter.insert(&"baz");
+        filter.insert(&"qux");
+
+        filter.clear();
+
+        assert!(!filter.contains(&"baz"));
+        assert!(!filter.contains(&"qux"));
+        assert!(!filter.contains(&"foobar"));
+        assert!(!filter.contains(&"barfoo"));
+    }
+
+    #[test]
     fn test_estimate_fpp() {
-        let mut filter = CuckooFilter::new(100);
+        let mut filter = CuckooFilter::from_entries_per_index(100, 0.01, 4);
         assert!(filter.estimate_fpp() < 1e-6);
 
         filter.insert(&0);
-        assert!((filter.estimate_fpp() - 0.000628487) < 1e-6);
+
+        let expected_fpp = 1.0 - ((2f64.powi(11) - 2.0) / (2f64.powi(11) - 1.0)).powf(2.0 * 4.0 * 1.0 / 128.0);
+        assert!((filter.estimate_fpp() - expected_fpp).abs() < 1e-15);
     }
 }

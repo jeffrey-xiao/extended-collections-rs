@@ -129,7 +129,6 @@ impl<T: Hash> ScalableCuckooFilter<T> {
                     let index_1 = fingerprint_entry.1;
                     let index_2 = (fingerprint_entry.1 ^ fingerprint_entry.0 as usize) % new_filter.bucket_len();
                     let fingerprint = CuckooFilter::<T>::get_fingerprint(fingerprint_entry.0);
-                    println!("GROW TAKE OUT {:?}", fingerprint_entry);
                     // Should always have room in a new filter.
                     new_filter.insert_fingerprint(fingerprint.as_slice(), index_1) || new_filter.insert_fingerprint(fingerprint.as_slice(), index_2);
                 }
@@ -293,7 +292,7 @@ impl<T: Hash> ScalableCuckooFilter<T> {
     /// ```
     pub fn clear(&mut self) {
         let default_entries_per_index = match self.filters.first() {
-            Some(filter) => filter.len(),
+            Some(filter) => filter.entries_per_index(),
             _ => unreachable!(),
         };
 
@@ -304,7 +303,8 @@ impl<T: Hash> ScalableCuckooFilter<T> {
         )];
     }
 
-    /// Returns the estimated false positive probability of the scalable cuckoo filter.
+    /// Returns the estimated false positive probability of the scalable cuckoo filter. This value
+    /// will increase as more items are added.
     ///
     /// # Examples
     /// use data_structures::cuckoo::ScalableCuckooFilter;
@@ -313,7 +313,7 @@ impl<T: Hash> ScalableCuckooFilter<T> {
     /// assert!(filter.estimate_fpp() < 1e-6);
     ///
     /// filter.insert(&"foo");
-    /// assert!((filter.estimate_fpp() - 0.000628487) < 1e-6);
+    /// assert!((filter.estimate_fpp() - 0.01) < 1e-6);
     pub fn estimate_fpp(&self) -> f64 {
         1.0 - self.filters.iter().map(|filter| 1.0 - filter.estimate_fpp()).product::<f64>()
     }
@@ -333,6 +333,16 @@ mod tests {
 
         for item in 0..130 {
             filter.insert(&item);
+        }
+
+        filter.clear();
+
+        for item in 0..130 {
+            assert!(!filter.contains(&item));
+        }
+
+        for item in 0..130 {
+            filter.insert(&item);
             assert!(filter.contains(&item));
             assert_eq!(filter.len(), item + 1);
         }
@@ -349,7 +359,6 @@ mod tests {
             assert!(!filter.contains(&item));
             assert_eq!(filter.len(), 130 - item - 1);
         }
-        println!("{}", filter.filters[0].fingerprint_bit_count());
     }
 
     #[test]
@@ -359,6 +368,16 @@ mod tests {
         assert!(filter.is_empty());
         assert_eq!(filter.capacity(), 128);
         assert_eq!(filter.entries_per_index(), 8);
+
+        for item in 0..130 {
+            filter.insert(&item);
+        }
+
+        filter.clear();
+
+        for item in 0..130 {
+            assert!(!filter.contains(&item));
+        }
 
         for item in 0..130 {
             filter.insert(&item);
@@ -378,5 +397,18 @@ mod tests {
             assert!(!filter.contains(&item));
             assert_eq!(filter.len(), 130 - item - 1);
         }
+    }
+
+    #[test]
+    fn test_estimate_fpp() {
+        let mut filter = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
+        assert!(filter.estimate_fpp() < 1e-6);
+
+        for item in 0..200 {
+            filter.insert(&item);
+        }
+
+        let expected_fpp = 1.0 - (1.0 - filter.filters[0].estimate_fpp()) * (1.0 - filter.filters[1].estimate_fpp());
+        assert!((filter.estimate_fpp() - expected_fpp).abs() < 1e-15);
     }
 }
