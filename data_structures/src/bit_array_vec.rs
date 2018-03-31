@@ -102,7 +102,7 @@ impl BitArrayVec {
             blocks: Vec::with_capacity(Self::get_block_count(bit_count, len)),
             bit_count,
             occupied_len: 0,
-            len,
+            len: 0,
         }
     }
 
@@ -701,6 +701,29 @@ mod tests {
         assert_eq!(
             bav.iter().collect::<Vec<Vec<u8>>>(),
             vec![vec![1], vec![1], vec![1], vec![1]],
+        );
+    }
+
+    #[test]
+    fn test_with_capacity() {
+        let bav = BitArrayVec::with_capacity(5, 4);
+
+        assert_eq!(bav.len(), 0);
+        assert_eq!(bav.capacity(), 4);
+    }
+
+    #[test]
+    fn test_into_iter() {
+        let mut bav = BitArrayVec::new(5, 0);
+        bav.push(&[0]);
+        bav.push(&[1]);
+        bav.push(&[2]);
+        bav.push(&[3]);
+
+
+        assert_eq!(
+            bav.into_iter().collect::<Vec<Vec<u8>>>(),
+            vec![vec![0], vec![1], vec![2], vec![3]],
         );
     }
 }
