@@ -11,6 +11,7 @@ extern crate serde_derive;
 
 mod entry;
 pub mod arena;
+pub mod bit_array_vec;
 pub mod bit_vec;
 pub mod bloom;
 pub mod bptree;

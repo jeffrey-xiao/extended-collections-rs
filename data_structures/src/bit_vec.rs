@@ -38,27 +38,23 @@ pub struct BitVec {
     one_count: usize,
 }
 
-impl BitVec {
-    #[inline]
-    fn get_block_bit_count() -> usize {
-        mem::size_of::<u8>() * 8
-    }
+const BLOCK_BIT_COUNT: usize = mem::size_of::<u8>() * 8;
 
+impl BitVec {
     fn get_block_count(len: usize) -> usize {
-        let block_bit_count = Self::get_block_bit_count();
-        (len + block_bit_count - 1) / block_bit_count
+        (len + BLOCK_BIT_COUNT - 1) / BLOCK_BIT_COUNT
     }
 
     fn reverse_byte(byte: u8) -> u8 {
         let mut ret = 0;
-        for i in 0..Self::get_block_bit_count() {
-            ret |= (byte >> i & 1) << (Self::get_block_bit_count() - i - 1);
+        for i in 0..BLOCK_BIT_COUNT {
+            ret |= (byte >> i & 1) << (BLOCK_BIT_COUNT - i - 1);
         }
         ret
     }
 
     fn clear_extra_bits(&mut self) {
-        let extra_bits = self.len() % Self::get_block_bit_count();
+        let extra_bits = self.len() % BLOCK_BIT_COUNT;
         if extra_bits > 0 {
             let mask = (1 << extra_bits) - 1;
             let blocks_len = self.blocks.len();
@@ -103,7 +99,7 @@ impl BitVec {
         ret
     }
 
-    /// Constructs a `BitVec` from a byte-vector. Each byte becomes eight bits, with the most
+    /// Constructs a `BitVec` from a byte slice. Each byte becomes eight bits, with the most
     /// signficant bits of each byte coming first.
     ///
     /// # Examples
@@ -117,7 +113,7 @@ impl BitVec {
     /// );
     /// ```
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        let len = bytes.len() * Self::get_block_bit_count();
+        let len = bytes.len() * BLOCK_BIT_COUNT;
         BitVec {
             blocks: bytes.to_vec().iter().map(|byte| Self::reverse_byte(*byte)).collect(),
             len,
@@ -125,7 +121,7 @@ impl BitVec {
         }
     }
 
-    /// Returns the byte-vector representation of the `BitVec` with the first bit in the `BitVec`
+    /// Returns the byte-vec representation of the `BitVec` with the first bit in the `BitVec`
     /// becoming the high-order bit of the first byte.
     ///
     /// # Examples
@@ -162,6 +158,9 @@ impl BitVec {
 
     /// Sets the value at index `index` to `bit`.
     ///
+    /// # Panics
+    /// Panics if attempt to set an index out-of-bounds.
+    ///
     /// # Examples
     /// ```
     /// use data_structures::bit_vec::BitVec;
@@ -174,8 +173,8 @@ impl BitVec {
     /// ```
     pub fn set(&mut self, index: usize, bit: bool) {
         assert!(index < self.len);
-        let block_index = index / Self::get_block_bit_count();
-        let bit_index = index % Self::get_block_bit_count();
+        let block_index = index / BLOCK_BIT_COUNT;
+        let bit_index = index % BLOCK_BIT_COUNT;
         let mask = 1 << bit_index;
         let prev = ((self.blocks[block_index] >> bit_index) & 1) != 0;
         if bit {
@@ -207,8 +206,8 @@ impl BitVec {
         if index >= self.len {
             None
         } else {
-            let block_index = index / Self::get_block_bit_count();
-            let bit_index = index % Self::get_block_bit_count();
+            let block_index = index / BLOCK_BIT_COUNT;
+            let bit_index = index % BLOCK_BIT_COUNT;
             self.blocks.get(block_index).map(|block| {
                 ((block >> bit_index) & 1) != 0
             })
@@ -216,6 +215,9 @@ impl BitVec {
     }
 
     /// Sets all values in the `BitVec` to `bit`.
+    ///
+    /// # Panics
+    /// Panics if attempting to set a bit out-of-bounds.
     ///
     /// # Examples
     /// ```
@@ -243,6 +245,9 @@ impl BitVec {
 
     /// Flip the value at index `index`.
     ///
+    /// # Panics
+    /// Panics if attempt to flip an index out-of-bounds.
+    ///
     /// # Examples
     /// ```
     /// use data_structures::bit_vec::BitVec;
@@ -257,8 +262,8 @@ impl BitVec {
     /// ```
     pub fn flip(&mut self, index: usize) {
         assert!(index < self.len);
-        let block_index = index / Self::get_block_bit_count();
-        let bit_index = index % Self::get_block_bit_count();
+        let block_index = index / BLOCK_BIT_COUNT;
+        let bit_index = index % BLOCK_BIT_COUNT;
         let mask = 1 << bit_index;
         if (self.blocks[block_index] >> bit_index) & 1 == 0 {
             self.one_count += 1;
@@ -298,8 +303,8 @@ impl BitVec {
         }
         self.one_count = 0;
         for index in 0..self.blocks.len() {
-            if index == self.blocks.len() - 1 && self.len() % Self::get_block_bit_count() != 0 {
-                let shift = Self::get_block_bit_count() - self.len() % Self::get_block_bit_count();
+            if index == self.blocks.len() - 1 && self.len() % BLOCK_BIT_COUNT != 0 {
+                let shift = BLOCK_BIT_COUNT - self.len() % BLOCK_BIT_COUNT;
                 self.one_count += (self.blocks[index] << shift).count_ones() as usize;
             } else {
                 self.one_count += self.blocks[index].count_ones() as usize;
@@ -486,7 +491,7 @@ impl BitVec {
             let ret = self.get(index);
             self.set(index, false);
             self.len -= 1;
-            if self.len % Self::get_block_bit_count() == 0 {
+            if self.len % BLOCK_BIT_COUNT == 0 {
                 self.blocks.pop();
             }
             ret
@@ -505,7 +510,7 @@ impl BitVec {
     /// assert_eq!(bv.get(1), Some(true));
     /// ```
     pub fn push(&mut self, bit: bool) {
-        if self.len % Self::get_block_bit_count() == 0 {
+        if self.len % BLOCK_BIT_COUNT == 0 {
             self.blocks.push(0);
         }
         let index = self.len;
@@ -581,7 +586,7 @@ impl BitVec {
     /// assert_eq!(bv.capacity(), 16);
     /// ```
     pub fn capacity(&self) -> usize {
-        self.blocks.capacity() * Self::get_block_bit_count()
+        self.blocks.capacity() * BLOCK_BIT_COUNT
     }
 
     /// Returns the number of set bits in the `BitVec`.

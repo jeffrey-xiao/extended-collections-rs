@@ -3,7 +3,7 @@ use cuckoo::{
     DEFAULT_FINGERPRINT_BIT_COUNT,
     DEFAULT_MAX_KICKS,
 };
-use cuckoo::fingerprint_vec::FingerprintVec;
+use bit_array_vec::BitArrayVec;
 use rand::{Rng, XorShiftRng};
 use siphasher::sip::SipHasher;
 use std::cmp;
@@ -38,7 +38,7 @@ use std::marker::PhantomData;
 pub struct CuckooFilter<T: Hash> {
     max_kicks: usize,
     entries_per_index: usize,
-    fingerprint_vec: FingerprintVec,
+    fingerprint_vec: BitArrayVec,
     pub(in super) extra_items: Vec<(u64, usize)>,
     hashers: [SipHasher; 2],
     _marker: PhantomData<T>,
@@ -75,7 +75,7 @@ impl<T: Hash> CuckooFilter<T> {
         CuckooFilter {
             max_kicks: DEFAULT_MAX_KICKS,
             entries_per_index: DEFAULT_ENTRIES_PER_INDEX,
-            fingerprint_vec: FingerprintVec::new(
+            fingerprint_vec: BitArrayVec::new(
                 DEFAULT_FINGERPRINT_BIT_COUNT,
                 bucket_len * DEFAULT_ENTRIES_PER_INDEX,
             ),
@@ -113,7 +113,7 @@ impl<T: Hash> CuckooFilter<T> {
         CuckooFilter {
             max_kicks: DEFAULT_MAX_KICKS,
             entries_per_index,
-            fingerprint_vec: FingerprintVec::new(
+            fingerprint_vec: BitArrayVec::new(
                 fingerprint_bit_count,
                 bucket_len * entries_per_index,
             ),
@@ -146,7 +146,7 @@ impl<T: Hash> CuckooFilter<T> {
         CuckooFilter {
             max_kicks: DEFAULT_MAX_KICKS,
             entries_per_index,
-            fingerprint_vec: FingerprintVec::new(
+            fingerprint_vec: BitArrayVec::new(
                 fingerprint_bit_count,
                 bucket_len * entries_per_index,
             ),
@@ -183,7 +183,7 @@ impl<T: Hash> CuckooFilter<T> {
         CuckooFilter {
             max_kicks: DEFAULT_MAX_KICKS,
             entries_per_index,
-            fingerprint_vec: FingerprintVec::new(
+            fingerprint_vec: BitArrayVec::new(
                 fingerprint_bit_count,
                 bucket_len * entries_per_index,
             ),
@@ -491,7 +491,7 @@ impl<T: Hash> CuckooFilter<T> {
     /// assert_eq!(filter.fingerprint_bit_count(), 8);
     /// ```
     pub fn fingerprint_bit_count(&self) -> usize {
-        self.fingerprint_vec.fingerprint_bit_count()
+        self.fingerprint_vec.bit_count()
     }
 
     /// Returns the estimated false positive probability of the cuckoo filter. This value will
