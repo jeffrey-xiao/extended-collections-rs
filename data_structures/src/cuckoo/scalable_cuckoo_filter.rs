@@ -130,7 +130,9 @@ impl<T: Hash> ScalableCuckooFilter<T> {
                     let index_2 = (fingerprint_entry.1 ^ fingerprint_entry.0 as usize) % new_filter.bucket_len();
                     let fingerprint = CuckooFilter::<T>::get_fingerprint(fingerprint_entry.0);
                     // Should always have room in a new filter.
-                    new_filter.insert_fingerprint(fingerprint.as_slice(), index_1) || new_filter.insert_fingerprint(fingerprint.as_slice(), index_2);
+                    if !new_filter.insert_fingerprint(fingerprint.as_slice(), index_1) {
+                        new_filter.insert_fingerprint(fingerprint.as_slice(), index_2);
+                    }
                 }
 
                 new_filter_opt = Some(new_filter);

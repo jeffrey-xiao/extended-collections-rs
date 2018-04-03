@@ -1,3 +1,4 @@
+use std::f64;
 use std::hash::Hash;
 use util;
 
@@ -9,17 +10,17 @@ use util;
 pub struct Node<'a, T: 'a + Hash + Ord> {
     id: &'a T,
     hash: u64,
-    weight: f32,
-    relative_weight: f32,
+    weight: f64,
+    relative_weight: f64,
 }
 
 impl<'a, T: 'a + Hash + Ord> Node<'a, T> {
-    pub fn new(id: &'a T, weight: f32) -> Self {
+    pub fn new(id: &'a T, weight: f64) -> Self {
         Node {
             id,
             hash: util::gen_hash(id),
             weight,
-            relative_weight: 0f32,
+            relative_weight: 0f64,
         }
     }
 }
@@ -34,8 +35,8 @@ impl<'a, T: 'a + Hash + Ord> Node<'a, T> {
 /// use hash::carp::{Node, Ring};
 ///
 /// let mut r = Ring::new(vec![
-///     Node::new(&"node-1", 1f32),
-///     Node::new(&"node-2", 3f32),
+///     Node::new(&"node-1", 1f64),
+///     Node::new(&"node-2", 3f64),
 /// ]);
 ///
 /// r.remove_node(&"node-1");
@@ -44,7 +45,7 @@ impl<'a, T: 'a + Hash + Ord> Node<'a, T> {
 /// assert_eq!(r.len(), 1);
 ///
 /// let mut iterator = r.iter();
-/// assert_eq!(iterator.next(), Some((&"node-2", 3f32)));
+/// assert_eq!(iterator.next(), Some((&"node-2", 3f64)));
 /// assert_eq!(iterator.next(), None);
 /// ```
 pub struct Ring<'a, T: 'a + Hash + Ord> {
@@ -53,17 +54,17 @@ pub struct Ring<'a, T: 'a + Hash + Ord> {
 
 impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     fn rebalance(&mut self) {
-        let mut rolling_product = 1f32;
-        let len = self.nodes.len() as f32;
+        let mut rolling_product = 1f64;
+        let len = self.nodes.len() as f64;
         for i in 0..self.nodes.len() {
-            let index = i as f32;
+            let index = i as f64;
             let mut res;
             if i == 0 {
-                res = (len * self.nodes[i].weight).powf(1f32 / len);
+                res = (len * self.nodes[i].weight).powf(1f64 / len);
             } else {
                 res = (len - index) * (self.nodes[i].weight - self.nodes[i - 1].weight) / rolling_product;
                 res += self.nodes[i - 1].relative_weight.powf(len - index);
-                res = res.powf(1f32 / (len - index));
+                res = res.powf(1f64 / (len - index));
             }
 
             rolling_product *= res;
@@ -89,7 +90,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
         nodes.sort_by_key(|node| node.id);
         nodes.dedup_by_key(|node| node.id);
         nodes.sort_by(|n, m| {
-            if n.weight == m.weight {
+            if (n.weight - m.weight).abs() < f64::EPSILON {
                 n.id.cmp(m.id)
             } else {
                 n.weight.partial_cmp(&m.weight).unwrap()
@@ -111,7 +112,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     /// use hash::carp::{Node, Ring};
     ///
     /// let mut r = Ring::new(vec![
-    ///     Node::new(&"node-1", 1f32),
+    ///     Node::new(&"node-1", 1f64),
     /// ]);
     ///
     /// r.remove_node(&"node-1");
@@ -123,7 +124,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
             self.nodes.push(new_node);
         }
         self.nodes.sort_by(|n, m| {
-            if n.weight == m.weight {
+            if (n.weight - m.weight).abs() < f64::EPSILON {
                 n.id.cmp(m.id)
             } else {
                 n.weight.partial_cmp(&m.weight).unwrap()
@@ -139,8 +140,8 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     /// use hash::carp::{Node, Ring};
     ///
     /// let mut r = Ring::new(vec![
-    ///     Node::new(&"node-1", 1f32),
-    ///     Node::new(&"node-2", 3f32),
+    ///     Node::new(&"node-1", 1f64),
+    ///     Node::new(&"node-2", 3f64),
     /// ]);
     ///
     /// r.remove_node(&"node-2");
@@ -159,7 +160,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     /// use hash::carp::{Node, Ring};
     ///
     /// let mut r = Ring::new(vec![
-    ///     Node::new(&"node-1", 1f32),
+    ///     Node::new(&"node-1", 1f64),
     /// ]);
     ///
     /// assert_eq!(r.get_node(&"point-1"), &"node-1");
@@ -168,7 +169,7 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
         let point_hash = util::gen_hash(point);
         self.nodes.iter().map(|node| {
             (
-                util::combine_hash(node.hash, point_hash) as f32 * node.relative_weight,
+                util::combine_hash(node.hash, point_hash) as f64 * node.relative_weight,
                 node.id,
             )
         }).max_by(|n, m| {
@@ -187,8 +188,8 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     /// use hash::carp::{Node, Ring};
     ///
     /// let mut r = Ring::new(vec![
-    ///     Node::new(&"node-1", 1f32),
-    ///     Node::new(&"node-2", 3f32),
+    ///     Node::new(&"node-1", 1f64),
+    ///     Node::new(&"node-2", 3f64),
     /// ]);
     ///
     /// assert_eq!(r.len(), 2);
@@ -204,8 +205,8 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     /// use hash::carp::{Node, Ring};
     ///
     /// let mut r = Ring::new(vec![
-    ///     Node::new(&"node-1", 1f32),
-    ///     Node::new(&"node-2", 3f32),
+    ///     Node::new(&"node-1", 1f64),
+    ///     Node::new(&"node-2", 3f64),
     /// ]);
     ///
     /// assert_eq!(r.len(), 2);
@@ -223,23 +224,23 @@ impl<'a, T: 'a + Hash + Ord> Ring<'a, T> {
     /// use hash::carp::{Node, Ring};
     ///
     /// let mut r = Ring::new(vec![
-    ///     Node::new(&"node-1", 1f32),
-    ///     Node::new(&"node-2", 3f32),
+    ///     Node::new(&"node-1", 1f64),
+    ///     Node::new(&"node-2", 3f64),
     /// ]);
     ///
     /// let mut iterator = r.iter();
-    /// assert_eq!(iterator.next(), Some((&"node-1", 1f32)));
-    /// assert_eq!(iterator.next(), Some((&"node-2", 3f32)));
+    /// assert_eq!(iterator.next(), Some((&"node-1", 1f64)));
+    /// assert_eq!(iterator.next(), Some((&"node-2", 3f64)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&'a self) -> Box<Iterator<Item = (&'a T, f32)> + 'a> {
+    pub fn iter(&'a self) -> Box<Iterator<Item = (&'a T, f64)> + 'a> {
         Box::new(self.nodes.iter().map(|node| (&*node.id, node.weight)))
     }
 }
 
 impl<'a, T: Hash + Ord> IntoIterator for &'a Ring<'a, T> {
-    type Item = (&'a T, f32);
-    type IntoIter = Box<Iterator<Item = (&'a T, f32)> + 'a>;
+    type Item = (&'a T, f64);
+    type IntoIter = Box<Iterator<Item = (&'a T, f64)> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()

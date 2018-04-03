@@ -235,7 +235,7 @@ impl<T: Hash> CuckooFilter<T> {
         }
 
         let index_1 = hashes[1] as usize % self.bucket_len();
-        let index_2 = index_1 ^ raw_fingerprint as usize % self.bucket_len();
+        let index_2 = (index_1 ^ raw_fingerprint as usize) % self.bucket_len();
         (fingerprint, index_1, index_2)
     }
 
@@ -511,7 +511,7 @@ impl<T: Hash> CuckooFilter<T> {
         let single_fpp = (fingerprints_count - 2.0) / (fingerprints_count - 1.0);
         let occupied_len = self.fingerprint_vec.occupied_len();
         let occupied_ratio = occupied_len as f64 / self.capacity() as f64;
-        return 1.0 - single_fpp.powf(2.0 * self.entries_per_index() as f64 * occupied_ratio);
+        1.0 - single_fpp.powf(2.0 * self.entries_per_index() as f64 * occupied_ratio)
     }
 }
 
