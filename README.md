@@ -1,2 +1,2 @@
-# Rust Code
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Build Status](https://travis-ci.org/jeffrey-xiao/rust_code.svg?branch=master)](https://travis-ci.org/jeffrey-xiao/rust_code) [![codecov](https://codecov.io/gh/jeffrey-xiao/rust_code/branch/master/graph/badge.svg)](https://codecov.io/gh/jeffrey-xiao/rust_code)
+# extended-collections-rs
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Build Status](https://travis-ci.org/jeffrey-xiao/extended-collections-rs.svg?branch=master)](https://travis-ci.org/jeffrey-xiao/extended-collections-rs) [![codecov](https://codecov.io/gh/jeffrey-xiao/extended-collections-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/jeffrey-xiao/extended-collections-rs)
