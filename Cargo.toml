@@ -5,7 +5,7 @@ authors = ["Jeffrey Xiao <jeffrey.xiao1998@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/jeffrey-xiao/extended-collections-rs"
-documentation = "https://docs.rs/extended_collections"
+documentation = "https://docs.rs/extended-collections"
 description = """
 An extension to the collections in the standard library with various data structures.
 """
