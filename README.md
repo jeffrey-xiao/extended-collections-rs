@@ -5,7 +5,20 @@
 [![Build Status](https://travis-ci.org/jeffrey-xiao/extended-collections-rs.svg?branch=master)](https://travis-ci.org/jeffrey-xiao/extended-collections-rs)
 [![codecov](https://codecov.io/gh/jeffrey-xiao/extended-collections-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/jeffrey-xiao/extended-collections-rs)
 
-# References
+`extended-collections` contains various implementations of collections that are not found in the standard library.
+
+## Usage
+Add this to your `Cargo.toml`:
+```toml
+[dependencies]
+extended-collections = "*"
+```
+and this to your crate root:
+```rust
+extern crate extended_collections;
+```
+
+## References
  - [Skip Lists: A Probabilistic Alternative to Balanced Trees](https://dl.acm.org/citation.cfm?id=78977)
  > William Pugh. 1990. Skip lists: a probabilistic alternative to balanced trees. Commun. ACM 33, 6 (June 1990), 668-676. DOI=http://dx.doi.org/10.1145/78973.78977
  - [Fast set operations using treaps](https://dl.acm.org/citation.cfm?id=277660)
