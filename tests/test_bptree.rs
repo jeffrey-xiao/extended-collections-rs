@@ -1,7 +1,7 @@
 extern crate extended_collections;
 extern crate rand;
 
-use extended_collections::bptree::BPMap;
+use extended_collections::bptree::{BPMap, Result};
 use std::fs;
 use std::panic;
 use std::vec::Vec;
@@ -11,9 +11,9 @@ fn teardown(test_name: &str) {
     fs::remove_file(format!("{}.dat", test_name)).ok();
 }
 
-fn run_test<T: FnOnce() -> () + panic::UnwindSafe>(test: T, test_name: &str) {
+fn run_test<T: FnOnce() -> Result<()> + panic::UnwindSafe>(test: T, test_name: &str) {
     let result = panic::catch_unwind(|| {
-        test()
+        test().unwrap();
     });
 
     teardown(test_name);
@@ -32,7 +32,7 @@ fn int_test_bpmap() {
             let key = rng.gen::<u32>();
             let val = rng.gen::<u32>();
 
-            map.insert(key, val);
+            map.insert(key, val)?;
             expected.push((key, val));
         }
 
@@ -40,16 +40,16 @@ fn int_test_bpmap() {
         expected.sort_by(|l, r| l.0.cmp(&r.0));
         expected.dedup_by_key(|pair| pair.0);
 
-        map = BPMap::open(&format!("{}.dat", test_name)).expect("Could not open B+ tree.");
+        map = BPMap::open(&format!("{}.dat", test_name))?;
 
         assert_eq!(map.len(), expected.len());
 
-        assert_eq!(map.min(), Some(expected[0].0));
-        assert_eq!(map.max(), Some(expected[expected.len() - 1].0));
+        assert_eq!(map.min()?, Some(expected[0].0));
+        assert_eq!(map.max()?, Some(expected[expected.len() - 1].0));
 
         for entry in &expected {
-            assert!(map.contains_key(&entry.0));
-            assert_eq!(map.get(&entry.0), Some(entry.1));
+            assert!(map.contains_key(&entry.0)?);
+            assert_eq!(map.get(&entry.0)?, Some(entry.1));
         }
 
         thread_rng().shuffle(&mut expected);
@@ -57,10 +57,11 @@ fn int_test_bpmap() {
         let mut expected_len = expected.len();
 
         for entry in expected {
-            let old_entry = map.remove(&entry.0);
+            let old_entry = map.remove(&entry.0)?;
             expected_len -= 1;
             assert_eq!(old_entry, Some((entry.0, entry.1)));
             assert_eq!(map.len(), expected_len);
         }
+        Ok(())
     }, test_name);
 }

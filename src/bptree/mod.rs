@@ -15,3 +15,4 @@ mod node;
 mod pager;
 
 pub use self::map::BPMap;
+pub use self::pager::{Error, Result};
