@@ -2,7 +2,7 @@ use bincode::{serialize, deserialize};
 use bptree::node::{LeafNode, Node};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use std::io::{Error, Read, Seek, SeekFrom, Write};
+use std::io::{Read, Result, Seek, SeekFrom, Write};
 use std::fs::{File, OpenOptions};
 use std::marker::PhantomData;
 use std::mem;
@@ -24,7 +24,7 @@ pub struct Pager<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + D
 }
 
 impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOwned> Pager<T, U> {
-    pub fn new(file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<Pager<T, U>, Error> {
+    pub fn new(file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<Pager<T, U>> {
         let header_size = Self::get_metadata_size();
         let body_size = Node::<T, U>::get_max_size(leaf_degree, internal_degree) as u64;
         let metadata = Metadata {
@@ -40,11 +40,11 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
             .write(true)
             .create(true)
             .open(file_path)?;
-        db_file.set_len(header_size + body_size).unwrap();
-        db_file.seek(SeekFrom::Start(0)).unwrap();
-        db_file.write_all(&serialize(&metadata).unwrap()).unwrap();
-        db_file.seek(SeekFrom::Start(header_size)).unwrap();
-        db_file.write_all(&serialize(&Node::Leaf(LeafNode::<T, U>::new(leaf_degree))).unwrap()).unwrap();
+        db_file.set_len(header_size + body_size)?;
+        db_file.seek(SeekFrom::Start(0))?;
+        db_file.write_all(&serialize(&metadata).unwrap())?;
+        db_file.seek(SeekFrom::Start(header_size))?;
+        db_file.write_all(&serialize(&Node::Leaf(LeafNode::<T, U>::new(leaf_degree))).unwrap())?;
 
         let pager = Pager {
             db_file,
@@ -55,16 +55,16 @@ impl<T: Ord + Clone + Serialize + DeserializeOwned, U: Serialize + DeserializeOw
         Ok(pager)
     }
 
-    pub fn open(file_path: &str) -> Result<Pager<T, U>, Error> {
+    pub fn open(file_path: &str) -> Result<Pager<T, U>> {
         let mut db_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .open(file_path)?;
-        db_file.seek(SeekFrom::Start(0)).unwrap();
+        db_file.seek(SeekFrom::Start(0))?;
 
         let mut buffer: Vec<u8> = vec![0; Self::get_metadata_size() as usize];
-        db_file.read_exact(buffer.as_mut_slice()).unwrap();
+        db_file.read_exact(buffer.as_mut_slice())?;
         let metadata = deserialize(buffer.as_slice()).unwrap();
 
         Ok(Pager {
