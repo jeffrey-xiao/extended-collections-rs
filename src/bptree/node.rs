@@ -315,7 +315,7 @@ where T: Ord + Clone
                         Ordering::Greater => hi = mid - 1,
                         Ordering::Equal => return Some(mid as usize),
                     }
-                }
+                },
             }
         }
         None
@@ -422,7 +422,6 @@ mod tests {
             _marker: PhantomData,
         };
         let res = n.insert(2, 2, false).unwrap();
-
 
         let (split_key, split_node) = res;
         let internal_node = match split_node {

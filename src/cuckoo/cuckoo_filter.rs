@@ -290,7 +290,11 @@ impl<T: Hash> CuckooFilter<T> {
         let entries_per_index = self.entries_per_index;
         for bucket_index in 0..entries_per_index {
             let vec_index = self.get_vec_index(index, bucket_index);
-            if self.fingerprint_vec.get(vec_index).iter().all(|byte| *byte == 0) {
+            if self.fingerprint_vec
+                .get(vec_index)
+                .iter()
+                .all(|byte| *byte == 0)
+            {
                 self.fingerprint_vec.set(vec_index, fingerprint);
                 return true;
             }
@@ -515,6 +519,7 @@ impl<T: Hash> CuckooFilter<T> {
     ///
     /// filter.insert(&0);
     /// assert!((filter.estimate_fpp() - 0.01) < 1e-6);
+    /// ```
     pub fn estimate_fpp(&self) -> f64 {
         let fingerprints_count = 2.0f64.powi(self.fingerprint_bit_count() as i32);
         let single_fpp = (fingerprints_count - 2.0) / (fingerprints_count - 1.0);

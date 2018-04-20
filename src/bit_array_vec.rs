@@ -54,6 +54,7 @@ impl BitArrayVec {
     ///     bav.iter().collect::<Vec<Vec<u8>>>(),
     ///     vec![vec![0], vec![0], vec![0], vec![0]],
     /// );
+    /// ```
     pub fn new(bit_count: usize, len: usize) -> Self {
         BitArrayVec {
             blocks: vec![0; Self::get_block_count(bit_count, len)],
@@ -238,9 +239,9 @@ impl BitArrayVec {
     /// ```
     pub fn reserve(&mut self, additional: usize) {
         let desired_cap = self.len + additional;
-        let blocks_len = self.blocks.len();
         if desired_cap > Self::get_elem_count(self.bit_count, self.blocks.capacity()) {
-            self.blocks.reserve(Self::get_block_count(self.bit_count, desired_cap) - blocks_len);
+            let additional_blocks = Self::get_block_count(self.bit_count, desired_cap) - self.blocks.len();
+            self.blocks.reserve(additional_blocks);
         }
     }
 
@@ -258,9 +259,9 @@ impl BitArrayVec {
     /// ```
     pub fn reserve_exact(&mut self, additional: usize) {
         let desired_cap = self.len + additional;
-        let blocks_len = self.blocks.len();
         if desired_cap > Self::get_elem_count(self.bit_count, self.blocks.capacity()) {
-            self.blocks.reserve_exact(Self::get_block_count(self.bit_count, desired_cap) - blocks_len);
+            let additional_blocks = Self::get_block_count(self.bit_count, desired_cap) - self.blocks.len();
+            self.blocks.reserve_exact(additional_blocks);
         }
     }
 
@@ -465,7 +466,6 @@ impl<'a> IntoIterator for &'a BitArrayVec {
     }
 }
 
-
 /// An iterator for `BitArrayVec`.
 ///
 /// This iterator yields bits in order.
@@ -596,9 +596,13 @@ mod tests {
 
         assert_eq!(
             bav.iter().collect::<Vec<Vec<u8>>>(),
-            vec![vec![1, 0b11111], vec![2, 0b11111], vec![3, 0b11111], vec![4, 0b11111]],
+            vec![
+                vec![1, 0b11111],
+                vec![2, 0b11111],
+                vec![3, 0b11111],
+                vec![4, 0b11111],
+            ],
         );
-
 
         bav.push(&[5, !0]);
         assert_eq!(bav.occupied_len(), 5);
@@ -662,7 +666,12 @@ mod tests {
 
         assert_eq!(
             bav.iter().collect::<Vec<Vec<u8>>>(),
-            vec![vec![1, !0, 0b11111], vec![2, !0, 0b11111], vec![3, !0, 0b11111], vec![4, !0, 0b11111]],
+            vec![
+                vec![1, !0, 0b11111],
+                vec![2, !0, 0b11111],
+                vec![3, !0, 0b11111],
+                vec![4, !0, 0b11111],
+            ],
         );
 
         bav.push(&[5, !0, !0]);
@@ -725,7 +734,6 @@ mod tests {
         bav.push(&[1]);
         bav.push(&[2]);
         bav.push(&[3]);
-
 
         assert_eq!(
             bav.into_iter().collect::<Vec<Vec<u8>>>(),

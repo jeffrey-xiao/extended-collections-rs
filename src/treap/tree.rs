@@ -109,7 +109,7 @@ pub fn remove<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>> 
                     merge(&mut new_tree, node.right.take());
                 },
             }
-        }
+        },
         None => return None,
     }
     mem::replace(tree, new_tree).map(|node| node.entry)
@@ -142,7 +142,7 @@ pub fn ceil<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T,
             Ordering::Less => {
                 match ceil(&node.left, key) {
                     None => Some(&node.entry),
-                    res => res
+                    res => res,
                 }
             },
             Ordering::Equal => Some(&node.entry),
@@ -157,7 +157,7 @@ pub fn floor<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T
             Ordering::Greater => {
                 match floor(&node.right, key) {
                     None => Some(&node.entry),
-                    res => res
+                    res => res,
                 }
             },
             Ordering::Equal => Some(&node.entry),
@@ -189,7 +189,7 @@ pub fn union<T: Ord, U>(
     left_tree: Tree<T, U>,
     right_tree: Tree<T, U>,
     mut swapped: bool,
-) -> Tree<T, U> 
+) -> Tree<T, U>
 {
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {

@@ -151,7 +151,10 @@ impl<T: Hash> ScalableCuckooFilter<T> {
     /// filter.insert(&"foo");
     /// ```
     pub fn insert(&mut self, item: &T) {
-        if !self.filters.iter().any(|ref mut filter| filter.contains(item)) {
+        if !self.filters
+            .iter()
+            .any(|ref mut filter| filter.contains(item))
+        {
             let filter = match self.filters.last_mut() {
                 Some(filter) => filter,
                 _ => unreachable!(),
@@ -175,7 +178,9 @@ impl<T: Hash> ScalableCuckooFilter<T> {
     /// assert!(filter.contains(&"foo"));
     /// ```
     pub fn contains(&mut self, item: &T) -> bool {
-        self.filters.iter().any(|ref mut filter| filter.contains(item))
+        self.filters
+            .iter()
+            .any(|ref mut filter| filter.contains(item))
     }
 
     /// Removes an element from the scalable cuckoo filter.

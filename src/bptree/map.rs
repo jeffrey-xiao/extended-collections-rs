@@ -433,14 +433,14 @@ where
     pub fn get(&mut self, key: &T) -> Result<Option<U>> {
         let (_, curr_node, _) = self.search_node(key)?;
         match curr_node {
-            Node::Leaf(mut curr_leaf_node) =>{
+            Node::Leaf(mut curr_leaf_node) => {
                 Ok(curr_leaf_node.search(key).and_then(|index| {
                     match mem::replace(&mut curr_leaf_node.entries[index], None) {
                         Some(entry) => Some(entry.value),
                         _ => unreachable!(),
                     }
                 }))
-            }
+            },
             _ => unreachable!(),
         }
     }
@@ -615,11 +615,13 @@ where
         }
 
         match curr_node {
-            Node::Leaf(curr_leaf_node) => Ok(BPMapIterMut {
-                pager: &mut self.pager,
-                curr_node: curr_leaf_node,
-                curr_index: 0,
-            }),
+            Node::Leaf(curr_leaf_node) => {
+                Ok(BPMapIterMut {
+                    pager: &mut self.pager,
+                    curr_node: curr_leaf_node,
+                    curr_index: 0,
+                })
+            },
             _ => unreachable!(),
         }
     }
@@ -664,9 +666,11 @@ where
                 Some(next_page) => {
                     self.curr_node = {
                         match self.pager.get_page(next_page) {
-                            Ok(node) => match node {
-                                Node::Leaf(leaf_node) => leaf_node,
-                                _ => unreachable!(),
+                            Ok(node) => {
+                                match node {
+                                    Node::Leaf(leaf_node) => leaf_node,
+                                    _ => unreachable!(),
+                                }
                             },
                             Err(error) => return Some(Err(error)),
                         }
@@ -708,138 +712,168 @@ mod tests {
     #[test]
     fn test_len_empty() {
         let test_name = "test_len_empty";
-        run_test(|| {
-            let map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            assert_eq!(map.len(), 0);
-            Ok(())
-        }, test_name);
+        run_test(
+            || {
+                let map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3)?;
+                assert_eq!(map.len(), 0);
+                Ok(())
+            },
+            test_name,
+        );
     }
 
     #[test]
     fn test_is_empty() {
         let test_name = "test_is_empty";
-        run_test(|| {
-            let map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            assert!(map.is_empty());
-            Ok(())
-        }, test_name);
+        run_test(
+            || {
+                let map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3)?;
+                assert!(map.is_empty());
+                Ok(())
+            },
+            test_name,
+        );
     }
 
     #[test]
     fn test_min_max_empty() {
         let test_name = "test_min_max_empty";
-        run_test(|| {
-            let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            assert_eq!(map.min()?, None);
-            assert_eq!(map.max()?, None);
-            Ok(())
-        }, test_name);
+        run_test(
+            || {
+                let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3)?;
+                assert_eq!(map.min()?, None);
+                assert_eq!(map.max()?, None);
+                Ok(())
+            },
+            test_name,
+        );
     }
 
     #[test]
     fn test_free_node() {
         let test_name = "test_free_node";
-        run_test(|| {
-            let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            map.insert(1, 1)?;
-            map.insert(2, 2)?;
-            map.insert(3, 3)?;
-            map.insert(4, 4)?;
-            assert_eq!(map.pager.get_root_page(), 2);
-            map.remove(&1)?;
-            map.remove(&2)?;
-            map.remove(&3)?;
-            map.remove(&4)?;
-            assert_eq!(map.pager.get_root_page(), 0);
-            map.insert(1, 1)?;
-            map.insert(2, 2)?;
-            map.insert(3, 3)?;
-            map.insert(4, 4)?;
-            assert_eq!(map.pager.get_root_page(), 1);
-            Ok(())
-        }, test_name);
+        run_test(
+            || {
+                let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3)?;
+                map.insert(1, 1)?;
+                map.insert(2, 2)?;
+                map.insert(3, 3)?;
+                map.insert(4, 4)?;
+                assert_eq!(map.pager.get_root_page(), 2);
+                map.remove(&1)?;
+                map.remove(&2)?;
+                map.remove(&3)?;
+                map.remove(&4)?;
+                assert_eq!(map.pager.get_root_page(), 0);
+                map.insert(1, 1)?;
+                map.insert(2, 2)?;
+                map.insert(3, 3)?;
+                map.insert(4, 4)?;
+                assert_eq!(map.pager.get_root_page(), 1);
+                Ok(())
+            },
+            test_name,
+        );
     }
 
     #[test]
     fn test_get() {
         let test_name = "test_get";
-        run_test(|| {
-            let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            map.insert(1, 1)?;
-            assert_eq!(map.get(&1)?, Some(1));
-            Ok(())
-        }, test_name);
+        run_test(
+            || {
+                let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3)?;
+                map.insert(1, 1)?;
+                assert_eq!(map.get(&1)?, Some(1));
+                Ok(())
+            },
+            test_name,
+        );
     }
 
     #[test]
     fn test_insert() {
         let test_name = "test_insert";
-        run_test(|| {
-            let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            assert_eq!(map.insert(1, 1)?, None);
-            assert!(map.contains_key(&1)?);
-            assert_eq!(map.get(&1)?, Some(1));
-            Ok(())
-        }, test_name);
+        run_test(
+            || {
+                let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3)?;
+                assert_eq!(map.insert(1, 1)?, None);
+                assert!(map.contains_key(&1)?);
+                assert_eq!(map.get(&1)?, Some(1));
+                Ok(())
+            },
+            test_name,
+        );
     }
 
     #[test]
     fn test_insert_replace() {
         let test_name = "test_insert_replace";
-        run_test(|| {
-            let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            assert_eq!(map.insert(1, 1)?, None);
-            assert_eq!(map.insert(1, 3)?, Some((1, 1)));
-            assert_eq!(map.get(&1)?, Some(3));
-            Ok(())
-        }, test_name);
+        run_test(
+            || {
+                let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3)?;
+                assert_eq!(map.insert(1, 1)?, None);
+                assert_eq!(map.insert(1, 3)?, Some((1, 1)));
+                assert_eq!(map.get(&1)?, Some(3));
+                Ok(())
+            },
+            test_name,
+        );
     }
 
     #[test]
     fn test_remove() {
         let test_name = "test_remove";
-        run_test(|| {
-            let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            map.insert(1, 1)?;
-            assert_eq!(map.remove(&1)?, Some((1, 1)));
-            assert!(!map.contains_key(&1)?);
-            Ok(())
-        }, test_name);
+        run_test(
+            || {
+                let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3)?;
+                map.insert(1, 1)?;
+                assert_eq!(map.remove(&1)?, Some((1, 1)));
+                assert!(!map.contains_key(&1)?);
+                Ok(())
+            },
+            test_name,
+        );
     }
 
     #[test]
     fn test_min_max() {
         let test_name = "test_min_max";
-        run_test(|| {
-            let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            map.insert(1, 1)?;
-            map.insert(3, 3)?;
-            map.insert(5, 5)?;
+        run_test(
+            || {
+                let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3)?;
+                map.insert(1, 1)?;
+                map.insert(3, 3)?;
+                map.insert(5, 5)?;
 
-            assert_eq!(map.min()?, Some(1));
-            assert_eq!(map.max()?, Some(5));
-            Ok(())
-        }, test_name);
+                assert_eq!(map.min()?, Some(1));
+                assert_eq!(map.max()?, Some(5));
+                Ok(())
+            },
+            test_name,
+        );
     }
 
     #[test]
     fn test_iter_mut() {
         let test_name = "test_iter_mut";
-        run_test(|| {
-            let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3).expect("Could not create B+ tree.");
-            map.insert(1, 2)?;
-            map.insert(5, 6)?;
-            map.insert(3, 4)?;
+        run_test(
+            || {
+                let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 3, 3)?;
+                map.insert(1, 2)?;
+                map.insert(5, 6)?;
+                map.insert(3, 4)?;
 
-            map.insert(7, 8)?;
-            map.insert(11, 12)?;
-            map.insert(9, 10)?;
+                map.insert(7, 8)?;
+                map.insert(11, 12)?;
+                map.insert(9, 10)?;
 
-            assert_eq!(
-                map.iter_mut()?.map(|value| value.unwrap()).collect::<Vec<(u32, u32)>>(),
-                vec![(1, 2), (3, 4), (5, 6), (7, 8), (9, 10), (11, 12)],
-            );
-            Ok(())
-        }, test_name);
+                assert_eq!(
+                    map.iter_mut()?.map(|value| value.unwrap()).collect::<Vec<(u32, u32)>>(),
+                    vec![(1, 2), (3, 4), (5, 6), (7, 8), (9, 10), (11, 12)],
+                );
+                Ok(())
+            },
+            test_name,
+        );
     }
 }

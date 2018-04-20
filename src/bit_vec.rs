@@ -137,7 +137,10 @@ impl BitVec {
     /// assert_eq!(bv.to_bytes(), vec![0b11010000]);
     /// ```
     pub fn to_bytes(&self) -> Vec<u8> {
-        self.blocks.iter().map(|byte| Self::reverse_byte(*byte)).collect()
+        self.blocks
+            .iter()
+            .map(|byte| Self::reverse_byte(*byte))
+            .collect()
     }
 
     /// Constructs a new, empty `BitVec` with a certain capacity.
@@ -408,7 +411,6 @@ impl BitVec {
         self.apply(other, |x, y| (x & !y) | (!x & y))
     }
 
-
     /// Truncates a `BitVec`, dropping excess elements.
     ///
     /// # Examples
@@ -444,9 +446,9 @@ impl BitVec {
     /// ```
     pub fn reserve(&mut self, additional: usize) {
         let desired_cap = self.len + additional;
-        let blocks_len = self.blocks.len();
         if desired_cap > self.capacity() {
-            self.blocks.reserve(Self::get_block_count(desired_cap) - blocks_len);
+            let additional_blocks = Self::get_block_count(desired_cap) - self.blocks.len();
+            self.blocks.reserve(additional_blocks);
         }
     }
 
@@ -465,9 +467,9 @@ impl BitVec {
     /// ```
     pub fn reserve_exact(&mut self, additional: usize) {
         let desired_cap = self.len + additional;
-        let blocks_len = self.blocks.len();
         if desired_cap > self.capacity() {
-            self.blocks.reserve_exact(Self::get_block_count(desired_cap) - blocks_len);
+            let additional_blocks = Self::get_block_count(desired_cap) - self.blocks.len();
+            self.blocks.reserve_exact(additional_blocks);
         }
     }
 
@@ -578,7 +580,6 @@ impl BitVec {
         self.len
     }
 
-
     /// Returns the capacity of the `BitVec`.
     ///
     /// # Examples
@@ -660,7 +661,6 @@ impl<'a> IntoIterator for &'a BitVec {
         self.iter()
     }
 }
-
 
 /// An iterator for `BitVec`.
 ///
@@ -944,7 +944,6 @@ mod tests {
         assert_eq!(bv.count_ones(), 1);
         assert_eq!(bv.count_zeros(), 1);
 
-
         assert_eq!(bv.pop(), Some(false));
         assert_eq!(bv.count_ones(), 1);
         assert_eq!(bv.count_zeros(), 0);
@@ -959,7 +958,6 @@ mod tests {
     #[test]
     fn test_push() {
         let mut bv = BitVec::from_elem(1, false);
-
 
         bv.push(true);
         assert_eq!(bv.get(1), Some(true));

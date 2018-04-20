@@ -58,6 +58,9 @@ where
             .create(true)
             .open(file_path)
             .map_err(Error::IOError)?;
+        db_file
+            .set_len(header_size + body_size)
+            .map_err(Error::IOError)?;
 
         db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
         let serialized_metadata = &serialize(&metadata).map_err(Error::SerdeError)?;

@@ -25,27 +25,29 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: &[u8], value: T) -> Option<T> {
             node.insert_child(child);
             None
         },
-        None => match node.key.len().cmp(&key.len()) {
-            Ordering::Less => {
-                key = key.split_at(node.key.len()).1;
-                let byte = key[0];
-                if node.contains(byte) {
-                    insert(node.get_mut(byte), key, value)
-                } else {
-                    node.insert_child(Node::new(key.to_vec(), Some(value)));
+        None => {
+            match node.key.len().cmp(&key.len()) {
+                Ordering::Less => {
+                    key = key.split_at(node.key.len()).1;
+                    let byte = key[0];
+                    if node.contains(byte) {
+                        insert(node.get_mut(byte), key, value)
+                    } else {
+                        node.insert_child(Node::new(key.to_vec(), Some(value)));
+                        None
+                    }
+                },
+                Ordering::Greater => {
+                    let mut split_key = node.key.split_off(key.len());
+                    mem::swap(&mut split_key, &mut node.key);
+                    let mut split = mem::replace(&mut **node, Node::new(split_key, None));
+                    node.next = split.next.take();
+                    node.value = Some(value);
+                    node.insert_child(split);
                     None
-                }
-            },
-            Ordering::Greater => {
-                let mut split_key = node.key.split_off(key.len());
-                mem::swap(&mut split_key, &mut node.key);
-                let mut split = mem::replace(&mut **node, Node::new(split_key, None));
-                node.next = split.next.take();
-                node.value = Some(value);
-                node.insert_child(split);
-                None
-            },
-            Ordering::Equal => mem::replace(&mut node.value, Some(value)).map(|value| value),
+                },
+                Ordering::Equal => mem::replace(&mut node.value, Some(value)).map(|value| value),
+            }
         },
     }
 }
@@ -64,24 +66,26 @@ pub fn remove<T>(tree: &mut Tree<T>, key: &[u8], mut index: usize) -> Option<(Ve
             .position(|pair| pair.0 != pair.1);
         match split_index {
             Some(_) => return None,
-            None => match node.key.len().cmp(&(key.len() - index)) {
-                Ordering::Less => {
-                    index += node.key.len();
-                    let byte = key[index];
-                    ret = remove(node.get_mut(byte), key, index);
-                    node.merge();
-                    if node.value.is_none() && node.child.is_none() {
-                        next_tree = Some(node.next.take());
-                    }
-                },
-                Ordering::Greater => return None,
-                Ordering::Equal => {
-                    ret = node.value.take().map(|value| (key.to_vec(), value));
-                    node.merge();
-                    if node.value.is_none() && node.child.is_none() {
-                        next_tree = Some(node.next.take());
-                    }
-                },
+            None => {
+                match node.key.len().cmp(&(key.len() - index)) {
+                    Ordering::Less => {
+                        index += node.key.len();
+                        let byte = key[index];
+                        ret = remove(node.get_mut(byte), key, index);
+                        node.merge();
+                        if node.value.is_none() && node.child.is_none() {
+                            next_tree = Some(node.next.take());
+                        }
+                    },
+                    Ordering::Greater => return None,
+                    Ordering::Equal => {
+                        ret = node.value.take().map(|value| (key.to_vec(), value));
+                        node.merge();
+                        if node.value.is_none() && node.child.is_none() {
+                            next_tree = Some(node.next.take());
+                        }
+                    },
+                }
             },
         }
     }
@@ -102,13 +106,15 @@ pub fn get<'a, T>(tree: &'a Tree<T>, key: &[u8], mut index: usize) -> Option<&'a
         .position(|pair| pair.0 != pair.1);
     match split_index {
         Some(_) => None,
-        None => match node.key.len().cmp(&(key.len() - index)) {
-            Ordering::Less => {
-                index += node.key.len();
-                get(node.get(key[index]), key, index)
-            },
-            Ordering::Greater => None,
-            Ordering::Equal => node.value.as_ref(),
+        None => {
+            match node.key.len().cmp(&(key.len() - index)) {
+                Ordering::Less => {
+                    index += node.key.len();
+                    get(node.get(key[index]), key, index)
+                },
+                Ordering::Greater => None,
+                Ordering::Equal => node.value.as_ref(),
+            }
         },
     }
 }
@@ -124,13 +130,15 @@ pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &[u8], mut index: usize) -> Op
         .position(|pair| pair.0 != pair.1);
     match split_index {
         Some(_) => None,
-        None => match node.key.len().cmp(&(key.len() - index)) {
-            Ordering::Less => {
-                index += node.key.len();
-                get_mut(node.get_mut(key[index]), key, index)
-            },
-            Ordering::Greater => None,
-            Ordering::Equal => node.value.as_mut(),
+        None => {
+            match node.key.len().cmp(&(key.len() - index)) {
+                Ordering::Less => {
+                    index += node.key.len();
+                    get_mut(node.get_mut(key[index]), key, index)
+                },
+                Ordering::Greater => None,
+                Ordering::Equal => node.value.as_mut(),
+            }
         },
     }
 }
@@ -174,25 +182,27 @@ pub fn get_longest_prefix<T>(
             }
             push_all_children(&node.child, curr_key, keys);
         },
-        None => match node.key.len().cmp(&(key.len() - index)) {
-            Ordering::Less => {
-                index += node.key.len();
-                let next_child = node.get(key[index]);
-                match *next_child {
-                    Some(_) => get_longest_prefix(next_child, key, index, curr_key, keys),
-                    None => {
-                        if node.value.is_some() {
-                            keys.push(curr_key.clone())
-                        }
-                    },
-                }
-            },
-            _ => {
-                if node.value.is_some() {
-                    keys.push(curr_key.clone());
-                }
-                push_all_children(&node.child, curr_key, keys);
-            },
+        None => {
+            match node.key.len().cmp(&(key.len() - index)) {
+                Ordering::Less => {
+                    index += node.key.len();
+                    let next_child = node.get(key[index]);
+                    match *next_child {
+                        Some(_) => get_longest_prefix(next_child, key, index, curr_key, keys),
+                        None => {
+                            if node.value.is_some() {
+                                keys.push(curr_key.clone())
+                            }
+                        },
+                    }
+                },
+                _ => {
+                    if node.value.is_some() {
+                        keys.push(curr_key.clone());
+                    }
+                    push_all_children(&node.child, curr_key, keys);
+                },
+            }
         },
     }
 }
