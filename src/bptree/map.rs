@@ -701,7 +701,9 @@ mod tests {
         fs::remove_file(format!("{}.dat", test_name)).ok();
     }
 
-    fn run_test<T: FnOnce() -> Result<()> + panic::UnwindSafe>(test: T, test_name: &str) {
+    fn run_test<T>(test: T, test_name: &str)
+    where T: FnOnce() -> Result<()> + panic::UnwindSafe
+    {
         let result = panic::catch_unwind(|| test().unwrap());
 
         teardown(test_name);

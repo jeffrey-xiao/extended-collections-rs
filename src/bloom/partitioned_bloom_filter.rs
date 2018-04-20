@@ -28,7 +28,9 @@ use std::marker::PhantomData;
 /// assert_eq!(filter.bit_count(), 14);
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
-pub struct PartitionedBloomFilter<T: Hash> {
+pub struct PartitionedBloomFilter<T>
+where T: Hash
+{
     bit_vec: BitVec,
     hashers: [SipHasher; 2],
     bit_count: usize,
@@ -36,7 +38,9 @@ pub struct PartitionedBloomFilter<T: Hash> {
     _marker: PhantomData<T>,
 }
 
-impl<T: Hash> PartitionedBloomFilter<T> {
+impl<T> PartitionedBloomFilter<T>
+where T: Hash
+{
     fn get_hashers() -> [SipHasher; 2] {
         let mut rng = XorShiftRng::new_unseeded();
         [

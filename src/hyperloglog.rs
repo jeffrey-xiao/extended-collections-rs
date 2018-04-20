@@ -29,7 +29,9 @@ use std::marker::PhantomData;
 ///
 /// assert!((hhl.len().round() - 3.0).abs() < EPSILON);
 /// ```
-pub struct HyperLogLog<T: Hash> {
+pub struct HyperLogLog<T>
+where T: Hash
+{
     alpha: f64,
     p: usize,
     registers: Vec<u8>,
@@ -37,7 +39,9 @@ pub struct HyperLogLog<T: Hash> {
     _marker: PhantomData<T>,
 }
 
-impl<T: Hash> HyperLogLog<T> {
+impl<T> HyperLogLog<T>
+where T: Hash
+{
     fn get_hasher() -> SipHasher {
         let mut rng = XorShiftRng::new_unseeded();
         SipHasher::new_with_keys(rng.next_u64(), rng.next_u64())

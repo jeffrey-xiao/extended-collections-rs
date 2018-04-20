@@ -26,11 +26,15 @@ use std::ops::{Add, Sub};
 /// assert_eq!(set.remove(&0), Some(0));
 /// assert_eq!(set.remove(&1), None);
 /// ```
-pub struct SkipSet<T: Ord> {
+pub struct SkipSet<T>
+where T: Ord
+{
     map: SkipMap<T, ()>,
 }
 
-impl<T: Ord> SkipSet<T> {
+impl<T> SkipSet<T>
+where T: Ord
+{
     /// Constructs a new, empty `SkipSet<T>`.
     ///
     /// # Examples
@@ -326,7 +330,9 @@ impl<T: Ord> SkipSet<T> {
     }
 }
 
-impl<T: Ord> IntoIterator for SkipSet<T> {
+impl<T> IntoIterator for SkipSet<T>
+where T: Ord
+{
     type Item = T;
     type IntoIter = SkipSetIntoIter<T>;
 
@@ -337,7 +343,9 @@ impl<T: Ord> IntoIterator for SkipSet<T> {
     }
 }
 
-impl<'a, T: 'a + Ord> IntoIterator for &'a SkipSet<T> {
+impl<'a, T> IntoIterator for &'a SkipSet<T>
+where T: 'a + Ord
+{
     type Item = &'a T;
     type IntoIter = SkipSetIter<'a, T>;
 
@@ -349,11 +357,15 @@ impl<'a, T: 'a + Ord> IntoIterator for &'a SkipSet<T> {
 /// An owning iterator for `SkipSet<T>`
 ///
 /// This iterator traverses the elements of a set in ascending order and yields owned keys.
-pub struct SkipSetIntoIter<T: Ord> {
+pub struct SkipSetIntoIter<T>
+where T: Ord
+{
     map_iter: SkipMapIntoIter<T, ()>,
 }
 
-impl<T: Ord> Iterator for SkipSetIntoIter<T> {
+impl<T> Iterator for SkipSetIntoIter<T>
+where T: Ord
+{
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -365,11 +377,15 @@ impl<T: Ord> Iterator for SkipSetIntoIter<T> {
 ///
 /// This iterator traverses the elements of a set in ascending order and yields immutable
 /// references.
-pub struct SkipSetIter<'a, T: 'a + Ord> {
+pub struct SkipSetIter<'a, T>
+where T: 'a + Ord
+{
     map_iter: SkipMapIter<'a, T, ()>,
 }
 
-impl<'a, T: 'a + Ord> Iterator for SkipSetIter<'a, T> {
+impl<'a, T> Iterator for SkipSetIter<'a, T>
+where T: 'a + Ord
+{
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -377,13 +393,17 @@ impl<'a, T: 'a + Ord> Iterator for SkipSetIter<'a, T> {
     }
 }
 
-impl<T: Ord> Default for SkipSet<T> {
+impl<T> Default for SkipSet<T>
+where T: Ord
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Ord> Add for SkipSet<T> {
+impl<T> Add for SkipSet<T>
+where T: Ord
+{
     type Output = SkipSet<T>;
 
     fn add(self, other: SkipSet<T>) -> SkipSet<T> {
@@ -391,7 +411,9 @@ impl<T: Ord> Add for SkipSet<T> {
     }
 }
 
-impl<T: Ord> Sub for SkipSet<T> {
+impl<T> Sub for SkipSet<T>
+where T: Ord
+{
     type Output = SkipSet<T>;
 
     fn sub(self, other: SkipSet<T>) -> SkipSet<T> {

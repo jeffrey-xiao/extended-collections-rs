@@ -313,7 +313,9 @@ impl<T> IntoIterator for RadixMap<T> {
     }
 }
 
-impl<'a, T: 'a> IntoIterator for &'a RadixMap<T> {
+impl<'a, T> IntoIterator for &'a RadixMap<T>
+where T: 'a
+{
     type Item = (Vec<u8>, &'a T);
     type IntoIter = RadixMapIter<'a, T>;
 
@@ -322,7 +324,9 @@ impl<'a, T: 'a> IntoIterator for &'a RadixMap<T> {
     }
 }
 
-impl<'a, T: 'a> IntoIterator for &'a mut RadixMap<T> {
+impl<'a, T> IntoIterator for &'a mut RadixMap<T>
+where T: 'a
+{
     type Item = (Vec<u8>, &'a mut T);
     type IntoIter = RadixMapIterMut<'a, T>;
 
@@ -372,13 +376,17 @@ impl<T> Iterator for RadixMapIntoIter<T> {
 ///
 /// This iterator traverse the elements of the map in lexographic order and yields immutable
 /// references.
-pub struct RadixMapIter<'a, T: 'a> {
+pub struct RadixMapIter<'a, T>
+where T: 'a
+{
     prefix: Vec<u8>,
     current: &'a tree::Tree<T>,
     stack: Vec<(&'a tree::Tree<T>, usize)>,
 }
 
-impl<'a, T: 'a> Iterator for RadixMapIter<'a, T> {
+impl<'a, T> Iterator for RadixMapIter<'a, T>
+where T: 'a
+{
     type Item = (Vec<u8>, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -409,13 +417,17 @@ impl<'a, T: 'a> Iterator for RadixMapIter<'a, T> {
 ///
 /// This iterator traverse the elements of the map in lexographic order and yields mutable
 /// references.
-pub struct RadixMapIterMut<'a, T: 'a> {
+pub struct RadixMapIterMut<'a, T>
+where T: 'a
+{
     prefix: Vec<u8>,
     current: Option<&'a mut Node<T>>,
     stack: Vec<(&'a mut tree::Tree<T>, usize)>,
 }
 
-impl<'a, T: 'a> Iterator for RadixMapIterMut<'a, T> {
+impl<'a, T> Iterator for RadixMapIterMut<'a, T>
+where T: 'a
+{
     type Item = (Vec<u8>, &'a mut T);
 
     fn next(&mut self) -> Option<Self::Item> {

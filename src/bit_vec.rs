@@ -298,7 +298,9 @@ impl BitVec {
         }
     }
 
-    fn apply<F: FnMut(u8, u8) -> u8>(&mut self, other: &BitVec, mut op: F) {
+    fn apply<F>(&mut self, other: &BitVec, mut op: F)
+    where F: FnMut(u8, u8) -> u8
+    {
         assert_eq!(self.len(), other.len());
         assert_eq!(self.blocks.len(), other.blocks.len());
         for (x, y) in self.blocks_mut().zip(other.blocks()) {

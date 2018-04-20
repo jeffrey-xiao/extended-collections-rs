@@ -5,7 +5,9 @@ use treap::node::Node;
 
 pub type Tree<T, U> = Option<Box<Node<T, U>>>;
 
-pub fn merge<T: Ord, U>(l_tree: &mut Tree<T, U>, r_tree: Tree<T, U>) {
+pub fn merge<T, U>(l_tree: &mut Tree<T, U>, r_tree: Tree<T, U>)
+where T: Ord
+{
     match (l_tree.take(), r_tree) {
         (Some(mut l_node), Some(mut r_node)) => {
             if l_node.priority > r_node.priority {
@@ -24,7 +26,9 @@ pub fn merge<T: Ord, U>(l_tree: &mut Tree<T, U>, r_tree: Tree<T, U>) {
     }
 }
 
-pub fn split<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> (Tree<T, U>, Tree<T, U>) {
+pub fn split<T, U>(tree: &mut Tree<T, U>, key: &T) -> (Tree<T, U>, Tree<T, U>)
+where T: Ord
+{
     match tree.take() {
         Some(mut node) => {
             let mut ret;
@@ -54,7 +58,9 @@ pub fn split<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> (Tree<T, U>, Tree<T, 
     }
 }
 
-pub fn insert<T: Ord, U>(tree: &mut Tree<T, U>, mut new_node: Node<T, U>) -> Option<Entry<T, U>> {
+pub fn insert<T, U>(tree: &mut Tree<T, U>, mut new_node: Node<T, U>) -> Option<Entry<T, U>>
+where T: Ord
+{
     match *tree {
         Some(ref mut node) => {
             if new_node.priority <= node.priority {
@@ -89,7 +95,9 @@ pub fn insert<T: Ord, U>(tree: &mut Tree<T, U>, mut new_node: Node<T, U>) -> Opt
     dup_opt.map(|node| node.entry)
 }
 
-pub fn remove<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>> {
+pub fn remove<T, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>>
+where T: Ord
+{
     let mut new_tree;
     match *tree {
         Some(ref mut node) => {
@@ -115,7 +123,9 @@ pub fn remove<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>> 
     mem::replace(tree, new_tree).map(|node| node.entry)
 }
 
-pub fn get<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>> {
+pub fn get<'a, T, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>>
+where T: Ord
+{
     tree.as_ref().and_then(|node| {
         match key.cmp(&node.entry.key) {
             Ordering::Less => get(&node.left, key),
@@ -125,7 +135,9 @@ pub fn get<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, 
     })
 }
 
-pub fn get_mut<'a, T: Ord, U>(tree: &'a mut Tree<T, U>, key: &T) -> Option<&'a mut Entry<T, U>> {
+pub fn get_mut<'a, T, U>(tree: &'a mut Tree<T, U>, key: &T) -> Option<&'a mut Entry<T, U>>
+where T: Ord
+{
     tree.as_mut().and_then(|node| {
         match key.cmp(&node.entry.key) {
             Ordering::Less => get_mut(&mut node.left, key),
@@ -135,7 +147,9 @@ pub fn get_mut<'a, T: Ord, U>(tree: &'a mut Tree<T, U>, key: &T) -> Option<&'a m
     })
 }
 
-pub fn ceil<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>> {
+pub fn ceil<'a, T, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>>
+where T: Ord
+{
     tree.as_ref().and_then(|node| {
         match key.cmp(&node.entry.key) {
             Ordering::Greater => ceil(&node.right, key),
@@ -150,7 +164,9 @@ pub fn ceil<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T,
     })
 }
 
-pub fn floor<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>> {
+pub fn floor<'a, T, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>>
+where T: Ord
+{
     tree.as_ref().and_then(|node| {
         match key.cmp(&node.entry.key) {
             Ordering::Less => floor(&node.left, key),
@@ -165,7 +181,9 @@ pub fn floor<'a, T: Ord, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T
     })
 }
 
-pub fn min<T: Ord, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>> {
+pub fn min<T, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>>
+where T: Ord
+{
     tree.as_ref().and_then(|node| {
         let mut curr = node;
         while let Some(ref left_node) = curr.left {
@@ -175,7 +193,9 @@ pub fn min<T: Ord, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>> {
     })
 }
 
-pub fn max<T: Ord, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>> {
+pub fn max<T, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>>
+where T: Ord
+{
     tree.as_ref().and_then(|node| {
         let mut curr = node;
         while let Some(ref right_node) = curr.right {
@@ -185,11 +205,12 @@ pub fn max<T: Ord, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>> {
     })
 }
 
-pub fn union<T: Ord, U>(
+pub fn union<T, U>(
     left_tree: Tree<T, U>,
     right_tree: Tree<T, U>,
     mut swapped: bool,
 ) -> Tree<T, U>
+where T: Ord
 {
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {
@@ -224,11 +245,12 @@ pub fn union<T: Ord, U>(
     }
 }
 
-pub fn intersection<T: Ord, U>(
+pub fn intersection<T, U>(
     left_tree: Tree<T, U>,
     right_tree: Tree<T, U>,
     mut swapped: bool,
 ) -> Tree<T, U>
+where T: Ord
 {
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {
@@ -268,12 +290,13 @@ pub fn intersection<T: Ord, U>(
     }
 }
 
-pub fn difference<T: Ord, U>(
+pub fn difference<T, U>(
     left_tree: Tree<T, U>,
     right_tree: Tree<T, U>,
     mut swapped: bool,
     symmetric: bool,
 ) -> Tree<T, U>
+where T: Ord
 {
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {

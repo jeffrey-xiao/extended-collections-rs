@@ -33,7 +33,9 @@ use std::hash::Hash;
 /// assert_eq!(filter.capacity(), 128);
 /// assert_eq!(filter.filter_count(), 1);
 /// ```
-pub struct ScalableCuckooFilter<T: Hash> {
+pub struct ScalableCuckooFilter<T>
+where T: Hash
+{
     filters: Vec<CuckooFilter<T>>,
     initial_item_count: usize,
     initial_fpp: f64,
@@ -41,7 +43,9 @@ pub struct ScalableCuckooFilter<T: Hash> {
     tightening_ratio: f64,
 }
 
-impl<T: Hash> ScalableCuckooFilter<T> {
+impl<T> ScalableCuckooFilter<T>
+where T: Hash
+{
     /// Constructs a new, empty `ScalableCuckooFilter<T>` with an estimated initial item capacity
     /// of `item_count` and an initial maximum false positive probability of `fpp`. Every time a
     /// new cuckoo filter is added, the size will be approximately `growth_ratio` multiplied by the

@@ -32,12 +32,16 @@ use treap::tree;
 /// assert_eq!(map.remove(&0), Some((0, 2)));
 /// assert_eq!(map.remove(&1), None);
 /// ```
-pub struct TreapMap<T: Ord, U> {
+pub struct TreapMap<T, U>
+where T: Ord
+{
     tree: tree::Tree<T, U>,
     rng: XorShiftRng,
 }
 
-impl<T: Ord, U> TreapMap<T, U> {
+impl<T, U> TreapMap<T, U>
+where T: Ord
+{
     /// Constructs a new, empty `TreapMap<T, U>`.
     ///
     /// # Examples
@@ -439,7 +443,9 @@ impl<T: Ord, U> TreapMap<T, U> {
     }
 }
 
-impl<T: Ord, U> IntoIterator for TreapMap<T, U> {
+impl<T, U> IntoIterator for TreapMap<T, U>
+where T: Ord
+{
     type Item = (T, U);
     type IntoIter = TreapMapIntoIter<T, U>;
 
@@ -451,7 +457,11 @@ impl<T: Ord, U> IntoIterator for TreapMap<T, U> {
     }
 }
 
-impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a TreapMap<T, U> {
+impl<'a, T, U> IntoIterator for &'a TreapMap<T, U>
+where
+    T: 'a + Ord,
+    U: 'a,
+{
     type Item = (&'a T, &'a U);
     type IntoIter = TreapMapIter<'a, T, U>;
 
@@ -460,7 +470,11 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a TreapMap<T, U> {
     }
 }
 
-impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut TreapMap<T, U> {
+impl<'a, T, U> IntoIterator for &'a mut TreapMap<T, U>
+where
+    T: 'a + Ord,
+    U: 'a,
+{
     type Item = (&'a T, &'a mut U);
     type IntoIter = TreapMapIterMut<'a, T, U>;
 
@@ -472,12 +486,16 @@ impl<'a, T: 'a + Ord, U: 'a> IntoIterator for &'a mut TreapMap<T, U> {
 /// An owning iterator for `TreapMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields owned entries.
-pub struct TreapMapIntoIter<T: Ord, U> {
+pub struct TreapMapIntoIter<T, U>
+where T: Ord
+{
     current: tree::Tree<T, U>,
     stack: Vec<Node<T, U>>,
 }
 
-impl<T: Ord, U> Iterator for TreapMapIntoIter<T, U> {
+impl<T, U> Iterator for TreapMapIntoIter<T, U>
+where T: Ord
+{
     type Item = (T, U);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -500,12 +518,20 @@ impl<T: Ord, U> Iterator for TreapMapIntoIter<T, U> {
 /// An iterator for `TreapMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields immutable references.
-pub struct TreapMapIter<'a, T: 'a + Ord, U: 'a> {
+pub struct TreapMapIter<'a, T, U>
+where
+    T: 'a + Ord,
+    U: 'a,
+{
     current: &'a tree::Tree<T, U>,
     stack: Vec<&'a Node<T, U>>,
 }
 
-impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIter<'a, T, U> {
+impl<'a, T, U> Iterator for TreapMapIter<'a, T, U>
+where
+    T: 'a + Ord,
+    U: 'a,
+{
     type Item = (&'a T, &'a U);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -531,12 +557,20 @@ type BorrowedTreeMut<'a, T, U> = Option<&'a mut Node<T, U>>;
 /// A mutable iterator for `TreapMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields mutable references.
-pub struct TreapMapIterMut<'a, T: 'a + Ord, U: 'a> {
+pub struct TreapMapIterMut<'a, T, U>
+where
+    T: 'a + Ord,
+    U: 'a,
+{
     current: Option<&'a mut Node<T, U>>,
     stack: Vec<BorrowedIterEntryMut<'a, T, U>>,
 }
 
-impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIterMut<'a, T, U> {
+impl<'a, T, U> Iterator for TreapMapIterMut<'a, T, U>
+where
+    T: 'a + Ord,
+    U: 'a,
+{
     type Item = (&'a T, &'a mut U);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -561,13 +595,17 @@ impl<'a, T: 'a + Ord, U: 'a> Iterator for TreapMapIterMut<'a, T, U> {
     }
 }
 
-impl<T: Ord, U> Default for TreapMap<T, U> {
+impl<T, U> Default for TreapMap<T, U>
+where T: Ord
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Ord, U> Add for TreapMap<T, U> {
+impl<T, U> Add for TreapMap<T, U>
+where T: Ord
+{
     type Output = TreapMap<T, U>;
 
     fn add(self, other: TreapMap<T, U>) -> TreapMap<T, U> {
@@ -575,7 +613,9 @@ impl<T: Ord, U> Add for TreapMap<T, U> {
     }
 }
 
-impl<T: Ord, U> Sub for TreapMap<T, U> {
+impl<T, U> Sub for TreapMap<T, U>
+where T: Ord
+{
     type Output = TreapMap<T, U>;
 
     fn sub(self, other: TreapMap<T, U>) -> TreapMap<T, U> {
@@ -583,14 +623,18 @@ impl<T: Ord, U> Sub for TreapMap<T, U> {
     }
 }
 
-impl<'a, T: Ord, U> Index<&'a T> for TreapMap<T, U> {
+impl<'a, T, U> Index<&'a T> for TreapMap<T, U>
+where T: Ord
+{
     type Output = U;
     fn index(&self, key: &T) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
     }
 }
 
-impl<'a, T: Ord, U> IndexMut<&'a T> for TreapMap<T, U> {
+impl<'a, T, U> IndexMut<&'a T> for TreapMap<T, U>
+where T: Ord
+{
     fn index_mut(&mut self, key: &T) -> &mut Self::Output {
         self.get_mut(key).expect("Key does not exist.")
     }
