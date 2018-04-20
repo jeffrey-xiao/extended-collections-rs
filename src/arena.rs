@@ -157,7 +157,7 @@ impl<T> TypedArena<T> {
     /// ```
     pub fn get(&self, entry: &Entry) -> Option<&T> {
         if !self.is_valid_entry(entry) {
-            return None
+            return None;
         }
         match self.chunks[entry.chunk_index][entry.block_index] {
             Block::Occupied(ref value) => Some(value),
@@ -178,7 +178,7 @@ impl<T> TypedArena<T> {
     /// ```
     pub fn get_mut(&mut self, entry: &Entry) -> Option<&mut T> {
         if !self.is_valid_entry(entry) {
-            return None
+            return None;
         }
         match self.chunks[entry.chunk_index][entry.block_index] {
             Block::Occupied(ref mut value) => Some(value),
@@ -202,8 +202,8 @@ impl<T> IndexMut<Entry> for TypedArena<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::TypedArena;
     use super::Entry;
+    use super::TypedArena;
 
     #[test]
     #[should_panic]

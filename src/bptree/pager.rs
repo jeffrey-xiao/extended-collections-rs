@@ -1,9 +1,9 @@
-use bincode::{serialize, deserialize, self};
+use bincode::{self, deserialize, serialize};
 use bptree::node::{LeafNode, Node};
+use serde::de::DeserializeOwned;
 use serde::Serialize;
-use serde::de::{DeserializeOwned};
-use std::io::{Read, Seek, SeekFrom, self, Write};
 use std::fs::{File, OpenOptions};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
 use std::mem;
 use std::result;
@@ -56,8 +56,8 @@ where
             .read(true)
             .write(true)
             .create(true)
-            .open(file_path).map_err(Error::IOError)?;
-        db_file.set_len(header_size + body_size).map_err(Error::IOError)?;
+            .open(file_path)
+            .map_err(Error::IOError)?;
 
         db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
         let serialized_metadata = &serialize(&metadata).map_err(Error::SerdeError)?;
@@ -81,7 +81,8 @@ where
             .read(true)
             .write(true)
             .create(true)
-            .open(file_path).map_err(Error::IOError)?;
+            .open(file_path)
+            .map_err(Error::IOError)?;
         db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
 
         let mut buffer: Vec<u8> = vec![0; Self::get_metadata_size() as usize];

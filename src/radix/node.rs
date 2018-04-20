@@ -13,7 +13,7 @@ impl<T> Node<T> {
     pub fn new(key: Vec<u8>, value: Option<T>) -> Self {
         Self {
             key,
-            value: value,
+            value,
             next: None,
             child: None,
         }

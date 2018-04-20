@@ -47,7 +47,13 @@ impl<T: Hash> ScalableBloomFilter<T> {
     ///
     /// let filter: ScalableBloomFilter<u32> = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
     /// ```
-    pub fn new(initial_bit_count: usize, fpp: f64, growth_ratio: f64, tightening_ratio: f64) -> Self {
+    pub fn new(
+        initial_bit_count: usize,
+        fpp: f64,
+        growth_ratio: f64,
+        tightening_ratio: f64,
+    ) -> Self
+    {
         ScalableBloomFilter {
             filters: vec![BloomFilter::from_fpp(initial_bit_count, fpp)],
             approximate_bits_used: 0,
@@ -94,7 +100,10 @@ impl<T: Hash> ScalableBloomFilter<T> {
     /// filter.insert(&"foo");
     /// ```
     pub fn insert(&mut self, item: &T) {
-        if !self.filters.iter().any(|ref mut filter| filter.contains(item)) {
+        if !self.filters
+            .iter()
+            .any(|ref mut filter| filter.contains(item))
+        {
             let filter = match self.filters.last_mut() {
                 Some(filter) => filter,
                 _ => unreachable!(),
@@ -119,7 +128,9 @@ impl<T: Hash> ScalableBloomFilter<T> {
     /// assert!(filter.contains(&"foo"));
     /// ```
     pub fn contains(&self, item: &T) -> bool {
-        self.filters.iter().any(|ref mut filter| filter.contains(item))
+        self.filters
+            .iter()
+            .any(|ref mut filter| filter.contains(item))
     }
 
     /// Returns the number of bits in the scalable bloom filter.

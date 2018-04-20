@@ -1,9 +1,5 @@
-use cuckoo::{
-    DEFAULT_ENTRIES_PER_INDEX,
-    DEFAULT_FINGERPRINT_BIT_COUNT,
-    DEFAULT_MAX_KICKS,
-};
 use bit_array_vec::BitArrayVec;
+use cuckoo::{DEFAULT_ENTRIES_PER_INDEX, DEFAULT_FINGERPRINT_BIT_COUNT, DEFAULT_MAX_KICKS};
 use rand::{Rng, XorShiftRng};
 use siphasher::sip::SipHasher;
 use std::cmp;
@@ -39,7 +35,7 @@ pub struct CuckooFilter<T: Hash> {
     max_kicks: usize,
     entries_per_index: usize,
     fingerprint_vec: BitArrayVec,
-    pub(in super) extra_items: Vec<(u64, usize)>,
+    pub(super) extra_items: Vec<(u64, usize)>,
     hashers: [SipHasher; 2],
     _marker: PhantomData<T>,
 }
@@ -102,7 +98,12 @@ impl<T: Hash> CuckooFilter<T> {
     ///
     /// let filter: CuckooFilter<u32> = CuckooFilter::from_parameters(100, 16, 8);
     /// ```
-    pub fn from_parameters(item_count: usize, fingerprint_bit_count: usize, entries_per_index: usize) -> Self {
+    pub fn from_parameters(
+        item_count: usize,
+        fingerprint_bit_count: usize,
+        entries_per_index: usize,
+    ) -> Self
+    {
         assert!(
             item_count > 0 &&
             fingerprint_bit_count > 1 &&
@@ -173,7 +174,12 @@ impl<T: Hash> CuckooFilter<T> {
     ///
     /// let filter: CuckooFilter<u32> = CuckooFilter::from_fingerprint_bit_count(100, 0.01, 10);
     /// ```
-    pub fn from_fingerprint_bit_count(item_count: usize, fpp: f64, fingerprint_bit_count: usize) -> Self {
+    pub fn from_fingerprint_bit_count(
+        item_count: usize,
+        fpp: f64,
+        fingerprint_bit_count: usize,
+    ) -> Self
+    {
         assert!(item_count > 0 && fingerprint_bit_count > 1 && fingerprint_bit_count <= 64);
         let fingerprints_count = 2.0f64.powi(fingerprint_bit_count as i32);
         let single_fpp = (fingerprints_count - 2.0) / (fingerprints_count - 1.0);
@@ -273,11 +279,14 @@ impl<T: Hash> CuckooFilter<T> {
                 }
             }
 
-            self.extra_items.push((Self::get_raw_fingerprint(&fingerprint), cmp::min(prev_index, index)));
+            self.extra_items.push((
+                Self::get_raw_fingerprint(&fingerprint),
+                cmp::min(prev_index, index),
+            ));
         }
     }
 
-    pub(in super) fn insert_fingerprint(&mut self, fingerprint: &[u8], index: usize) -> bool {
+    pub(super) fn insert_fingerprint(&mut self, fingerprint: &[u8], index: usize) -> bool {
         let entries_per_index = self.entries_per_index;
         for bucket_index in 0..entries_per_index {
             let vec_index = self.get_vec_index(index, bucket_index);
@@ -522,13 +531,19 @@ mod tests {
     #[test]
     fn test_get_fingerprint() {
         let fingerprint = CuckooFilter::<u32>::get_fingerprint(0x7FBFDFEFF7FBFDFE);
-        assert_eq!(CuckooFilter::<u32>::get_raw_fingerprint(&fingerprint), 0x7FBFDFEFF7FBFDFE);
+        assert_eq!(
+            CuckooFilter::<u32>::get_raw_fingerprint(&fingerprint),
+            0x7FBFDFEFF7FBFDFE
+        );
     }
 
     #[test]
     fn test_get_raw_fingerprint() {
         let fingerprint = vec![0xFF, 0xFF];
-        assert_eq!(CuckooFilter::<u32>::get_raw_fingerprint(&fingerprint), 0xFFFF);
+        assert_eq!(
+            CuckooFilter::<u32>::get_raw_fingerprint(&fingerprint),
+            0xFFFF
+        );
     }
 
     #[test]

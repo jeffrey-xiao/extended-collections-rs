@@ -8,11 +8,11 @@ use std::marker::PhantomData;
 /// A space-efficient probabilitic data structure to count the number of distinct items in a
 /// multiset.
 ///
-/// A `HyperLogLog<T>` uses the observation that the cardinality of a multiset of uniformly distributed
-/// items can be estimated by calculating the maximum number of leading zeros in the hash of each
-/// item in the multiset. It also buckets each item in a register and takes the harmonic mean of the
-/// count in order to reduce the variance. Finally, it uses linear counting for small cardinalities
-/// and small correction for large cardinalities.
+/// A `HyperLogLog<T>` uses the observation that the cardinality of a multiset of uniformly
+/// distributed items can be estimated by calculating the maximum number of leading zeros in the
+/// hash of each item in the multiset. It also buckets each item in a register and takes the
+/// harmonic mean of the count in order to reduce the variance. Finally, it uses linear counting
+/// for small cardinalities and small correction for large cardinalities.
 ///
 /// # Examples
 /// ```
@@ -49,7 +49,7 @@ impl<T: Hash> HyperLogLog<T> {
             4 => 0.673,
             5 => 0.697,
             6 => 0.709,
-            p => 0.7213 / (1.0 + 1.079 / f64::from(1 << p))
+            p => 0.7213 / (1.0 + 1.079 / f64::from(1 << p)),
         }
     }
 

@@ -25,7 +25,9 @@ const MAX_HEIGHT: usize = 32;
 impl<T> Node<T> {
     pub fn new(value: T, links_len: usize) -> *mut Self {
         let ptr = unsafe { Self::allocate(links_len) };
-        unsafe { ptr::write(&mut (*ptr).value, value); }
+        unsafe {
+            ptr::write(&mut (*ptr).value, value);
+        }
         ptr
     }
 
@@ -152,7 +154,10 @@ impl<T> SkipList<T> {
                 while !next_link.next.is_null() && next_link.distance <= index {
                     last_nodes[curr_height].1 += next_link.distance;
                     index -= next_link.distance;
-                    curr_node = &mut mem::replace(&mut next_link, (*next_link.next).get_pointer_mut(curr_height)).next;
+                    curr_node = &mut mem::replace(
+                        &mut next_link,
+                        (*next_link.next).get_pointer_mut(curr_height),
+                    ).next;
                 }
                 last_nodes[curr_height].0 = *curr_node;
 
@@ -202,7 +207,10 @@ impl<T> SkipList<T> {
                 let mut next_link = (**curr_node).get_pointer_mut(curr_height);
                 while !next_link.next.is_null() && next_link.distance <= index {
                     index -= next_link.distance;
-                    curr_node = &mut mem::replace(&mut next_link, (*next_link.next).get_pointer_mut(curr_height)).next;
+                    curr_node = &mut mem::replace(
+                        &mut next_link,
+                        (*next_link.next).get_pointer_mut(curr_height),
+                    ).next;
                 }
 
                 if !next_link.next.is_null() {
@@ -314,7 +322,10 @@ impl<T> SkipList<T> {
                 let mut next_link = (**curr_node).get_pointer(curr_height);
                 while !next_link.next.is_null() && next_link.distance <= index {
                     index -= next_link.distance;
-                    curr_node = &mem::replace(&mut next_link, (*next_link.next).get_pointer(curr_height)).next;
+                    curr_node = &mem::replace(
+                        &mut next_link,
+                        (*next_link.next).get_pointer(curr_height),
+                    ).next;
                 }
 
                 if !next_link.next.is_null() && next_link.distance == index + 1 {
@@ -352,7 +363,10 @@ impl<T> SkipList<T> {
                 let mut next_link = (**curr_node).get_pointer_mut(curr_height);
                 while !next_link.next.is_null() && next_link.distance <= index {
                     index -= next_link.distance;
-                    curr_node = &mut mem::replace(&mut next_link, (*next_link.next).get_pointer_mut(curr_height)).next;
+                    curr_node = &mut mem::replace(
+                        &mut next_link,
+                        (*next_link.next).get_pointer_mut(curr_height),
+                    ).next;
                 }
 
                 if !next_link.next.is_null() && next_link.distance == index + 1 {
@@ -413,7 +427,10 @@ impl<T> SkipList<T> {
         unsafe {
             let mut curr_node = (*self.head).get_pointer(0).next;
             while !curr_node.is_null() {
-                Node::free(mem::replace(&mut curr_node, (*curr_node).get_pointer(0).next));
+                Node::free(mem::replace(
+                    &mut curr_node,
+                    (*curr_node).get_pointer(0).next,
+                ));
             }
             ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
         }
@@ -435,7 +452,11 @@ impl<T> SkipList<T> {
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter(&self) -> SkipListIter<T> {
-        unsafe { SkipListIter { current: &(*self.head).get_pointer(0).next } }
+        unsafe {
+            SkipListIter {
+                current: &(*self.head).get_pointer(0).next,
+            }
+        }
     }
 
     /// Returns a mutable iterator over the list.
@@ -449,7 +470,7 @@ impl<T> SkipList<T> {
     /// list.insert(1, 2);
     ///
     /// for value in &mut list {
-    ///   *value += 1;
+    ///     *value += 1;
     /// }
     ///
     /// let mut iterator = list.iter();
@@ -458,16 +479,26 @@ impl<T> SkipList<T> {
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter_mut(&mut self) -> SkipListIterMut<T> {
-        unsafe { SkipListIterMut { current: &mut (*self.head).get_pointer_mut(0).next } }
+        unsafe {
+            SkipListIterMut {
+                current: &mut (*self.head).get_pointer_mut(0).next,
+            }
+        }
     }
 }
 
 impl<T> Drop for SkipList<T> {
     fn drop(&mut self) {
         unsafe {
-            Node::deallocate(mem::replace(&mut self.head, (*self.head).get_pointer(0).next));
+            Node::deallocate(mem::replace(
+                &mut self.head,
+                (*self.head).get_pointer(0).next,
+            ));
             while !self.head.is_null() {
-                Node::free(mem::replace(&mut self.head, (*self.head).get_pointer(0).next));
+                Node::free(mem::replace(
+                    &mut self.head,
+                    (*self.head).get_pointer(0).next,
+                ));
             }
         }
     }
@@ -479,7 +510,9 @@ impl<T> IntoIterator for SkipList<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         unsafe {
-            let ret = Self::IntoIter { current: (*self.head).links.get_unchecked_mut(0).next };
+            let ret = Self::IntoIter {
+                current: (*self.head).links.get_unchecked_mut(0).next,
+            };
             ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
             ret
         }
@@ -520,7 +553,10 @@ impl<T> Iterator for SkipListIntoIter<T> {
         } else {
             unsafe {
                 let ret = ptr::read(&(*self.current).value);
-                Node::deallocate(mem::replace(&mut self.current, (*self.current).get_pointer(0).next));
+                Node::deallocate(mem::replace(
+                    &mut self.current,
+                    (*self.current).get_pointer(0).next,
+                ));
                 Some(ret)
             }
         }
@@ -532,7 +568,10 @@ impl<T> Drop for SkipListIntoIter<T> {
         unsafe {
             while !self.current.is_null() {
                 ptr::drop_in_place(&mut (*self.current).value);
-                Node::free(mem::replace(&mut self.current, (*self.current).get_pointer(0).next));
+                Node::free(mem::replace(
+                    &mut self.current,
+                    (*self.current).get_pointer(0).next,
+                ));
             }
         }
     }
@@ -554,7 +593,10 @@ impl<'a, T: 'a> Iterator for SkipListIter<'a, T> {
         } else {
             unsafe {
                 let ret = &(**self.current).value;
-                mem::replace(&mut self.current, &(**self.current).get_pointer(0).next);
+                mem::replace(
+                    &mut self.current,
+                    &(**self.current).get_pointer(0).next,
+                );
                 Some(ret)
             }
         }
@@ -577,7 +619,10 @@ impl<'a, T: 'a> Iterator for SkipListIterMut<'a, T> {
         } else {
             unsafe {
                 let ret = &mut (**self.current).value;
-                mem::replace(&mut self.current, &mut (**self.current).get_pointer_mut(0).next);
+                mem::replace(
+                    &mut self.current,
+                    &mut (**self.current).get_pointer_mut(0).next,
+                );
                 Some(ret)
             }
         }
@@ -648,7 +693,10 @@ mod tests {
             while !curr_node.is_null() {
                 actual.push(&(**curr_node).value);
                 let mut next_link = (**curr_node).get_pointer_mut(0);
-                curr_node = &mut mem::replace(&mut next_link, (*next_link.next).get_pointer_mut(0)).next;
+                curr_node = &mut mem::replace(
+                    &mut next_link,
+                    (*next_link.next).get_pointer_mut(0),
+                ).next;
             }
 
             for i in 1..super::MAX_HEIGHT + 1 {
@@ -657,7 +705,10 @@ mod tests {
                     let x = &(**curr_node).value;
                     let mut next_link = (**curr_node).get_pointer_mut(i);
                     let dist = next_link.distance;
-                    curr_node = &mut mem::replace(&mut next_link, (*next_link.next).get_pointer_mut(0)).next;
+                    curr_node = &mut mem::replace(
+                        &mut next_link,
+                        (*next_link.next).get_pointer_mut(0),
+                    ).next;
                     if !curr_node.is_null() {
                         let y = &(**curr_node).value;
 

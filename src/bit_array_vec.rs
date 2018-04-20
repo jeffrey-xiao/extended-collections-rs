@@ -1,6 +1,6 @@
 use std::cmp;
-use std::ops::Range;
 use std::mem;
+use std::ops::Range;
 
 /// A growable list of bit arrays implemented using a `Vec<u8>`.
 ///
@@ -358,7 +358,10 @@ impl BitArrayVec {
     /// );
     /// ```
     pub fn iter(&self) -> BitArrayVecIter {
-        BitArrayVecIter { bit_array_vec: self, range: 0..self.len }
+        BitArrayVecIter {
+            bit_array_vec: self,
+            range: 0..self.len,
+        }
     }
 
     /// Returns the capacity of the `BitArrayVec`.
@@ -485,7 +488,10 @@ impl IntoIterator for BitArrayVec {
 
     fn into_iter(self) -> Self::IntoIter {
         let len = self.len;
-        Self::IntoIter { bit_array_vec: self, range: 0..len }
+        Self::IntoIter {
+            bit_array_vec: self,
+            range: 0..len,
+        }
     }
 }
 

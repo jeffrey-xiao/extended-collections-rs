@@ -3,11 +3,11 @@ extern crate extended_collections;
 extern crate rand;
 extern crate test;
 
-use test::Bencher;
+use self::rand::Rng;
 use extended_collections::skiplist::SkipMap;
 use extended_collections::treap::TreapMap;
-use self::rand::Rng;
 use std::collections::BTreeMap;
+use test::Bencher;
 
 #[bench]
 fn bench_treapmap_insert(b: &mut Bencher) {

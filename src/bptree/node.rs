@@ -9,8 +9,7 @@ pub const BLOCK_SIZE: usize = 4096;
 
 #[derive(Serialize, Deserialize)]
 pub struct InternalNode<T, U>
-where
-    T: Ord + Clone,
+where T: Ord + Clone
 {
     pub len: usize,
     pub keys: Box<[Option<T>]>,
@@ -19,8 +18,7 @@ where
 }
 
 impl<T, U> InternalNode<T, U>
-where
-    T: Ord + Clone,
+where T: Ord + Clone
 {
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
@@ -43,7 +41,13 @@ where
         }
     }
 
-    pub fn insert(&mut self, mut new_key: T, mut new_pointer: u64, is_right: bool) -> Option<(T, Node<T, U>)> {
+    pub fn insert(
+        &mut self,
+        mut new_key: T,
+        mut new_pointer: u64,
+        is_right: bool,
+    ) -> Option<(T, Node<T, U>)>
+    {
         let internal_degree = self.keys.len();
         let offset = is_right as usize;
         // node has room; can insert
@@ -76,8 +80,14 @@ where
                     }
                 }
                 if index > (internal_degree + 1) / 2 {
-                    mem::swap(&mut self.keys[index], &mut split_node.keys[index - (internal_degree + 1) / 2 - 1]);
-                    mem::swap(&mut self.pointers[index + offset], &mut split_node.pointers[index - (internal_degree + 1) / 2 - (1 - offset)]);
+                    mem::swap(
+                        &mut self.keys[index],
+                        &mut split_node.keys[index - (internal_degree + 1) / 2 - 1],
+                    );
+                    mem::swap(
+                        &mut self.pointers[index + offset],
+                        &mut split_node.pointers[index - (internal_degree + 1) / 2 - (1 - offset)],
+                    );
                 }
                 index += 1;
             }
@@ -87,7 +97,10 @@ where
                 Some(key) => key,
                 _ => unreachable!(),
             };
-            mem::swap(&mut self.pointers[(internal_degree + 1) / 2 + 1], &mut split_node.pointers[(1 - offset)]);
+            mem::swap(
+                &mut self.pointers[(internal_degree + 1) / 2 + 1],
+                &mut split_node.pointers[(1 - offset)],
+            );
             split_node.len = internal_degree / 2;
             self.len = (internal_degree + 1) / 2;
 
@@ -134,7 +147,7 @@ where
                     } else {
                         hi = mid - 1;
                     }
-                }
+                },
             }
         }
         lo as usize
@@ -155,8 +168,7 @@ where
 
 #[derive(Serialize, Deserialize)]
 pub struct LeafNode<T, U>
-where
-    T: Ord + Clone,
+where T: Ord + Clone
 {
     pub len: usize,
     pub entries: Box<[Option<Entry<T, U>>]>,
@@ -164,19 +176,17 @@ where
 }
 
 pub enum InsertCases<T, U>
-where
-    T: Ord + Clone,
+where T: Ord + Clone
 {
     Split {
         split_key: T,
-        split_node: Node<T, U>
+        split_node: Node<T, U>,
     },
     Entry(Entry<T, U>),
 }
 
 impl<T, U> LeafNode<T, U>
-where
-    T: Ord + Clone,
+where T: Ord + Clone
 {
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
@@ -198,7 +208,8 @@ where
         }
     }
 
-    pub fn insert(&mut self, mut new_entry: Entry<T, U>) -> Option<InsertCases<T, U>> { let leaf_degree = self.entries.len();
+    pub fn insert(&mut self, mut new_entry: Entry<T, U>) -> Option<InsertCases<T, U>> {
+        let leaf_degree = self.entries.len();
         // node has room; can insert
         if self.len < leaf_degree {
             let mut index = 0;
@@ -228,7 +239,10 @@ where
                     }
                 }
                 if index > leaf_degree / 2 {
-                    mem::swap(&mut self.entries[index], &mut split_node.entries[index - leaf_degree / 2 - 1]);
+                    mem::swap(
+                        &mut self.entries[index],
+                        &mut split_node.entries[index - leaf_degree / 2 - 1],
+                    );
                 }
             }
             split_node.entries[(leaf_degree - 1) / 2] = Some(new_entry);
@@ -320,8 +334,7 @@ where
 
 #[derive(Serialize, Deserialize)]
 pub enum Node<T, U>
-where
-    T: Ord + Clone,
+where T: Ord + Clone
 {
     Internal(InternalNode<T, U>),
     Leaf(LeafNode<T, U>),
@@ -329,8 +342,7 @@ where
 }
 
 impl<T, U> Node<T, U>
-where
-    T: Ord + Clone,
+where T: Ord + Clone
 {
     #[inline]
     pub fn get_max_size(leaf_degree: usize, internal_degree: usize) -> usize {
@@ -343,9 +355,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::{InsertCases, InternalNode, LeafNode, Node};
     use entry::Entry;
     use std::marker::PhantomData;
-    use super::{LeafNode, InternalNode, InsertCases, Node};
 
     #[test]
     fn test_node_get_max_size() {
@@ -553,18 +565,21 @@ mod tests {
             entries: Box::new([
                 Some(Entry { key: 0, value: 0 }),
                 Some(Entry { key: 2, value: 2 }),
-                None
+                None,
             ]),
             next_leaf: None,
         };
 
         assert!(n.insert(Entry { key: 1, value: 1 }).is_none());
         assert_eq!(n.len, 3);
-        assert_eq!(*n.entries, [
-            Some(Entry { key: 0, value: 0 }),
-            Some(Entry { key: 1, value: 1 }),
-            Some(Entry { key: 2, value: 2 }),
-        ]);
+        assert_eq!(
+            *n.entries,
+            [
+                Some(Entry { key: 0, value: 0 }),
+                Some(Entry { key: 1, value: 1 }),
+                Some(Entry { key: 2, value: 2 }),
+            ]
+        );
         assert_eq!(n.next_leaf, None);
     }
 
@@ -593,19 +608,25 @@ mod tests {
 
         assert_eq!(split_key, 2);
         assert_eq!(leaf_node.len, 2);
-        assert_eq!(*leaf_node.entries, [
-            Some(Entry { key: 2, value: 2 }),
-            Some(Entry { key: 3, value: 3 }),
-            None,
-        ]);
+        assert_eq!(
+            *leaf_node.entries,
+            [
+                Some(Entry { key: 2, value: 2 }),
+                Some(Entry { key: 3, value: 3 }),
+                None,
+            ]
+        );
         assert_eq!(leaf_node.next_leaf, None);
 
         assert_eq!(n.len, 2);
-        assert_eq!(*n.entries, [
-            Some(Entry { key: 0, value: 0 }),
-            Some(Entry { key: 1, value: 1 }),
-            None,
-        ]);
+        assert_eq!(
+            *n.entries,
+            [
+                Some(Entry { key: 0, value: 0 }),
+                Some(Entry { key: 1, value: 1 }),
+                None,
+            ]
+        );
         assert_eq!(n.next_leaf, None);
     }
 
@@ -631,11 +652,14 @@ mod tests {
         assert_eq!(entry.value, 0);
 
         assert_eq!(n.len, 3);
-        assert_eq!(*n.entries, [
-            Some(Entry { key: 0, value: 0 }),
-            Some(Entry { key: 1, value: 1 }),
-            Some(Entry { key: 2, value: 2 }),
-        ]);
+        assert_eq!(
+            *n.entries,
+            [
+                Some(Entry { key: 0, value: 0 }),
+                Some(Entry { key: 1, value: 1 }),
+                Some(Entry { key: 2, value: 2 }),
+            ]
+        );
         assert_eq!(n.next_leaf, None);
     }
 
@@ -653,11 +677,14 @@ mod tests {
 
         assert_eq!(n.remove_at(1), Entry { key: 1, value: 1 });
         assert_eq!(n.len, 2);
-        assert_eq!(*n.entries, [
-            Some(Entry { key: 0, value: 0 }),
-            Some(Entry { key: 2, value: 2 }),
-            None,
-        ]);
+        assert_eq!(
+            *n.entries,
+            [
+                Some(Entry { key: 0, value: 0 }),
+                Some(Entry { key: 2, value: 2 }),
+                None,
+            ]
+        );
         assert_eq!(n.next_leaf, None);
     }
 
@@ -696,11 +723,14 @@ mod tests {
 
         assert_eq!(n.remove(&1), Some(Entry { key: 1, value: 1 }));
         assert_eq!(n.len, 2);
-        assert_eq!(*n.entries, [
-            Some(Entry { key: 0, value: 0 }),
-            Some(Entry { key: 2, value: 2 }),
-            None,
-        ]);
+        assert_eq!(
+            *n.entries,
+            [
+                Some(Entry { key: 0, value: 0 }),
+                Some(Entry { key: 2, value: 2 }),
+                None,
+            ]
+        );
         assert_eq!(n.next_leaf, None);
     }
 
@@ -717,21 +747,20 @@ mod tests {
         };
         let mut m = LeafNode::<u32, u64> {
             len: 1,
-            entries: Box::new([
-                Some(Entry { key: 2, value: 2 }),
-                None,
-                None,
-            ]),
+            entries: Box::new([Some(Entry { key: 2, value: 2 }), None, None]),
             next_leaf: Some(1),
         };
         n.merge(&mut m);
 
         assert_eq!(n.len, 3);
-        assert_eq!(*n.entries, [
-            Some(Entry { key: 0, value: 0 }),
-            Some(Entry { key: 1, value: 1 }),
-            Some(Entry { key: 2, value: 2 }),
-        ]);
+        assert_eq!(
+            *n.entries,
+            [
+                Some(Entry { key: 0, value: 0 }),
+                Some(Entry { key: 1, value: 1 }),
+                Some(Entry { key: 2, value: 2 }),
+            ]
+        );
         assert_eq!(n.next_leaf, Some(1));
 
         assert_eq!(m.len, 0);

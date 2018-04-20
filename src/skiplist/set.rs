@@ -1,5 +1,5 @@
-use std::ops::{Add, Sub};
 use skiplist::map::{SkipMap, SkipMapIntoIter, SkipMapIter};
+use std::ops::{Add, Sub};
 
 /// An ordered set implemented by a skiplist.
 ///
@@ -220,7 +220,7 @@ impl<T: Ord> SkipSet<T> {
     /// ```
     pub fn union(left: Self, right: Self) -> Self {
         SkipSet {
-            map: SkipMap::union(left.map, right.map)
+            map: SkipMap::union(left.map, right.map),
         }
     }
 
@@ -246,7 +246,7 @@ impl<T: Ord> SkipSet<T> {
     /// ```
     pub fn intersection(left: Self, right: Self) -> Self {
         SkipSet {
-            map: SkipMap::intersection(left.map, right.map)
+            map: SkipMap::intersection(left.map, right.map),
         }
     }
 
@@ -273,7 +273,7 @@ impl<T: Ord> SkipSet<T> {
     /// ```
     pub fn difference(left: Self, right: Self) -> Self {
         SkipSet {
-            map: SkipMap::difference(left.map, right.map)
+            map: SkipMap::difference(left.map, right.map),
         }
     }
 
@@ -300,7 +300,7 @@ impl<T: Ord> SkipSet<T> {
     /// ```
     pub fn symmetric_difference(left: Self, right: Self) -> Self {
         SkipSet {
-            map: SkipMap::symmetric_difference(left.map, right.map)
+            map: SkipMap::symmetric_difference(left.map, right.map),
         }
     }
 

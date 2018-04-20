@@ -1,9 +1,9 @@
 mod implicit_tree;
 mod list;
-mod node;
-mod tree;
 mod map;
+mod node;
 mod set;
+mod tree;
 
 pub use self::list::TreapList;
 pub use self::map::TreapMap;

@@ -1,10 +1,10 @@
 extern crate extended_collections;
 extern crate rand;
 
+use self::rand::{thread_rng, Rng};
 use extended_collections::treap::TreapList;
 use extended_collections::treap::TreapMap;
 use std::vec::Vec;
-use self::rand::{thread_rng, Rng};
 
 #[test]
 fn int_test_treapmap() {

@@ -1,6 +1,6 @@
 use epoch::{self, Atomic, Owned};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::ptr;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 struct Node<T> {
     value: T,
@@ -58,7 +58,7 @@ impl<T> Stack<T> {
     /// ```
     pub fn push(&self, value: T) {
         let mut new_node = Owned::new(Node {
-            value: value,
+            value,
             next: Atomic::null(),
         });
 

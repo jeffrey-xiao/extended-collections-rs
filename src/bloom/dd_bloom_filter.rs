@@ -666,7 +666,9 @@ impl<T: Hash> RLBSBloomFilter<T> {
     /// assert!(!filter.contains(&"foo"));
     /// ```
     pub fn clear(&mut self) {
-        self.bit_vecs.iter_mut().for_each(|ref mut bit_vec| bit_vec.set_all(false));
+        self.bit_vecs
+            .iter_mut()
+            .for_each(|ref mut bit_vec| bit_vec.set_all(false));
     }
 
     /// Returns the number of set bits in the bloom filter.
@@ -681,7 +683,10 @@ impl<T: Hash> RLBSBloomFilter<T> {
     /// assert_eq!(filter.count_ones(), 7);
     /// ```
     pub fn count_ones(&self) -> usize {
-        self.bit_vecs.iter().map(|bit_vec| bit_vec.count_ones()).sum()
+        self.bit_vecs
+            .iter()
+            .map(|bit_vec| bit_vec.count_ones())
+            .sum()
     }
 
     /// Returns the number of unset bits in the bloom filter.
@@ -696,7 +701,10 @@ impl<T: Hash> RLBSBloomFilter<T> {
     /// assert_eq!(filter.count_zeros(), 63);
     /// ```
     pub fn count_zeros(&self) -> usize {
-        self.bit_vecs.iter().map(|bit_vec| bit_vec.count_zeros()).sum()
+        self.bit_vecs
+            .iter()
+            .map(|bit_vec| bit_vec.count_zeros())
+            .sum()
     }
 }
 

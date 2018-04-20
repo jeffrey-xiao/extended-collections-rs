@@ -1,8 +1,8 @@
-use bincode::{serialize, deserialize};
-use serde::Serialize;
+use bincode::{deserialize, serialize};
 use serde::de::DeserializeOwned;
-use std::io::{Error, Write, Result};
+use serde::Serialize;
 use std::fs::{File, OpenOptions};
+use std::io::{Error, Result, Write};
 use std::marker::PhantomData;
 
 trait CompactionStrategy {
@@ -11,13 +11,9 @@ trait CompactionStrategy {
     fn compact(&self);
 }
 
-struct SizeTieredStrategy {
+struct SizeTieredStrategy {}
 
-}
-
-struct LevelTieredStrategy {
-
-}
+struct LevelTieredStrategy {}
 
 pub struct SSTable<T, U>
 where
@@ -28,9 +24,7 @@ where
     _marker: PhantomData<(T, U)>,
 }
 
-pub struct Metadata {
-
-}
+pub struct Metadata {}
 
 pub struct WriteAheadLog<T, U>
 where
@@ -64,10 +58,10 @@ where
     }
 
     pub fn append(&mut self, key: T, value: Option<U>) {
-        self.log.write_all(&serialize(&(key, value)).unwrap()).unwrap();
+        self.log
+            .write_all(&serialize(&(key, value)).unwrap())
+            .unwrap();
     }
 }
 
-pub struct Tree {
-
-}
+pub struct Tree {}

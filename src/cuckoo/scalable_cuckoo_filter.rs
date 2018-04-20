@@ -56,12 +56,7 @@ impl<T: Hash> ScalableCuckooFilter<T> {
     ///
     /// let filter: ScalableCuckooFilter<u32> = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
     /// ```
-    pub fn new(
-        item_count: usize,
-        fpp: f64,
-        growth_ratio: f64,
-        tightening_ratio: f64,
-    ) -> Self {
+    pub fn new(item_count: usize, fpp: f64, growth_ratio: f64, tightening_ratio: f64) -> Self {
         ScalableCuckooFilter {
             filters: vec![CuckooFilter::from_entries_per_index(
                 item_count,
@@ -95,7 +90,8 @@ impl<T: Hash> ScalableCuckooFilter<T> {
         entries_per_index: usize,
         growth_ratio: f64,
         tightening_ratio: f64,
-    ) -> Self {
+    ) -> Self
+    {
         ScalableCuckooFilter {
             filters: vec![CuckooFilter::from_entries_per_index(
                 item_count,

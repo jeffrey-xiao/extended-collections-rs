@@ -1,8 +1,8 @@
-use bptree::node::{BLOCK_SIZE, LeafNode, InternalNode, InsertCases, Node};
-use bptree::pager::{Result, Pager};
+use bptree::node::{InsertCases, InternalNode, LeafNode, Node, BLOCK_SIZE};
+use bptree::pager::{Pager, Result};
 use entry::Entry;
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::mem;
 
 type SearchHistory<T, U> = Vec<(u64, Node<T, U>, usize)>;
@@ -87,7 +87,12 @@ where
     /// # }
     /// # foo();
     /// ```
-    pub fn with_degrees(file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<BPMap<T, U>> {
+    pub fn with_degrees(
+        file_path: &str,
+        leaf_degree: usize,
+        internal_degree: usize,
+    ) -> Result<BPMap<T, U>>
+    {
         assert!(LeafNode::<T, U>::get_max_size(leaf_degree) <= BLOCK_SIZE);
         assert!(InternalNode::<T, U>::get_max_size(internal_degree) <= BLOCK_SIZE);
         Pager::new(file_path, leaf_degree, internal_degree).map(|pager| BPMap { pager })
@@ -676,7 +681,7 @@ where
             Some(entry) => {
                 self.curr_index += 1;
                 Some(Ok((entry.key, entry.value)))
-            }
+            },
             _ => unreachable!(),
         }
     }
@@ -684,18 +689,16 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::{BPMap, Result};
     use std::fs;
     use std::panic;
-    use super::{BPMap, Result};
 
     fn teardown(test_name: &str) {
         fs::remove_file(format!("{}.dat", test_name)).ok();
     }
 
     fn run_test<T: FnOnce() -> Result<()> + panic::UnwindSafe>(test: T, test_name: &str) {
-        let result = panic::catch_unwind(|| {
-            test().unwrap()
-        });
+        let result = panic::catch_unwind(|| test().unwrap());
 
         teardown(test_name);
 

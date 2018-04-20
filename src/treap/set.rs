@@ -215,7 +215,9 @@ impl<T: Ord> TreapSet<T> {
     /// assert!(split.contains(&3));
     /// ```
     pub fn split_off(&mut self, key: &T, inclusive: bool) -> Self {
-        TreapSet { map: self.map.split_off(key, inclusive) }
+        TreapSet {
+            map: self.map.split_off(key, inclusive),
+        }
     }
 
     /// Returns the union of two set. The `+` operator is implemented to take the union of two
@@ -241,7 +243,7 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     pub fn union(left: Self, right: Self) -> Self {
         TreapSet {
-            map: TreapMap::union(left.map, right.map)
+            map: TreapMap::union(left.map, right.map),
         }
     }
 
@@ -267,7 +269,7 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     pub fn intersection(left: Self, right: Self) -> Self {
         TreapSet {
-            map: TreapMap::intersection(left.map, right.map)
+            map: TreapMap::intersection(left.map, right.map),
         }
     }
 
@@ -294,7 +296,7 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     pub fn difference(left: Self, right: Self) -> Self {
         TreapSet {
-            map: TreapMap::difference(left.map, right.map)
+            map: TreapMap::difference(left.map, right.map),
         }
     }
 
@@ -321,7 +323,7 @@ impl<T: Ord> TreapSet<T> {
     /// ```
     pub fn symmetric_difference(left: Self, right: Self) -> Self {
         TreapSet {
-            map: TreapMap::symmetric_difference(left.map, right.map)
+            map: TreapMap::symmetric_difference(left.map, right.map),
         }
     }
 

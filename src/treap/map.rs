@@ -1,7 +1,7 @@
 use entry::Entry;
 use rand::Rng;
 use rand::XorShiftRng;
-use std::ops::{Add, Sub, Index, IndexMut};
+use std::ops::{Add, Index, IndexMut, Sub};
 use treap::node::Node;
 use treap::tree;
 
@@ -423,7 +423,7 @@ impl<T: Ord, U> TreapMap<T, U> {
     /// map.insert(2, 2);
     ///
     /// for (key, value) in &mut map {
-    ///   *value += 1;
+    ///     *value += 1;
     /// }
     ///
     /// let mut iterator = map.iter_mut();

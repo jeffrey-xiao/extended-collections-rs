@@ -1,4 +1,4 @@
-use entry::{Entry};
+use entry::Entry;
 use std::cmp::Ordering;
 use std::mem;
 use treap::node::Node;
@@ -75,11 +75,11 @@ pub fn insert<T: Ord, U>(tree: &mut Tree<T, U>, mut new_node: Node<T, U>) -> Opt
                     },
                 }
             }
-        }
+        },
         None => {
             *tree = Some(Box::new(new_node));
-            return None
-        }
+            return None;
+        },
     }
     new_node.left = tree.take();
     let (dup_opt, right) = split(&mut new_node.left, &new_node.entry.key);
@@ -107,7 +107,7 @@ pub fn remove<T: Ord, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>> 
                 Ordering::Equal => {
                     new_tree = node.left.take();
                     merge(&mut new_tree, node.right.take());
-                }
+                },
             }
         }
         None => return None,
@@ -185,7 +185,12 @@ pub fn max<T: Ord, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>> {
     })
 }
 
-pub fn union<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> Tree<T, U> {
+pub fn union<T: Ord, U>(
+    left_tree: Tree<T, U>,
+    right_tree: Tree<T, U>,
+    mut swapped: bool,
+) -> Tree<T, U> 
+{
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {
             if left_node.priority < right_node.priority {
@@ -219,7 +224,12 @@ pub fn union<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapp
     }
 }
 
-pub fn intersection<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool) -> Tree<T, U> {
+pub fn intersection<T: Ord, U>(
+    left_tree: Tree<T, U>,
+    right_tree: Tree<T, U>,
+    mut swapped: bool,
+) -> Tree<T, U>
+{
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {
             {
@@ -258,7 +268,13 @@ pub fn intersection<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mu
     }
 }
 
-pub fn difference<T: Ord, U>(left_tree: Tree<T, U>, right_tree: Tree<T, U>, mut swapped: bool, symmetric: bool) -> Tree<T, U> {
+pub fn difference<T: Ord, U>(
+    left_tree: Tree<T, U>,
+    right_tree: Tree<T, U>,
+    mut swapped: bool,
+    symmetric: bool,
+) -> Tree<T, U>
+{
     match (left_tree, right_tree) {
         (Some(mut left_node), Some(mut right_node)) => {
             {

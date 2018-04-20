@@ -400,7 +400,11 @@ mod tests {
         set.insert(get_bytes_slice("aaab"));
         assert_eq!(
             set.get_longest_prefix(&get_bytes_slice("aaa")),
-            vec![get_bytes_vec("aaa"), get_bytes_vec("aaaa"), get_bytes_vec("aaab")],
+            vec![
+                get_bytes_vec("aaa"),
+                get_bytes_vec("aaaa"),
+                get_bytes_vec("aaab"),
+            ],
         );
 
         let mut set = RadixSet::new();

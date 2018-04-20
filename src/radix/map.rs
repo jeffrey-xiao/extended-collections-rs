@@ -1,4 +1,4 @@
-use radix::node::{Node};
+use radix::node::Node;
 use radix::tree;
 use std::ops::{Index, IndexMut};
 
@@ -283,7 +283,7 @@ impl<T> RadixMap<T> {
     /// map.insert("foobar".as_bytes(), 2);
     ///
     /// for (key, value) in &mut map {
-    ///   *value += 1;
+    ///     *value += 1;
     /// }
     ///
     /// let mut iterator = map.iter_mut();
@@ -606,7 +606,11 @@ mod tests {
         map.insert("aaab".as_bytes(), 2);
         assert_eq!(
             map.get_longest_prefix("aaa".as_bytes()),
-            vec![get_bytes_vec("aaa"), get_bytes_vec("aaaa"), get_bytes_vec("aaab")],
+            vec![
+                get_bytes_vec("aaa"),
+                get_bytes_vec("aaaa"),
+                get_bytes_vec("aaab"),
+            ],
         );
 
         let mut map = RadixMap::new();
@@ -651,7 +655,11 @@ mod tests {
 
         assert_eq!(
             map.into_iter().collect::<Vec<(Vec<u8>, u32)>>(),
-            vec![(get_bytes_vec("a"), 2), (get_bytes_vec("aa"), 4), (get_bytes_vec("ab"), 6)],
+            vec![
+                (get_bytes_vec("a"), 2),
+                (get_bytes_vec("aa"), 4),
+                (get_bytes_vec("ab"), 6),
+            ],
         );
     }
 
@@ -664,7 +672,11 @@ mod tests {
 
         assert_eq!(
             (&map).into_iter().collect::<Vec<(Vec<u8>, &u32)>>(),
-            vec![(get_bytes_vec("a"), &2), (get_bytes_vec("aa"), &4), (get_bytes_vec("ab"), &6)],
+            vec![
+                (get_bytes_vec("a"), &2),
+                (get_bytes_vec("aa"), &4),
+                (get_bytes_vec("ab"), &6),
+            ],
         );
     }
 
@@ -681,7 +693,11 @@ mod tests {
 
         assert_eq!(
             (&map).into_iter().collect::<Vec<(Vec<u8>, &u32)>>(),
-            vec![(get_bytes_vec("a"), &3), (get_bytes_vec("aa"), &5), (get_bytes_vec("ab"), &7)],
+            vec![
+                (get_bytes_vec("a"), &3),
+                (get_bytes_vec("aa"), &5),
+                (get_bytes_vec("ab"), &7),
+            ],
         );
     }
 }

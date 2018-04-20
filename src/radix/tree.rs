@@ -1,4 +1,4 @@
-use radix::node::{Node};
+use radix::node::Node;
 use std::cmp::Ordering;
 use std::mem;
 
@@ -9,7 +9,10 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: &[u8], value: T) -> Option<T> {
         Some(ref mut node) => node,
         _ => unreachable!(),
     };
-    let split_index = node.key.iter().zip(key.iter()).position(|pair| pair.0 != pair.1);
+    let split_index = node.key
+        .iter()
+        .zip(key.iter())
+        .position(|pair| pair.0 != pair.1);
     match split_index {
         Some(split_index) => {
             let mut split_key = node.key.split_off(split_index);
@@ -42,10 +45,8 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: &[u8], value: T) -> Option<T> {
                 node.insert_child(split);
                 None
             },
-            Ordering::Equal => mem::replace(&mut node.value, Some(value)).map(|value| {
-                value
-            }),
-        }
+            Ordering::Equal => mem::replace(&mut node.value, Some(value)).map(|value| value),
+        },
     }
 }
 
@@ -57,7 +58,10 @@ pub fn remove<T>(tree: &mut Tree<T>, key: &[u8], mut index: usize) -> Option<(Ve
             Some(ref mut node) => node,
             None => return None,
         };
-        let split_index = node.key.iter().zip(key[index..].iter()).position(|pair| pair.0 != pair.1);
+        let split_index = node.key
+            .iter()
+            .zip(key[index..].iter())
+            .position(|pair| pair.0 != pair.1);
         match split_index {
             Some(_) => return None,
             None => match node.key.len().cmp(&(key.len() - index)) {
@@ -77,8 +81,8 @@ pub fn remove<T>(tree: &mut Tree<T>, key: &[u8], mut index: usize) -> Option<(Ve
                     if node.value.is_none() && node.child.is_none() {
                         next_tree = Some(node.next.take());
                     }
-                }
-            }
+                },
+            },
         }
     }
     if let Some(next_tree) = next_tree {
@@ -92,7 +96,10 @@ pub fn get<'a, T>(tree: &'a Tree<T>, key: &[u8], mut index: usize) -> Option<&'a
         Some(ref node) => node,
         None => return None,
     };
-    let split_index = node.key.iter().zip(key[index..].iter()).position(|pair| pair.0 != pair.1);
+    let split_index = node.key
+        .iter()
+        .zip(key[index..].iter())
+        .position(|pair| pair.0 != pair.1);
     match split_index {
         Some(_) => None,
         None => match node.key.len().cmp(&(key.len() - index)) {
@@ -102,7 +109,7 @@ pub fn get<'a, T>(tree: &'a Tree<T>, key: &[u8], mut index: usize) -> Option<&'a
             },
             Ordering::Greater => None,
             Ordering::Equal => node.value.as_ref(),
-        }
+        },
     }
 }
 
@@ -111,7 +118,10 @@ pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &[u8], mut index: usize) -> Op
         Some(ref mut node) => node,
         None => return None,
     };
-    let split_index = node.key.iter().zip(key[index..].iter()).position(|pair| pair.0 != pair.1);
+    let split_index = node.key
+        .iter()
+        .zip(key[index..].iter())
+        .position(|pair| pair.0 != pair.1);
     match split_index {
         Some(_) => None,
         None => match node.key.len().cmp(&(key.len() - index)) {
@@ -121,7 +131,7 @@ pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &[u8], mut index: usize) -> Op
             },
             Ordering::Greater => None,
             Ordering::Equal => node.value.as_mut(),
-        }
+        },
     }
 }
 
@@ -140,13 +150,23 @@ fn push_all_children<T>(tree: &Tree<T>, mut curr_key: Vec<u8>, keys: &mut Vec<Ve
     }
 }
 
-pub fn get_longest_prefix<T>(tree: &Tree<T>, key: &[u8], mut index: usize, mut curr_key: Vec<u8>, keys: &mut Vec<Vec<u8>>) {
+pub fn get_longest_prefix<T>(
+    tree: &Tree<T>,
+    key: &[u8],
+    mut index: usize,
+    mut curr_key: Vec<u8>,
+    keys: &mut Vec<Vec<u8>>,
+)
+{
     let node = match *tree {
         Some(ref node) => node,
         None => return,
     };
     curr_key.extend(node.key.iter());
-    let split_index = node.key.iter().zip(key[index..].iter()).position(|pair| pair.0 != pair.1);
+    let split_index = node.key
+        .iter()
+        .zip(key[index..].iter())
+        .position(|pair| pair.0 != pair.1);
     match split_index {
         Some(_) => {
             if node.value.is_some() {
@@ -172,8 +192,8 @@ pub fn get_longest_prefix<T>(tree: &Tree<T>, key: &[u8], mut index: usize, mut c
                     keys.push(curr_key.clone());
                 }
                 push_all_children(&node.child, curr_key, keys);
-            }
-        }
+            },
+        },
     }
 }
 
@@ -186,7 +206,7 @@ pub fn min<T>(tree: &Tree<T>, mut curr_key: Vec<u8>) -> Option<Vec<u8>> {
     curr_key.extend_from_slice(node.key.as_slice());
 
     if node.value.is_some() {
-       Some(curr_key)
+        Some(curr_key)
     } else {
         min(node.min(), curr_key)
     }

@@ -68,7 +68,10 @@ impl<T> TreapList<T> {
     /// assert_eq!(list.get(1), Some(&1));
     /// ```
     pub fn insert(&mut self, index: usize, value: T) {
-        let TreapList { ref mut tree, ref mut rng } = *self;
+        let TreapList {
+            ref mut tree,
+            ref mut rng,
+        } = *self;
         implicit_tree::insert(tree, index + 1, ImplicitNode::new(value, rng.next_u32()));
     }
 
@@ -262,7 +265,7 @@ impl<T> TreapList<T> {
     /// list.insert(1, 2);
     ///
     /// for value in &mut list {
-    ///   *value += 1;
+    ///     *value += 1;
     /// }
     ///
     /// let mut iterator = list.iter();
@@ -349,7 +352,11 @@ impl<'a, T: 'a> Iterator for TreapListIter<'a, T> {
             self.stack.push(node);
         }
         self.stack.pop().map(|node| {
-            let &ImplicitNode { ref value, ref right, .. } = node;
+            let &ImplicitNode {
+                ref value,
+                ref right,
+                ..
+            } = node;
             self.current = right;
             value
         })
@@ -370,7 +377,10 @@ impl<'a, T: 'a> Iterator for TreapListIterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let TreapListIterMut { ref mut current, ref mut stack } = *self;
+        let TreapListIterMut {
+            ref mut current,
+            ref mut stack,
+        } = *self;
         while current.is_some() {
             stack.push(current.take().map(|node| {
                 *current = node.left.as_mut().map(|node| &mut **node);

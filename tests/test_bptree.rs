@@ -1,11 +1,11 @@
 extern crate extended_collections;
 extern crate rand;
 
+use self::rand::{thread_rng, Rng};
 use extended_collections::bptree::{BPMap, Result};
 use std::fs;
 use std::panic;
 use std::vec::Vec;
-use self::rand::{thread_rng, Rng};
 
 fn teardown(test_name: &str) {
     fs::remove_file(format!("{}.dat", test_name)).ok();

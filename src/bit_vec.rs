@@ -208,9 +208,9 @@ impl BitVec {
         } else {
             let block_index = index / BLOCK_BIT_COUNT;
             let bit_index = index % BLOCK_BIT_COUNT;
-            self.blocks.get(block_index).map(|block| {
-                ((block >> bit_index) & 1) != 0
-            })
+            self.blocks
+                .get(block_index)
+                .map(|block| ((block >> bit_index) & 1) != 0)
         }
     }
 
@@ -228,7 +228,7 @@ impl BitVec {
     ///
     /// assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![true, true, true, true, true]);
     /// ```
-    pub fn set_all(&mut self, bit: bool)  {
+    pub fn set_all(&mut self, bit: bool) {
         let mask;
         if bit {
             mask = !0;
@@ -519,7 +519,9 @@ impl BitVec {
     }
 
     fn blocks(&self) -> Blocks {
-        Blocks { iter: self.blocks.iter() }
+        Blocks {
+            iter: self.blocks.iter(),
+        }
     }
 
     fn blocks_mut(&mut self) -> BlocksMut {
@@ -538,7 +540,10 @@ impl BitVec {
     /// assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false, true]);
     /// ```
     pub fn iter(&self) -> BitVecIter {
-        BitVecIter { bit_vec: self, range: 0..self.len }
+        BitVecIter {
+            bit_vec: self,
+            range: 0..self.len,
+        }
     }
 
     /// Returns `true` if the `BitVec` is empty.
@@ -618,7 +623,11 @@ impl BitVec {
 
 impl Clone for BitVec {
     fn clone(&self) -> Self {
-        BitVec { blocks: self.blocks.clone(), len: self.len, one_count: self.one_count }
+        BitVec {
+            blocks: self.blocks.clone(),
+            len: self.len,
+            one_count: self.one_count,
+        }
     }
 
     fn clone_from(&mut self, source: &Self) {
@@ -675,7 +684,10 @@ impl IntoIterator for BitVec {
 
     fn into_iter(self) -> Self::IntoIter {
         let len = self.len;
-        Self::IntoIter { bit_vec: self, range: 0..len }
+        Self::IntoIter {
+            bit_vec: self,
+            range: 0..len,
+        }
     }
 }
 
@@ -715,7 +727,10 @@ mod tests {
     #[test]
     fn test_new() {
         let bv = BitVec::new(5);
-        assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![false, false, false, false, false]);
+        assert_eq!(
+            bv.iter().collect::<Vec<bool>>(),
+            vec![false, false, false, false, false]
+        );
         assert_eq!(bv.count_ones(), 0);
         assert_eq!(bv.count_zeros(), 5);
     }
@@ -723,7 +738,10 @@ mod tests {
     #[test]
     fn test_from_elem() {
         let bv = BitVec::from_elem(5, true);
-        assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![true, true, true, true, true]);
+        assert_eq!(
+            bv.iter().collect::<Vec<bool>>(),
+            vec![true, true, true, true, true]
+        );
         assert_eq!(bv.count_ones(), 5);
         assert_eq!(bv.count_zeros(), 0);
     }
@@ -819,7 +837,10 @@ mod tests {
         bv2.set(2, true);
 
         bv1.union(&bv2);
-        assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![true, true, true, false]);
+        assert_eq!(
+            bv1.iter().collect::<Vec<bool>>(),
+            vec![true, true, true, false]
+        );
         assert_eq!(bv1.count_ones(), 3);
         assert_eq!(bv1.count_zeros(), 1);
     }
@@ -835,7 +856,10 @@ mod tests {
         bv2.set(2, true);
 
         bv1.intersection(&bv2);
-        assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![true, false, false, false]);
+        assert_eq!(
+            bv1.iter().collect::<Vec<bool>>(),
+            vec![true, false, false, false]
+        );
         assert_eq!(bv1.count_ones(), 1);
         assert_eq!(bv1.count_zeros(), 3);
     }
@@ -851,7 +875,10 @@ mod tests {
         bv2.set(2, true);
 
         bv1.difference(&bv2);
-        assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![false, true, false, false]);
+        assert_eq!(
+            bv1.iter().collect::<Vec<bool>>(),
+            vec![false, true, false, false]
+        );
         assert_eq!(bv1.count_ones(), 1);
         assert_eq!(bv1.count_zeros(), 3);
     }
@@ -867,7 +894,10 @@ mod tests {
         bv2.set(2, true);
 
         bv1.symmetric_difference(&bv2);
-        assert_eq!(bv1.iter().collect::<Vec<bool>>(), vec![false, true, true, false]);
+        assert_eq!(
+            bv1.iter().collect::<Vec<bool>>(),
+            vec![false, true, true, false]
+        );
         assert_eq!(bv1.count_ones(), 2);
         assert_eq!(bv1.count_zeros(), 2);
     }

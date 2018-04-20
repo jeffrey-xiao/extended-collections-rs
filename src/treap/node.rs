@@ -73,7 +73,7 @@ impl<T> ImplicitNode<T> {
     pub fn get_implicit_key(&self) -> usize {
         match self.left {
             Some(ref left_node) => left_node.len() + 1,
-            None => 1
+            None => 1,
         }
     }
 }

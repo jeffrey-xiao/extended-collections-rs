@@ -46,7 +46,7 @@ pub fn split<T>(tree: &mut Tree<T>, index: usize, left_inclusive: bool) -> Tree<
     }
 }
 
-pub fn insert<T>(tree: &mut Tree<T>, index: usize, new_node: ImplicitNode<T>)  {
+pub fn insert<T>(tree: &mut Tree<T>, index: usize, new_node: ImplicitNode<T>) {
     assert!(1 <= index && index <= len(tree) + 1);
     let right = split(tree, index, true);
     merge(tree, Some(Box::new(new_node)));
@@ -70,10 +70,14 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
                 return ret;
             },
             Ordering::Equal => {
-                let &mut ImplicitNode { ref mut left, ref mut right, .. } = &mut **node;
+                let &mut ImplicitNode {
+                    ref mut left,
+                    ref mut right,
+                    ..
+                } = &mut **node;
                 merge(left, right.take());
                 left.take()
-            }
+            },
         }
     };
     mem::replace(tree, new_tree).unwrap().value
