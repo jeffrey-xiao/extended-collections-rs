@@ -33,15 +33,13 @@ use treap::tree;
 /// assert_eq!(map.remove(&1), None);
 /// ```
 pub struct TreapMap<T, U>
-where T: Ord
-{
+where T: Ord {
     tree: tree::Tree<T, U>,
     rng: XorShiftRng,
 }
 
 impl<T, U> TreapMap<T, U>
-where T: Ord
-{
+where T: Ord {
     /// Constructs a new, empty `TreapMap<T, U>`.
     ///
     /// # Examples
@@ -444,8 +442,7 @@ where T: Ord
 }
 
 impl<T, U> IntoIterator for TreapMap<T, U>
-where T: Ord
-{
+where T: Ord {
     type Item = (T, U);
     type IntoIter = TreapMapIntoIter<T, U>;
 
@@ -487,15 +484,13 @@ where
 ///
 /// This iterator traverses the elements of the map in-order and yields owned entries.
 pub struct TreapMapIntoIter<T, U>
-where T: Ord
-{
+where T: Ord {
     current: tree::Tree<T, U>,
     stack: Vec<Node<T, U>>,
 }
 
 impl<T, U> Iterator for TreapMapIntoIter<T, U>
-where T: Ord
-{
+where T: Ord {
     type Item = (T, U);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -596,16 +591,14 @@ where
 }
 
 impl<T, U> Default for TreapMap<T, U>
-where T: Ord
-{
+where T: Ord {
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T, U> Add for TreapMap<T, U>
-where T: Ord
-{
+where T: Ord {
     type Output = TreapMap<T, U>;
 
     fn add(self, other: TreapMap<T, U>) -> TreapMap<T, U> {
@@ -614,8 +607,7 @@ where T: Ord
 }
 
 impl<T, U> Sub for TreapMap<T, U>
-where T: Ord
-{
+where T: Ord {
     type Output = TreapMap<T, U>;
 
     fn sub(self, other: TreapMap<T, U>) -> TreapMap<T, U> {
@@ -624,8 +616,7 @@ where T: Ord
 }
 
 impl<'a, T, U> Index<&'a T> for TreapMap<T, U>
-where T: Ord
-{
+where T: Ord {
     type Output = U;
     fn index(&self, key: &T) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
@@ -633,8 +624,7 @@ where T: Ord
 }
 
 impl<'a, T, U> IndexMut<&'a T> for TreapMap<T, U>
-where T: Ord
-{
+where T: Ord {
     fn index_mut(&mut self, key: &T) -> &mut Self::Output {
         self.get_mut(key).expect("Key does not exist.")
     }

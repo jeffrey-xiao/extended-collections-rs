@@ -3,8 +3,7 @@ use treap::{implicit_tree, tree};
 
 /// A struct representing an internal node of a treap.
 pub struct Node<T, U>
-where T: Ord
-{
+where T: Ord {
     pub entry: Entry<T, U>,
     pub priority: u32,
     pub len: usize,
@@ -22,8 +21,7 @@ pub struct ImplicitNode<T> {
 }
 
 impl<T, U> Node<T, U>
-where T: Ord
-{
+where T: Ord {
     pub fn new(key: T, value: U, priority: u32) -> Self {
         Node {
             entry: Entry { key, value },

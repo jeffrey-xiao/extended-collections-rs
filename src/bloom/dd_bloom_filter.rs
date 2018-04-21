@@ -29,8 +29,7 @@ use std::marker::PhantomData;
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
 pub struct BSBloomFilter<T>
-where T: Hash
-{
+where T: Hash {
     bit_vec: BitVec,
     hashers: [SipHasher; 2],
     rng: XorShiftRng,
@@ -40,8 +39,7 @@ where T: Hash
 }
 
 impl<T> BSBloomFilter<T>
-where T: Hash
-{
+where T: Hash {
     fn get_hasher_count(fpp: f64) -> usize {
         ((1.0 + fpp.ln() / (1.0 - 1.0 / consts::E).ln() + 1.0) / 2.0).ceil() as usize
     }
@@ -267,8 +265,7 @@ where T: Hash
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
 pub struct BSSDBloomFilter<T>
-where T: Hash
-{
+where T: Hash {
     bit_vec: BitVec,
     hashers: [SipHasher; 2],
     rng: XorShiftRng,
@@ -278,8 +275,7 @@ where T: Hash
 }
 
 impl<T> BSSDBloomFilter<T>
-where T: Hash
-{
+where T: Hash {
     fn get_hasher_count(fpp: f64) -> usize {
         ((1.0 + fpp.ln() / (1.0 - 1.0 / consts::E).ln() + 1.0) / 2.0).ceil() as usize
     }
@@ -501,8 +497,7 @@ where T: Hash
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
 pub struct RLBSBloomFilter<T>
-where T: Hash
-{
+where T: Hash {
     bit_vecs: Vec<BitVec>,
     hashers: [SipHasher; 2],
     rng: XorShiftRng,
@@ -512,8 +507,7 @@ where T: Hash
 }
 
 impl<T> RLBSBloomFilter<T>
-where T: Hash
-{
+where T: Hash {
     fn get_hasher_count(fpp: f64) -> usize {
         ((1.0 + fpp.ln() / (1.0 - 1.0 / consts::E).ln() + 1.0) / 2.0).ceil() as usize
     }

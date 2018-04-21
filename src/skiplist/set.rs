@@ -27,14 +27,12 @@ use std::ops::{Add, Sub};
 /// assert_eq!(set.remove(&1), None);
 /// ```
 pub struct SkipSet<T>
-where T: Ord
-{
+where T: Ord {
     map: SkipMap<T, ()>,
 }
 
 impl<T> SkipSet<T>
-where T: Ord
-{
+where T: Ord {
     /// Constructs a new, empty `SkipSet<T>`.
     ///
     /// # Examples
@@ -331,8 +329,7 @@ where T: Ord
 }
 
 impl<T> IntoIterator for SkipSet<T>
-where T: Ord
-{
+where T: Ord {
     type Item = T;
     type IntoIter = SkipSetIntoIter<T>;
 
@@ -344,8 +341,7 @@ where T: Ord
 }
 
 impl<'a, T> IntoIterator for &'a SkipSet<T>
-where T: 'a + Ord
-{
+where T: 'a + Ord {
     type Item = &'a T;
     type IntoIter = SkipSetIter<'a, T>;
 
@@ -358,14 +354,12 @@ where T: 'a + Ord
 ///
 /// This iterator traverses the elements of a set in ascending order and yields owned keys.
 pub struct SkipSetIntoIter<T>
-where T: Ord
-{
+where T: Ord {
     map_iter: SkipMapIntoIter<T, ()>,
 }
 
 impl<T> Iterator for SkipSetIntoIter<T>
-where T: Ord
-{
+where T: Ord {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -378,14 +372,12 @@ where T: Ord
 /// This iterator traverses the elements of a set in ascending order and yields immutable
 /// references.
 pub struct SkipSetIter<'a, T>
-where T: 'a + Ord
-{
+where T: 'a + Ord {
     map_iter: SkipMapIter<'a, T, ()>,
 }
 
 impl<'a, T> Iterator for SkipSetIter<'a, T>
-where T: 'a + Ord
-{
+where T: 'a + Ord {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -394,16 +386,14 @@ where T: 'a + Ord
 }
 
 impl<T> Default for SkipSet<T>
-where T: Ord
-{
+where T: Ord {
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T> Add for SkipSet<T>
-where T: Ord
-{
+where T: Ord {
     type Output = SkipSet<T>;
 
     fn add(self, other: SkipSet<T>) -> SkipSet<T> {
@@ -412,8 +402,7 @@ where T: Ord
 }
 
 impl<T> Sub for SkipSet<T>
-where T: Ord
-{
+where T: Ord {
     type Output = SkipSet<T>;
 
     fn sub(self, other: SkipSet<T>) -> SkipSet<T> {

@@ -26,14 +26,12 @@ use treap::map::{TreapMap, TreapMapIntoIter, TreapMapIter};
 /// assert_eq!(set.remove(&1), None);
 /// ```
 pub struct TreapSet<T>
-where T: Ord
-{
+where T: Ord {
     map: TreapMap<T, ()>,
 }
 
 impl<T> TreapSet<T>
-where T: Ord
-{
+where T: Ord {
     /// Constructs a new, empty `TreapSet<T>`
     ///
     /// # Examples
@@ -354,8 +352,7 @@ where T: Ord
 }
 
 impl<T> IntoIterator for TreapSet<T>
-where T: Ord
-{
+where T: Ord {
     type Item = T;
     type IntoIter = TreapSetIntoIter<T>;
 
@@ -367,8 +364,7 @@ where T: Ord
 }
 
 impl<'a, T> IntoIterator for &'a TreapSet<T>
-where T: 'a + Ord
-{
+where T: 'a + Ord {
     type Item = &'a T;
     type IntoIter = TreapSetIter<'a, T>;
 
@@ -381,14 +377,12 @@ where T: 'a + Ord
 ///
 /// This iterator traverses the elements of the set in-order and yields owned keys.
 pub struct TreapSetIntoIter<T>
-where T: Ord
-{
+where T: Ord {
     map_iter: TreapMapIntoIter<T, ()>,
 }
 
 impl<T> Iterator for TreapSetIntoIter<T>
-where T: Ord
-{
+where T: Ord {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -400,14 +394,12 @@ where T: Ord
 ///
 /// This iterator traverses the elements of the set in-order and yields immutable references.
 pub struct TreapSetIter<'a, T>
-where T: 'a + Ord
-{
+where T: 'a + Ord {
     map_iter: TreapMapIter<'a, T, ()>,
 }
 
 impl<'a, T> Iterator for TreapSetIter<'a, T>
-where T: 'a + Ord
-{
+where T: 'a + Ord {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -416,16 +408,14 @@ where T: 'a + Ord
 }
 
 impl<T> Default for TreapSet<T>
-where T: Ord
-{
+where T: Ord {
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T> Add for TreapSet<T>
-where T: Ord
-{
+where T: Ord {
     type Output = TreapSet<T>;
 
     fn add(self, other: TreapSet<T>) -> TreapSet<T> {
@@ -434,8 +424,7 @@ where T: Ord
 }
 
 impl<T> Sub for TreapSet<T>
-where T: Ord
-{
+where T: Ord {
     type Output = TreapSet<T>;
 
     fn sub(self, other: TreapSet<T>) -> TreapSet<T> {

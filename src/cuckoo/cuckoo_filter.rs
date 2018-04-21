@@ -32,8 +32,7 @@ use std::marker::PhantomData;
 /// assert_eq!(filter.fingerprint_bit_count(), 8);
 /// ```
 pub struct CuckooFilter<T>
-where T: Hash
-{
+where T: Hash {
     max_kicks: usize,
     entries_per_index: usize,
     fingerprint_vec: BitArrayVec,
@@ -43,8 +42,7 @@ where T: Hash
 }
 
 impl<T> CuckooFilter<T>
-where T: Hash
-{
+where T: Hash {
     fn get_hashers() -> [SipHasher; 2] {
         let mut rng = XorShiftRng::new_unseeded();
         [

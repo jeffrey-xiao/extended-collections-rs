@@ -30,8 +30,7 @@ use std::marker::PhantomData;
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
 pub struct BloomFilter<T>
-where T: Hash
-{
+where T: Hash {
     bit_vec: BitVec,
     hashers: [SipHasher; 2],
     hasher_count: usize,
@@ -39,8 +38,7 @@ where T: Hash
 }
 
 impl<T> BloomFilter<T>
-where T: Hash
-{
+where T: Hash {
     fn get_hashers() -> [SipHasher; 2] {
         let mut rng = XorShiftRng::new_unseeded();
         [

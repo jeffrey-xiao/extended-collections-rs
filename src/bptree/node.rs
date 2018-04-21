@@ -9,8 +9,7 @@ pub const BLOCK_SIZE: usize = 4096;
 
 #[derive(Serialize, Deserialize)]
 pub struct InternalNode<T, U>
-where T: Ord + Clone
-{
+where T: Ord + Clone {
     pub len: usize,
     pub keys: Box<[Option<T>]>,
     pub pointers: Box<[u64]>,
@@ -18,8 +17,7 @@ where T: Ord + Clone
 }
 
 impl<T, U> InternalNode<T, U>
-where T: Ord + Clone
-{
+where T: Ord + Clone {
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
     #[inline]
@@ -168,16 +166,14 @@ where T: Ord + Clone
 
 #[derive(Serialize, Deserialize)]
 pub struct LeafNode<T, U>
-where T: Ord + Clone
-{
+where T: Ord + Clone {
     pub len: usize,
     pub entries: Box<[Option<Entry<T, U>>]>,
     pub next_leaf: Option<u64>,
 }
 
 pub enum InsertCases<T, U>
-where T: Ord + Clone
-{
+where T: Ord + Clone {
     Split {
         split_key: T,
         split_node: Node<T, U>,
@@ -186,8 +182,7 @@ where T: Ord + Clone
 }
 
 impl<T, U> LeafNode<T, U>
-where T: Ord + Clone
-{
+where T: Ord + Clone {
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
     #[inline]
@@ -334,16 +329,14 @@ where T: Ord + Clone
 
 #[derive(Serialize, Deserialize)]
 pub enum Node<T, U>
-where T: Ord + Clone
-{
+where T: Ord + Clone {
     Internal(InternalNode<T, U>),
     Leaf(LeafNode<T, U>),
     Free(Option<u64>),
 }
 
 impl<T, U> Node<T, U>
-where T: Ord + Clone
-{
+where T: Ord + Clone {
     #[inline]
     pub fn get_max_size(leaf_degree: usize, internal_degree: usize) -> usize {
         cmp::max(

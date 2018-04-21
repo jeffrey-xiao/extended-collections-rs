@@ -27,8 +27,7 @@ use std::hash::Hash;
 /// assert_eq!(filter.filter_count(), 1);
 /// ```
 pub struct ScalableBloomFilter<T>
-where T: Hash
-{
+where T: Hash {
     filters: Vec<BloomFilter<T>>,
     approximate_bits_used: usize,
     initial_fpp: f64,
@@ -37,8 +36,7 @@ where T: Hash
 }
 
 impl<T> ScalableBloomFilter<T>
-where T: Hash
-{
+where T: Hash {
     /// Constructs a new, empty `ScalableBloomFilter<T>` with initially `initial_bit_count` bits
     /// and an initial maximum false positive probability of `fpp`. Every time a new bloom filter is
     /// added, the size will be `growth_ratio` multiplied by the previous size, and the false
