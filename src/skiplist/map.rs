@@ -1,5 +1,3 @@
-extern crate rand;
-
 use entry::Entry;
 use rand::Rng;
 use rand::XorShiftRng;
@@ -643,27 +641,27 @@ where T: Ord
                                 Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
                             },
                             cmp::Ordering::Less => {
-                                Node::free(mem::replace(&mut left.head, *(*left.head).get_pointer(0)));
+                                Node::free(mem::replace(
+                                    &mut left.head,
+                                    *(*left.head).get_pointer(0),
+                                ));
                                 continue;
                             },
                             cmp::Ordering::Greater => {
-                                Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
+                                Node::free(mem::replace(
+                                    &mut right.head,
+                                    *(*right.head).get_pointer(0),
+                                ));
                                 continue;
                             },
                         }
                     },
                     (true, false) => {
-                        Node::free(mem::replace(
-                            &mut right.head,
-                            *(*right.head).get_pointer(0),
-                        ));
+                        Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
                         continue;
                     },
                     (false, true) => {
-                        Node::free(mem::replace(
-                            &mut left.head,
-                            *(*left.head).get_pointer(0),
-                        ));
+                        Node::free(mem::replace(&mut left.head, *(*left.head).get_pointer(0)));
                         continue;
                     },
                 }

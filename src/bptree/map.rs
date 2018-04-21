@@ -702,8 +702,7 @@ mod tests {
     }
 
     fn run_test<T>(test: T, test_name: &str)
-    where T: FnOnce() -> Result<()> + panic::UnwindSafe
-    {
+    where T: FnOnce() -> Result<()> + panic::UnwindSafe {
         let result = panic::catch_unwind(|| test().unwrap());
 
         teardown(test_name);

@@ -130,7 +130,10 @@ impl<T> TypedArena<T> {
         if !self.is_valid_entry(entry) {
             panic!("Attempting to free invalid block.");
         }
-        let old_block = mem::replace(&mut self.chunks[entry.chunk_index][entry.block_index], Block::Vacant(self.head.take()));
+        let old_block = mem::replace(
+            &mut self.chunks[entry.chunk_index][entry.block_index],
+            Block::Vacant(self.head.take()),
+        );
         match old_block {
             Block::Vacant(_) => panic!("Attempting to free vacant block."),
             Block::Occupied(value) => {
@@ -140,7 +143,7 @@ impl<T> TypedArena<T> {
                     block_index: entry.block_index,
                 });
                 value
-            }
+            },
         }
     }
 

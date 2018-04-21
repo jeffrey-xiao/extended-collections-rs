@@ -588,7 +588,7 @@ mod tests {
 
         assert_eq!(
             set.into_iter().collect::<Vec<u32>>(),
-            vec![1, 3, 5]
+            vec![1, 3, 5],
         );
     }
 

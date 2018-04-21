@@ -7,7 +7,6 @@ use extended_collections::arena::Entry;
 use extended_collections::arena::TypedArena;
 use test::Bencher;
 
-
 #[bench]
 fn bench_arena(b: &mut Bencher) {
     struct Test {

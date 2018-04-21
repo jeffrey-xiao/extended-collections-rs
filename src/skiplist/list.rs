@@ -1,5 +1,3 @@
-extern crate rand;
-
 use rand::Rng;
 use rand::XorShiftRng;
 use std::mem;
@@ -601,10 +599,7 @@ where T: 'a
         } else {
             unsafe {
                 let ret = &(**self.current).value;
-                mem::replace(
-                    &mut self.current,
-                    &(**self.current).get_pointer(0).next,
-                );
+                mem::replace(&mut self.current, &(**self.current).get_pointer(0).next);
                 Some(ret)
             }
         }
@@ -699,8 +694,7 @@ mod tests {
     use std::mem;
 
     pub fn check_valid<T>(list: &mut SkipList<T>)
-    where T: PartialEq
-    {
+    where T: PartialEq {
         unsafe {
             let mut curr_node = &mut (*list.head).get_pointer_mut(0).next;
             let mut actual = vec![];
