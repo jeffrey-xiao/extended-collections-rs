@@ -152,7 +152,7 @@ where T: Ord + Clone {
     }
 
     pub fn merge(&mut self, split_key: T, node: &mut InternalNode<T, U>) {
-        assert!(self.len + node.len + 1 <= self.keys.len());
+        assert!(self.len + node.len < self.keys.len());
         self.keys[self.len] = Some(split_key);
         for index in 0..node.len {
             self.keys[self.len + index + 1] = node.keys[index].take();

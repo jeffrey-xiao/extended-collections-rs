@@ -6,6 +6,7 @@ use serde::Serialize;
 use std::mem;
 
 type SearchHistory<T, U> = Vec<(u64, Node<T, U>, usize)>;
+type SearchOutcome<T, U> = (u64, Node<T, U>, SearchHistory<T, U>);
 
 /// An ordered map implemented by an on-disk B+ tree.
 ///
@@ -115,7 +116,7 @@ where
         Pager::open(file_path).map(|pager| BPMap { pager })
     }
 
-    fn search_node(&mut self, key: &T) -> Result<(u64, Node<T, U>, SearchHistory<T, U>)> {
+    fn search_node(&mut self, key: &T) -> Result<SearchOutcome<T, U>> {
         let mut curr_page = self.pager.get_root_page();
         let mut curr_node = self.pager.get_page(curr_page)?;
 
