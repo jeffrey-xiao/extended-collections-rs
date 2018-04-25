@@ -139,8 +139,8 @@ impl BitArrayVec {
                 } else if (8 - byte_offset % 8) >= bits_left + curr_bits {
                     (bytes[byte_offset / 8]) >> (byte_offset % 8)
                 } else {
-                    let curr = (bytes[byte_offset / 8] >> (byte_offset % 8));
-                    let next = (bytes[byte_offset / 8 + 1] << (8 - byte_offset % 8));
+                    let curr = bytes[byte_offset / 8] >> (byte_offset % 8);
+                    let next = bytes[byte_offset / 8 + 1] << (8 - byte_offset % 8);
                     curr | next
                 }
             };
@@ -195,8 +195,8 @@ impl BitArrayVec {
                 } else if 8 - bits_offset % 8 >= curr_bits {
                     self.blocks[bits_offset / 8] >> (bits_offset % 8)
                 } else {
-                    let curr = (self.blocks[bits_offset / 8] >> (bits_offset % 8));
-                    let next = (self.blocks[bits_offset / 8 + 1] << (8 - bits_offset % 8));
+                    let curr = self.blocks[bits_offset / 8] >> (bits_offset % 8);
+                    let next = self.blocks[bits_offset / 8 + 1] << (8 - bits_offset % 8);
                     curr | next
                 }
             };
