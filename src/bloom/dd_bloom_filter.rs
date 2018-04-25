@@ -5,6 +5,8 @@ use std::f64::consts;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
+const PRIME: u64 = 0xFFFF_FFFF_FFFF_FFC5;
+
 /// A space-efficient probabilistic data structure for data deduplication in streams.
 ///
 /// This particular implementation uses Biased Sampling to determine whether data is distinct.
@@ -29,7 +31,9 @@ use std::marker::PhantomData;
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
 pub struct BSBloomFilter<T>
-where T: Hash {
+where
+    T: Hash,
+{
     bit_vec: BitVec,
     hashers: [SipHasher; 2],
     rng: XorShiftRng,
@@ -39,7 +43,9 @@ where T: Hash {
 }
 
 impl<T> BSBloomFilter<T>
-where T: Hash {
+where
+    T: Hash,
+{
     fn get_hasher_count(fpp: f64) -> usize {
         ((1.0 + fpp.ln() / (1.0 - 1.0 / consts::E).ln() + 1.0) / 2.0).ceil() as usize
     }
@@ -100,7 +106,7 @@ where T: Hash {
             });
 
             for index in 0..self.hasher_count {
-                let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
+                let mut offset = (index as u64).wrapping_mul(hashes[1]) % PRIME;
                 offset = hashes[0].wrapping_add(offset);
                 offset %= self.bit_count as u64;
                 offset += (index * self.bit_count) as u64;
@@ -129,7 +135,7 @@ where T: Hash {
 
     fn contains_hashes(&self, hashes: [u64; 2]) -> bool {
         (0..self.hasher_count).all(|index| {
-            let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
+            let mut offset = (index as u64).wrapping_mul(hashes[1]) % PRIME;
             offset = hashes[0].wrapping_add(offset);
             offset %= self.bit_count as u64;
             offset += (index * self.bit_count) as u64;
@@ -265,7 +271,9 @@ where T: Hash {
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
 pub struct BSSDBloomFilter<T>
-where T: Hash {
+where
+    T: Hash,
+{
     bit_vec: BitVec,
     hashers: [SipHasher; 2],
     rng: XorShiftRng,
@@ -275,7 +283,9 @@ where T: Hash {
 }
 
 impl<T> BSSDBloomFilter<T>
-where T: Hash {
+where
+    T: Hash,
+{
     fn get_hasher_count(fpp: f64) -> usize {
         ((1.0 + fpp.ln() / (1.0 - 1.0 / consts::E).ln() + 1.0) / 2.0).ceil() as usize
     }
@@ -336,7 +346,7 @@ where T: Hash {
             self.bit_vec.set(filter_index * bit_count + index, false);
 
             for index in 0..self.hasher_count {
-                let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
+                let mut offset = (index as u64).wrapping_mul(hashes[1]) % PRIME;
                 offset = hashes[0].wrapping_add(offset);
                 offset %= self.bit_count as u64;
                 offset += (index * self.bit_count) as u64;
@@ -361,7 +371,7 @@ where T: Hash {
     pub fn contains(&self, item: &T) -> bool {
         let hashes = self.get_hashes(item);
         (0..self.hasher_count).all(|index| {
-            let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
+            let mut offset = (index as u64).wrapping_mul(hashes[1]) % PRIME;
             offset = hashes[0].wrapping_add(offset);
             offset %= self.bit_count as u64;
             offset += (index * self.bit_count) as u64;
@@ -497,7 +507,9 @@ where T: Hash {
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
 pub struct RLBSBloomFilter<T>
-where T: Hash {
+where
+    T: Hash,
+{
     bit_vecs: Vec<BitVec>,
     hashers: [SipHasher; 2],
     rng: XorShiftRng,
@@ -507,7 +519,9 @@ where T: Hash {
 }
 
 impl<T> RLBSBloomFilter<T>
-where T: Hash {
+where
+    T: Hash,
+{
     fn get_hasher_count(fpp: f64) -> usize {
         ((1.0 + fpp.ln() / (1.0 - 1.0 / consts::E).ln() + 1.0) / 2.0).ceil() as usize
     }
@@ -571,7 +585,7 @@ where T: Hash {
             });
 
             for filter_index in 0..self.hasher_count {
-                let mut offset = (filter_index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
+                let mut offset = (filter_index as u64).wrapping_mul(hashes[1]) % PRIME;
                 offset = hashes[0].wrapping_add(offset);
                 offset %= self.bit_count as u64;
 
@@ -595,7 +609,7 @@ where T: Hash {
     pub fn contains(&self, item: &T) -> bool {
         let hashes = self.get_hashes(item);
         (0..self.hasher_count).all(|filter_index| {
-            let mut offset = (filter_index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
+            let mut offset = (filter_index as u64).wrapping_mul(hashes[1]) % PRIME;
             offset = hashes[0].wrapping_add(offset);
             offset %= self.bit_count as u64;
             self.bit_vecs[filter_index][offset as usize]

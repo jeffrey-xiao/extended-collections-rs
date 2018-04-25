@@ -164,8 +164,7 @@ pub fn get_longest_prefix<T>(
     mut index: usize,
     mut curr_key: Vec<u8>,
     keys: &mut Vec<Vec<u8>>,
-)
-{
+) {
     let node = match *tree {
         Some(ref node) => node,
         None => return,

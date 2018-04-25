@@ -9,7 +9,9 @@ pub const BLOCK_SIZE: usize = 4096;
 
 #[derive(Serialize, Deserialize)]
 pub struct InternalNode<T, U>
-where T: Ord + Clone {
+where
+    T: Ord + Clone,
+{
     pub len: usize,
     pub keys: Box<[Option<T>]>,
     pub pointers: Box<[u64]>,
@@ -17,17 +19,29 @@ where T: Ord + Clone {
 }
 
 impl<T, U> InternalNode<T, U>
-where T: Ord + Clone {
+where
+    T: Ord + Clone,
+{
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
     #[inline]
+    fn get_constant_size() -> usize {
+        U64_SIZE * 4 + mem::size_of::<PhantomData<U>>()
+    }
+
+    #[inline]
+    fn get_payload_size() -> usize {
+        mem::size_of::<Option<T>>() + U64_SIZE
+    }
+
+    #[inline]
     pub fn get_degree() -> usize {
-        (BLOCK_SIZE - U64_SIZE * 4 - mem::size_of::<PhantomData<U>>()) / (mem::size_of::<Option<T>>() + U64_SIZE)
+        (BLOCK_SIZE - Self::get_constant_size()) / Self::get_payload_size()
     }
 
     #[inline]
     pub fn get_max_size(degree: usize) -> usize {
-        U64_SIZE * 4 + mem::size_of::<PhantomData<U>>() + degree * (mem::size_of::<Option<T>>() + U64_SIZE)
+        Self::get_constant_size() + degree * Self::get_payload_size()
     }
 
     pub fn new(degree: usize) -> Self {
@@ -44,8 +58,7 @@ where T: Ord + Clone {
         mut new_key: T,
         mut new_pointer: u64,
         is_right: bool,
-    ) -> Option<(T, Node<T, U>)>
-    {
+    ) -> Option<(T, Node<T, U>)> {
         let internal_degree = self.keys.len();
         let offset = is_right as usize;
         // node has room; can insert
@@ -166,14 +179,18 @@ where T: Ord + Clone {
 
 #[derive(Serialize, Deserialize)]
 pub struct LeafNode<T, U>
-where T: Ord + Clone {
+where
+    T: Ord + Clone,
+{
     pub len: usize,
     pub entries: Box<[Option<Entry<T, U>>]>,
     pub next_leaf: Option<u64>,
 }
 
 pub enum InsertCases<T, U>
-where T: Ord + Clone {
+where
+    T: Ord + Clone,
+{
     Split {
         split_key: T,
         split_node: Node<T, U>,
@@ -182,17 +199,29 @@ where T: Ord + Clone {
 }
 
 impl<T, U> LeafNode<T, U>
-where T: Ord + Clone {
+where
+    T: Ord + Clone,
+{
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
     #[inline]
+    fn get_constant_size() -> usize {
+        U64_SIZE * 2 + OPT_U64_SIZE
+    }
+
+    #[inline]
+    fn get_payload_size() -> usize {
+        mem::size_of::<Option<Entry<T, U>>>()
+    }
+
+    #[inline]
     pub fn get_degree() -> usize {
-        (BLOCK_SIZE - U64_SIZE * 2 - OPT_U64_SIZE) / mem::size_of::<Option<Entry<T, U>>>()
+        (BLOCK_SIZE - Self::get_constant_size()) / Self::get_payload_size()
     }
 
     #[inline]
     pub fn get_max_size(degree: usize) -> usize {
-        U64_SIZE * 2 + OPT_U64_SIZE + degree * mem::size_of::<Option<Entry<T, U>>>()
+        Self::get_constant_size() + degree * Self::get_payload_size()
     }
 
     pub fn new(degree: usize) -> Self {
@@ -329,14 +358,18 @@ where T: Ord + Clone {
 
 #[derive(Serialize, Deserialize)]
 pub enum Node<T, U>
-where T: Ord + Clone {
+where
+    T: Ord + Clone,
+{
     Internal(InternalNode<T, U>),
     Leaf(LeafNode<T, U>),
     Free(Option<u64>),
 }
 
 impl<T, U> Node<T, U>
-where T: Ord + Clone {
+where
+    T: Ord + Clone,
+{
     #[inline]
     pub fn get_max_size(leaf_degree: usize, internal_degree: usize) -> usize {
         cmp::max(

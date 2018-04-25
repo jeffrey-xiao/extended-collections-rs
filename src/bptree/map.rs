@@ -92,8 +92,7 @@ where
         file_path: &str,
         leaf_degree: usize,
         internal_degree: usize,
-    ) -> Result<BPMap<T, U>>
-    {
+    ) -> Result<BPMap<T, U>> {
         assert!(LeafNode::<T, U>::get_max_size(leaf_degree) <= BLOCK_SIZE);
         assert!(InternalNode::<T, U>::get_max_size(internal_degree) <= BLOCK_SIZE);
         Pager::new(file_path, leaf_degree, internal_degree).map(|pager| BPMap { pager })
@@ -703,7 +702,9 @@ mod tests {
     }
 
     fn run_test<T>(test: T, test_name: &str)
-    where T: FnOnce() -> Result<()> + panic::UnwindSafe {
+    where
+        T: FnOnce() -> Result<()> + panic::UnwindSafe,
+    {
         let result = panic::catch_unwind(|| test().unwrap());
 
         teardown(test_name);

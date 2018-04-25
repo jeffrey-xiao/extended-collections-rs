@@ -294,7 +294,9 @@ impl<T> IntoIterator for TreapList<T> {
 }
 
 impl<'a, T> IntoIterator for &'a TreapList<T>
-where T: 'a {
+where
+    T: 'a,
+{
     type Item = &'a T;
     type IntoIter = TreapListIter<'a, T>;
 
@@ -304,7 +306,9 @@ where T: 'a {
 }
 
 impl<'a, T> IntoIterator for &'a mut TreapList<T>
-where T: 'a {
+where
+    T: 'a,
+{
     type Item = &'a mut T;
     type IntoIter = TreapListIterMut<'a, T>;
 
@@ -341,13 +345,17 @@ impl<T> Iterator for TreapListIntoIter<T> {
 ///
 /// This iterator traverses the elements of the list in-order and yields immutable references.
 pub struct TreapListIter<'a, T>
-where T: 'a {
+where
+    T: 'a,
+{
     current: &'a implicit_tree::Tree<T>,
     stack: Vec<&'a ImplicitNode<T>>,
 }
 
 impl<'a, T> Iterator for TreapListIter<'a, T>
-where T: 'a {
+where
+    T: 'a,
+{
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -373,13 +381,17 @@ type BorrowedTreeMut<'a, T> = Option<&'a mut ImplicitNode<T>>;
 ///
 /// This iterator traverses the elements of the list in-order and yields mutable references.
 pub struct TreapListIterMut<'a, T>
-where T: 'a {
+where
+    T: 'a,
+{
     current: Option<&'a mut ImplicitNode<T>>,
     stack: Vec<Option<(&'a mut T, BorrowedTreeMut<'a, T>)>>,
 }
 
 impl<'a, T> Iterator for TreapListIterMut<'a, T>
-where T: 'a {
+where
+    T: 'a,
+{
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -518,7 +518,9 @@ impl<T> IntoIterator for SkipList<T> {
 }
 
 impl<'a, T> IntoIterator for &'a SkipList<T>
-where T: 'a {
+where
+    T: 'a,
+{
     type Item = &'a T;
     type IntoIter = SkipListIter<'a, T>;
 
@@ -528,7 +530,9 @@ where T: 'a {
 }
 
 impl<'a, T> IntoIterator for &'a mut SkipList<T>
-where T: 'a {
+where
+    T: 'a,
+{
     type Item = &'a mut T;
     type IntoIter = SkipListIterMut<'a, T>;
 
@@ -581,12 +585,16 @@ impl<T> Drop for SkipListIntoIter<T> {
 ///
 /// This iterator traverses the elements of the list in-order and yields immutable references.
 pub struct SkipListIter<'a, T>
-where T: 'a {
+where
+    T: 'a,
+{
     current: &'a *mut Node<T>,
 }
 
 impl<'a, T> Iterator for SkipListIter<'a, T>
-where T: 'a {
+where
+    T: 'a,
+{
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -606,12 +614,16 @@ where T: 'a {
 ///
 /// This iterator traverses the elements of the list in-order and yields mutable references.
 pub struct SkipListIterMut<'a, T>
-where T: 'a {
+where
+    T: 'a,
+{
     current: &'a mut *mut Node<T>,
 }
 
 impl<'a, T> Iterator for SkipListIterMut<'a, T>
-where T: 'a {
+where
+    T: 'a,
+{
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -688,7 +700,9 @@ mod tests {
     use std::mem;
 
     pub fn check_valid<T>(list: &mut SkipList<T>)
-    where T: PartialEq {
+    where
+        T: PartialEq,
+    {
         unsafe {
             let mut curr_node = &mut (*list.head).get_pointer_mut(0).next;
             let mut actual = vec![];

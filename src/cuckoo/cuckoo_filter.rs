@@ -32,7 +32,9 @@ use std::marker::PhantomData;
 /// assert_eq!(filter.fingerprint_bit_count(), 8);
 /// ```
 pub struct CuckooFilter<T>
-where T: Hash {
+where
+    T: Hash,
+{
     max_kicks: usize,
     entries_per_index: usize,
     fingerprint_vec: BitArrayVec,
@@ -42,7 +44,9 @@ where T: Hash {
 }
 
 impl<T> CuckooFilter<T>
-where T: Hash {
+where
+    T: Hash,
+{
     fn get_hashers() -> [SipHasher; 2] {
         let mut rng = XorShiftRng::new_unseeded();
         [
@@ -104,8 +108,7 @@ where T: Hash {
         item_count: usize,
         fingerprint_bit_count: usize,
         entries_per_index: usize,
-    ) -> Self
-    {
+    ) -> Self {
         assert!(
             item_count > 0 &&
             fingerprint_bit_count > 1 &&
@@ -180,8 +183,7 @@ where T: Hash {
         item_count: usize,
         fpp: f64,
         fingerprint_bit_count: usize,
-    ) -> Self
-    {
+    ) -> Self {
         assert!(item_count > 0 && fingerprint_bit_count > 1 && fingerprint_bit_count <= 64);
         let fingerprints_count = 2.0f64.powi(fingerprint_bit_count as i32);
         let single_fpp = (fingerprints_count - 2.0) / (fingerprints_count - 1.0);
@@ -211,8 +213,10 @@ where T: Hash {
         ret
     }
 
-    pub(in super) fn get_fingerprint(raw_fingerprint: u64) -> Vec<u8> {
-        (0..8).map(|index| ((raw_fingerprint >> (index * 8)) & (0xFF)) as u8).collect()
+    pub(super) fn get_fingerprint(raw_fingerprint: u64) -> Vec<u8> {
+        (0..8)
+            .map(|index| ((raw_fingerprint >> (index * 8)) & (0xFF)) as u8)
+            .collect()
     }
 
     fn get_raw_fingerprint(fingerprint: &[u8]) -> u64 {
@@ -257,7 +261,8 @@ where T: Hash {
     /// filter.insert(&"foo");
     /// ```
     pub fn insert(&mut self, item: &T) {
-        let (mut fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(self.get_hashes(item));
+        let hashes = self.get_hashes(item);
+        let (mut fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(hashes);
         if !self.contains_fingerprint(&fingerprint, index_1, index_2) {
             if self.insert_fingerprint(fingerprint.as_slice(), index_1) || self.insert_fingerprint(fingerprint.as_slice(), index_2) {
                 return;
@@ -319,7 +324,8 @@ where T: Hash {
     /// assert!(!filter.contains(&"foo"));
     /// ```
     pub fn remove(&mut self, item: &T) {
-        let (fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(self.get_hashes(item));
+        let hashes = self.get_hashes(item);
+        let (fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(hashes);
         self.remove_fingerprint(&fingerprint, index_1, index_2)
     }
 

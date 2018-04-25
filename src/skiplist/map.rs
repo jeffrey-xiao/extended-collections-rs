@@ -8,7 +8,9 @@ use std::ptr;
 
 #[repr(C)]
 struct Node<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     links_len: usize,
     entry: Entry<T, U>,
     links: [*mut Node<T, U>; 0],
@@ -17,7 +19,9 @@ where T: Ord {
 const MAX_HEIGHT: usize = 32;
 
 impl<T, U> Node<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     pub fn new(key: T, value: U, links_len: usize) -> *mut Self {
         let ptr = unsafe { Self::allocate(links_len) };
         unsafe {
@@ -93,14 +97,18 @@ where T: Ord {
 /// assert_eq!(map.remove(&1), None);
 /// ```
 pub struct SkipMap<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     head: *mut Node<T, U>,
     rng: XorShiftRng,
     len: usize,
 }
 
 impl<T, U> SkipMap<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     /// Constructs a new, empty `SkipMap<T, U>`.
     ///
     /// # Examples
@@ -864,7 +872,9 @@ where T: Ord {
 }
 
 impl<T, U> Drop for SkipMap<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     fn drop(&mut self) {
         unsafe {
             Node::deallocate(mem::replace(&mut self.head, *(*self.head).get_pointer(0)));
@@ -876,7 +886,9 @@ where T: Ord {
 }
 
 impl<T, U> IntoIterator for SkipMap<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     type Item = (T, U);
     type IntoIter = SkipMapIntoIter<T, U>;
 
@@ -921,12 +933,16 @@ where
 ///
 /// This iterator traverses the elements of a map in ascending order and yields owned entries.
 pub struct SkipMapIntoIter<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     current: *mut Node<T, U>,
 }
 
 impl<T, U> Iterator for SkipMapIntoIter<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     type Item = (T, U);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -946,7 +962,9 @@ where T: Ord {
 }
 
 impl<T, U> Drop for SkipMapIntoIter<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     fn drop(&mut self) {
         unsafe {
             while !self.current.is_null() {
@@ -1024,14 +1042,18 @@ where
 }
 
 impl<T, U> Default for SkipMap<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T, U> Add for SkipMap<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     type Output = SkipMap<T, U>;
 
     fn add(self, other: SkipMap<T, U>) -> SkipMap<T, U> {
@@ -1040,7 +1062,9 @@ where T: Ord {
 }
 
 impl<T, U> Sub for SkipMap<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     type Output = SkipMap<T, U>;
 
     fn sub(self, other: SkipMap<T, U>) -> SkipMap<T, U> {
@@ -1049,7 +1073,9 @@ where T: Ord {
 }
 
 impl<'a, T, U> Index<&'a T> for SkipMap<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     type Output = U;
     fn index(&self, key: &T) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
@@ -1057,7 +1083,9 @@ where T: Ord {
 }
 
 impl<'a, T, U> IndexMut<&'a T> for SkipMap<T, U>
-where T: Ord {
+where
+    T: Ord,
+{
     fn index_mut(&mut self, key: &T) -> &mut Self::Output {
         self.get_mut(key).expect("Key does not exist.")
     }
