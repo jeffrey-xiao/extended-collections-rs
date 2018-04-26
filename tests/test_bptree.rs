@@ -28,11 +28,11 @@ fn int_test_bpmap() {
     run_test(
         || {
             let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
-            let mut map: BPMap<u32, u32> = BPMap::with_degrees(&format!("{}.dat", test_name), 5, 5)?;
+            let mut map = BPMap::with_degrees(&format!("{}.dat", test_name), 4, 8, 5, 5)?;
             let mut expected = Vec::new();
             for _ in 0..10_000 {
                 let key = rng.gen::<u32>();
-                let val = rng.gen::<u32>();
+                let val = rng.gen::<u64>();
 
                 map.insert(key, val)?;
                 expected.push((key, val));

@@ -1,7 +1,9 @@
 use bincode::{deserialize, serialize};
+use bloom::BloomFilter;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fs::{File, OpenOptions};
+use std::hash::Hash;
 use std::io::{Error, Result, Write};
 use std::marker::PhantomData;
 
@@ -15,12 +17,14 @@ struct SizeTieredStrategy {}
 
 struct LevelTieredStrategy {}
 
-pub struct SSTable<T, U>
+pub struct SSTable<T: Hash, U>
 where
     T: Serialize + DeserializeOwned,
     U: Serialize + DeserializeOwned,
 {
     file: File,
+    bloom_filter: BloomFilter<T>,
+    data: Option<(T, Option<U>)>,
     _marker: PhantomData<(T, U)>,
 }
 

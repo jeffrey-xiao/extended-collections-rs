@@ -3,9 +3,9 @@ use std::cmp::{self, Ordering};
 use std::marker::PhantomData;
 use std::mem;
 
-const U64_SIZE: usize = mem::size_of::<u64>() as usize;
-const OPT_U64_SIZE: usize = mem::size_of::<Option<u64>>() as usize;
-pub const BLOCK_SIZE: usize = 4096;
+const U64_SIZE: u64 = mem::size_of::<u64>() as u64;
+const OPT_U64_SIZE: u64 = mem::size_of::<Option<u64>>() as u64;
+pub const BLOCK_SIZE: u64 = 4096;
 
 #[derive(Serialize, Deserialize)]
 pub struct InternalNode<T, U>
@@ -14,7 +14,7 @@ where
 {
     pub len: usize,
     pub keys: Box<[Option<T>]>,
-    pub pointers: Box<[u64]>,
+    pub pointers: Box<[usize]>,
     pub _marker: PhantomData<U>,
 }
 
@@ -25,30 +25,33 @@ where
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
     #[inline]
-    fn get_constant_size() -> usize {
-        U64_SIZE * 4 + mem::size_of::<PhantomData<U>>()
+    fn get_constant_size() -> u64 {
+        U64_SIZE * 4 + mem::size_of::<PhantomData<U>>() as u64
     }
 
     #[inline]
-    fn get_payload_size() -> usize {
-        mem::size_of::<Option<T>>() + U64_SIZE
+    fn get_payload_size(key_size: u64) -> u64 {
+        let option_size = mem::size_of::<Option<T>>() as u64;
+        let entry_size = mem::size_of::<T>() as u64;
+        U64_SIZE + key_size + option_size - entry_size
     }
 
     #[inline]
-    pub fn get_degree() -> usize {
-        (BLOCK_SIZE - Self::get_constant_size()) / Self::get_payload_size()
+    pub fn get_degree(key_size: u64) -> usize {
+        let payload_capacity = BLOCK_SIZE - Self::get_constant_size();
+        (payload_capacity / Self::get_payload_size(key_size)) as usize
     }
 
     #[inline]
-    pub fn get_max_size(degree: usize) -> usize {
-        Self::get_constant_size() + degree * Self::get_payload_size()
+    pub fn get_max_size(degree: usize, key_size: u64) -> u64 {
+        Self::get_constant_size() + degree as u64 * Self::get_payload_size(key_size)
     }
 
     pub fn new(degree: usize) -> Self {
         InternalNode {
             len: 0,
             keys: init_array!(Option<T>, degree, None),
-            pointers: init_array!(u64, degree + 1, 0),
+            pointers: init_array!(usize, degree + 1, 0),
             _marker: PhantomData,
         }
     }
@@ -56,7 +59,7 @@ where
     pub fn insert(
         &mut self,
         mut new_key: T,
-        mut new_pointer: u64,
+        mut new_pointer: usize,
         is_right: bool,
     ) -> Option<(T, Node<T, U>)> {
         let internal_degree = self.keys.len();
@@ -119,7 +122,7 @@ where
         }
     }
 
-    pub fn remove_at(&mut self, remove_index: usize, is_right: bool) -> (T, u64) {
+    pub fn remove_at(&mut self, remove_index: usize, is_right: bool) -> (T, usize) {
         assert!(remove_index < self.len);
         let offset = is_right as usize;
         self.len -= 1;
@@ -184,7 +187,7 @@ where
 {
     pub len: usize,
     pub entries: Box<[Option<Entry<T, U>>]>,
-    pub next_leaf: Option<u64>,
+    pub next_leaf: Option<usize>,
 }
 
 pub enum InsertCases<T, U>
@@ -205,23 +208,26 @@ where
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
     #[inline]
-    fn get_constant_size() -> usize {
+    fn get_constant_size() -> u64 {
         U64_SIZE * 2 + OPT_U64_SIZE
     }
 
     #[inline]
-    fn get_payload_size() -> usize {
-        mem::size_of::<Option<Entry<T, U>>>()
+    fn get_payload_size(key_size: u64, value_size: u64) -> u64 {
+        let option_size = mem::size_of::<Option<Entry<T, U>>>() as u64;
+        let entry_size = mem::size_of::<Entry<T, U>>() as u64;
+        key_size + value_size + option_size - entry_size
     }
 
     #[inline]
-    pub fn get_degree() -> usize {
-        (BLOCK_SIZE - Self::get_constant_size()) / Self::get_payload_size()
+    pub fn get_degree(key_size: u64, value_size: u64) -> usize {
+        let payload_capacity = BLOCK_SIZE - Self::get_constant_size();
+        (payload_capacity / Self::get_payload_size(key_size, value_size)) as usize
     }
 
     #[inline]
-    pub fn get_max_size(degree: usize) -> usize {
-        Self::get_constant_size() + degree * Self::get_payload_size()
+    pub fn get_max_size(degree: usize, key_size: u64, value_size: u64) -> u64 {
+        Self::get_constant_size() + degree as u64 * Self::get_payload_size(key_size, value_size)
     }
 
     pub fn new(degree: usize) -> Self {
@@ -363,7 +369,7 @@ where
 {
     Internal(InternalNode<T, U>),
     Leaf(LeafNode<T, U>),
-    Free(Option<u64>),
+    Free(Option<usize>),
 }
 
 impl<T, U> Node<T, U>
@@ -371,10 +377,15 @@ where
     T: Ord + Clone,
 {
     #[inline]
-    pub fn get_max_size(leaf_degree: usize, internal_degree: usize) -> usize {
+    pub fn get_max_size(
+        key_size: u64,
+        value_size: u64,
+        leaf_degree: usize,
+        internal_degree: usize,
+    ) -> u64 {
         cmp::max(
-            LeafNode::<T, U>::get_max_size(leaf_degree),
-            InternalNode::<T, U>::get_max_size(internal_degree),
+            LeafNode::<T, U>::get_max_size(leaf_degree, key_size, value_size),
+            InternalNode::<T, U>::get_max_size(internal_degree, key_size),
         )
     }
 }
@@ -387,22 +398,22 @@ mod tests {
 
     #[test]
     fn test_node_get_max_size() {
-        assert_eq!(Node::<u32, u32>::get_max_size(1, 1), 48);
+        assert_eq!(Node::<u32, u64>::get_max_size(4, 8, 1, 1), 52);
     }
 
     #[test]
     fn test_internal_node_degree() {
-        assert_eq!(InternalNode::<u32, u32>::get_degree(), 254);
+        assert_eq!(InternalNode::<u32, u64>::get_degree(4), 254);
     }
 
     #[test]
     fn test_internal_node_get_max_size() {
-        assert_eq!(InternalNode::<u32, u32>::get_max_size(1), 48);
+        assert_eq!(InternalNode::<u32, u64>::get_max_size(1, 4), 48);
     }
 
     #[test]
     fn test_internal_node_new() {
-        let n = InternalNode::<u32, u32>::new(3);
+        let n = InternalNode::<u32, u64>::new(3);
 
         assert_eq!(n.len, 0);
         assert_eq!(*n.keys, [None, None, None]);
@@ -411,7 +422,7 @@ mod tests {
 
     #[test]
     fn test_internal_node_insert_left_not_full() {
-        let mut n = InternalNode::<u32, u32> {
+        let mut n = InternalNode::<u32, u64> {
             len: 2,
             keys: Box::new([Some(0), Some(2), None]),
             pointers: Box::new([0, 2, 3, 0]),
@@ -426,7 +437,7 @@ mod tests {
 
     #[test]
     fn test_internal_node_insert_right_not_full() {
-        let mut n = InternalNode::<u32, u32> {
+        let mut n = InternalNode::<u32, u64> {
             len: 2,
             keys: Box::new([Some(0), Some(2), None]),
             pointers: Box::new([0, 1, 3, 0]),
@@ -441,7 +452,7 @@ mod tests {
 
     #[test]
     fn test_internal_node_insert_left_full() {
-        let mut n = InternalNode::<u32, u32> {
+        let mut n = InternalNode::<u32, u64> {
             len: 3,
             keys: Box::new([Some(0), Some(1), Some(3)]),
             pointers: Box::new([0, 1, 3, 4]),
@@ -467,7 +478,7 @@ mod tests {
 
     #[test]
     fn test_internal_node_insert_right_full() {
-        let mut n = InternalNode::<u32, u32> {
+        let mut n = InternalNode::<u32, u64> {
             len: 3,
             keys: Box::new([Some(0), Some(1), Some(3)]),
             pointers: Box::new([0, 1, 2, 4]),
@@ -493,7 +504,7 @@ mod tests {
 
     #[test]
     fn test_internal_node_remove_at_left() {
-        let mut n = InternalNode::<u32, u32> {
+        let mut n = InternalNode::<u32, u64> {
             len: 3,
             keys: Box::new([Some(0), Some(1), Some(2)]),
             pointers: Box::new([0, 1, 2, 3]),
@@ -508,7 +519,7 @@ mod tests {
 
     #[test]
     fn test_internal_node_remove_at_right() {
-        let mut n = InternalNode::<u32, u32> {
+        let mut n = InternalNode::<u32, u64> {
             len: 3,
             keys: Box::new([Some(0), Some(1), Some(2)]),
             pointers: Box::new([0, 1, 2, 3]),
@@ -523,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_internal_node_search() {
-        let n = InternalNode::<u32, u32> {
+        let n = InternalNode::<u32, u64> {
             len: 3,
             keys: Box::new([Some(1), Some(3), Some(5)]),
             pointers: Box::new([0, 1, 2, 3]),
@@ -541,13 +552,13 @@ mod tests {
 
     #[test]
     fn test_internal_node_merge() {
-        let mut n = InternalNode::<u32, u32> {
+        let mut n = InternalNode::<u32, u64> {
             len: 1,
             keys: Box::new([Some(0), None, None]),
             pointers: Box::new([0, 1, 0, 0]),
             _marker: PhantomData,
         };
-        let mut m = InternalNode::<u32, u32> {
+        let mut m = InternalNode::<u32, u64> {
             len: 1,
             keys: Box::new([Some(2), None, None]),
             pointers: Box::new([2, 3, 0, 0]),
@@ -566,12 +577,12 @@ mod tests {
 
     #[test]
     fn test_leaf_node_degree() {
-        assert_eq!(LeafNode::<u32, u64>::get_degree(), 169);
+        assert_eq!(LeafNode::<u32, u64>::get_degree(4, 8), 203);
     }
 
     #[test]
     fn test_leaf_node_get_max_size() {
-        assert_eq!(LeafNode::<u32, u64>::get_max_size(1), 56);
+        assert_eq!(LeafNode::<u32, u64>::get_max_size(1, 4, 8), 52);
     }
 
     #[test]

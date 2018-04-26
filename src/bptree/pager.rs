@@ -1,4 +1,4 @@
-use bincode::{self, deserialize, serialize};
+use bincode::{self, deserialize, serialize, serialized_size};
 use bptree::node::{LeafNode, Node};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -18,12 +18,14 @@ pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Serialize, Deserialize)]
 struct Metadata {
-    pages: u64,
+    pages: usize,
     len: usize,
-    root_page: u64,
+    root_page: usize,
+    key_size: u64,
+    value_size: u64,
     leaf_degree: usize,
     internal_degree: usize,
-    free_page: Option<u64>,
+    free_page: Option<usize>,
 }
 
 pub struct Pager<T, U>
@@ -41,13 +43,26 @@ where
     T: Ord + Clone + Serialize + DeserializeOwned,
     U: Serialize + DeserializeOwned,
 {
-    pub fn new(file_path: &str, leaf_degree: usize, internal_degree: usize) -> Result<Pager<T, U>> {
+    pub fn new(
+        file_path: &str,
+        key_size: u64,
+        value_size: u64,
+        leaf_degree: usize,
+        internal_degree: usize,
+    ) -> Result<Pager<T, U>> {
         let header_size = Self::get_metadata_size();
-        let body_size = Node::<T, U>::get_max_size(leaf_degree, internal_degree) as u64;
+        let body_size = Node::<T, U>::get_max_size(
+            key_size,
+            value_size,
+            leaf_degree,
+            internal_degree
+        ) as u64;
         let metadata = Metadata {
             pages: 1,
             len: 0,
             root_page: 0,
+            key_size,
+            value_size,
             leaf_degree,
             internal_degree,
             free_page: None,
@@ -101,7 +116,12 @@ where
 
     #[inline]
     fn get_node_size(&self) -> u64 {
-        Node::<T, U>::get_max_size(self.metadata.leaf_degree, self.metadata.internal_degree) as u64
+        Node::<T, U>::get_max_size(
+            self.metadata.key_size,
+            self.metadata.value_size,
+            self.metadata.leaf_degree,
+            self.metadata.internal_degree,
+        ) as u64
     }
 
     #[inline]
@@ -109,9 +129,9 @@ where
         mem::size_of::<Metadata>() as u64
     }
 
-    fn calculate_page_offset(&self, index: u64) -> u64 {
+    fn calculate_page_offset(&self, index: usize) -> u64 {
         let header_size = Self::get_metadata_size();
-        let body_offset = self.get_node_size() * index;
+        let body_offset = self.get_node_size() * index as u64;
         header_size + body_offset
     }
 
@@ -134,18 +154,18 @@ where
         self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
     }
 
-    pub fn get_root_page(&self) -> u64 {
+    pub fn get_root_page(&self) -> usize {
         self.metadata.root_page
     }
 
-    pub fn set_root_page(&mut self, new_root_page: u64) -> Result<()> {
+    pub fn set_root_page(&mut self, new_root_page: usize) -> Result<()> {
         self.metadata.root_page = new_root_page;
         self.db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
         let serialized_metadata = &serialize(&self.metadata).map_err(Error::SerdeError)?;
         self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
     }
 
-    pub fn get_page(&mut self, index: u64) -> Result<Node<T, U>> {
+    pub fn get_page(&mut self, index: usize) -> Result<Node<T, U>> {
         let offset = self.calculate_page_offset(index);
         self.db_file.seek(SeekFrom::Start(offset)).map_err(Error::IOError)?;
         let mut buffer: Vec<u8> = vec![0; self.get_node_size() as usize];
@@ -153,7 +173,7 @@ where
         deserialize(buffer.as_slice()).map_err(Error::SerdeError)
     }
 
-    pub fn allocate_node(&mut self, new_node: &Node<T, U>) -> Result<u64> {
+    pub fn allocate_node(&mut self, new_node: &Node<T, U>) -> Result<usize> {
         match self.metadata.free_page {
             None => {
                 self.metadata.pages += 1;
@@ -195,7 +215,7 @@ where
         }
     }
 
-    pub fn deallocate_node(&mut self, index: u64) -> Result<()> {
+    pub fn deallocate_node(&mut self, index: usize) -> Result<()> {
         let offset = self.calculate_page_offset(index);
 
         self.db_file.seek(SeekFrom::Start(offset)).map_err(Error::IOError)?;
@@ -208,7 +228,7 @@ where
         self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
     }
 
-    pub fn write_node(&mut self, index: u64, node: &Node<T, U>) -> Result<()> {
+    pub fn write_node(&mut self, index: usize, node: &Node<T, U>) -> Result<()> {
         let offset = self.calculate_page_offset(index);
         self.db_file.seek(SeekFrom::Start(offset)).map_err(Error::IOError)?;
         let serialized_node = &serialize(&node).map_err(Error::SerdeError)?;
@@ -217,7 +237,7 @@ where
 
     pub fn clear(&mut self) -> Result<()> {
         let header_size = Self::get_metadata_size();
-        let body_size = Node::<T, U>::get_max_size(self.metadata.leaf_degree, self.metadata.internal_degree) as u64;
+        let body_size = self.get_node_size();
         self.metadata.pages = 1;
         self.metadata.len = 0;
         self.metadata.root_page = 0;
@@ -231,5 +251,16 @@ where
         self.db_file.seek(SeekFrom::Start(header_size)).map_err(Error::IOError)?;
         let serialized_node = &serialize(&Node::Leaf(LeafNode::<T, U>::new(self.metadata.leaf_degree))).map_err(Error::SerdeError)?;
         self.db_file.write_all(serialized_node).map_err(Error::IOError)
+    }
+
+    pub fn validate_key(&self, key: &T) -> Result<()> {
+        assert!(serialized_size(key).map_err(Error::SerdeError)? <= self.metadata.key_size);
+        Ok(())
+    }
+
+    pub fn validate_value(&self, value: &U) -> Result<()> {
+        println!("{:?}", serialized_size(value).map_err(Error::SerdeError)?);
+        assert!(serialized_size(value).map_err(Error::SerdeError)? <= self.metadata.value_size);
+        Ok(())
     }
 }
