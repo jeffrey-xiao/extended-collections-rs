@@ -1,7 +1,7 @@
 extern crate extended_collections;
 
 use extended_collections::lsm::{Tree, SizeTieredStrategy};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 fn main() {
     let sts = SizeTieredStrategy::new(
@@ -16,5 +16,10 @@ fn main() {
 
     for i in 0..100 {
         tree.insert(i, i).unwrap();
+    }
+
+    for i in 0..100 {
+        println!("Finding {}", i);
+        assert_eq!(tree.get(&i).unwrap(), Some(i));
     }
 }

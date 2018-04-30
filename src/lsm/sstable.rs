@@ -5,7 +5,7 @@ use lsm::{Error, Result};
 use rand::{thread_rng, Rng};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::io::{BufWriter, BufReader, BufRead, Read, Write};
+use std::io::{BufWriter, BufReader, BufRead, Read, Seek, SeekFrom, Write};
 use std::iter::ExactSizeIterator;
 use std::fs;
 use std::hash::Hash;
@@ -72,7 +72,7 @@ where
             block_index: 0,
             block_size: (item_count_hint as f64).sqrt().ceil() as usize,
             index_block: Vec::new(),
-            filter: BloomFilter::new(item_count_hint, 0.01),
+            filter: BloomFilter::new(item_count_hint, 0.05),
             index_offset: 0,
             index_stream,
             data_offset: 0,
@@ -141,13 +141,12 @@ pub struct SSTable<T, U> {
     path: PathBuf,
     pub summary: SSTableSummary<T>,
     pub filter: BloomFilter,
-    index: Option<Vec<(T, u64)>>,
     _marker: PhantomData<U>,
 }
 
 impl<T, U> SSTable<T, U>
 where
-    T: Hash + DeserializeOwned + Serialize,
+    T: Hash + DeserializeOwned + Ord + Serialize,
     U: DeserializeOwned + Serialize,
 {
     pub fn new<P>(path: P) -> Result<Self>
@@ -168,8 +167,67 @@ where
             path: PathBuf::from(path.as_ref()),
             summary,
             filter,
-            index: None,
             _marker: PhantomData,
         })
+    }
+
+    fn floor_offset(index: &Vec<(T, u64)>, key: &T) -> Option<usize> {
+        let mut lo = 0isize;
+        let mut hi = index.len() as isize - 1;
+        while (lo <= hi) {
+            let mid = (lo + hi) / 2;
+            if index[mid as usize].0 <= *key {
+                lo = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+
+        if hi == -1 {
+            None
+        } else {
+            Some(hi as usize)
+        }
+    }
+
+    pub fn get(&self, key: &T) -> Result<Option<Option<U>>> {
+        println!("looking in filter file");
+        if !self.filter.contains(key) {
+            return Ok(None);
+        }
+        println!("looking in summary file");
+
+        let index = {
+            match Self::floor_offset(&self.summary.index, key) {
+                Some(index) => index,
+                None => return Ok(None),
+            }
+        };
+
+
+        let mut index_file = fs::File::open(self.path.join("index.dat")).map_err(Error::IOError)?;
+        index_file.seek(SeekFrom::Start(self.summary.index[index].1)).map_err(Error::IOError)?;
+        let size = index_file.read_u64::<BigEndian>().map_err(Error::IOError)?;
+        let mut buffer = vec![0; size as usize];
+        index_file.read(buffer.as_mut_slice()).map_err(Error::IOError)?;
+        let index_block: Vec<(T, u64)> = deserialize(&buffer).map_err(Error::SerdeError)?;
+
+        println!("looking in index file");
+
+        let index = {
+            match index_block.binary_search_by_key(&key, |index_entry| &index_entry.0) {
+                Ok(index) => index,
+                Err(_) => return Ok(None),
+            }
+        };
+
+        println!("looking in data file");
+
+        let mut data_file = fs::File::open(self.path.join("data.dat")).map_err(Error::IOError)?;
+        data_file.seek(SeekFrom::Start(index_block[index].1)).map_err(Error::IOError)?;
+        let size = data_file.read_u64::<BigEndian>().map_err(Error::IOError)?;
+        let mut buffer = vec![0; size as usize];
+        data_file.read(buffer.as_mut_slice()).map_err(Error::IOError)?;
+        deserialize(&buffer).map_err(Error::SerdeError).map(|entry: (T, Option<U>)| Some(entry.1))
     }
 }

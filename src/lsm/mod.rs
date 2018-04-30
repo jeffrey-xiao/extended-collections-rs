@@ -32,6 +32,8 @@ pub trait CompactionStrategy<T, U> {
     fn get_max_in_memory_size(&self) -> u64;
 
     fn try_compact(&self, sstable: SSTable<T, U>) -> Result<()>;
+
+    fn get(&self, key: &T) -> Result<Option<U>>;
 }
 
 pub struct Tree<T, U, V> {
@@ -44,7 +46,7 @@ pub struct Tree<T, U, V> {
 impl<T, U, V> Tree<T, U, V>
 where
     T: Clone + Ord + Hash + DeserializeOwned + Serialize,
-    U: DeserializeOwned + Serialize,
+    U: Clone + DeserializeOwned + Serialize,
     V: CompactionStrategy<T, U>,
 {
     pub fn new<P>(db_path: P, compaction_strategy: V) -> Result<Self>
@@ -100,5 +102,13 @@ where
         self.in_memory_usage += serialized_size::<Option<U>>(&None).map_err(Error::SerdeError)?;
         self.in_memory_tree.insert(key, None);
         self.try_compact()
+    }
+
+    pub fn get(&self, key: &T) -> Result<Option<U>> {
+        if let Some(entry) = self.in_memory_tree.get(&key) {
+            Ok(entry.clone())
+        } else {
+            self.compaction_strategy.get(key)
+        }
     }
 }

@@ -64,14 +64,13 @@ where
         }
     }
 
-    fn get_compaction_range(&self) -> Option<(usize, usize)> {
-        let curr_metadata = self.curr_metadata.lock().unwrap();
+    fn get_compaction_range(&self, metadata: &SizeTieredMetadata<T, U>) -> Option<(usize, usize)> {
         let mut start = 0;
         let mut curr = 0;
         let mut range_size = 0;
-        while curr < curr_metadata.sstables.len() {
-            let start_size = curr_metadata.sstables[start].summary.size;
-            let curr_size = curr_metadata.sstables[curr].summary.size;
+        while curr < metadata.sstables.len() {
+            let start_size = metadata.sstables[start].summary.size;
+            let curr_size = metadata.sstables[curr].summary.size;
             let curr_avg = (range_size + curr_size) as f64 / (curr - start + 1) as f64;
 
             let in_min_bucket = curr_size <= self.min_sstable_size;
@@ -99,7 +98,7 @@ where
 
 impl<T, U> CompactionStrategy<T, U> for SizeTieredStrategy<T, U>
 where
-    T: Hash + DeserializeOwned + Serialize,
+    T: Hash + DeserializeOwned + Ord + Serialize,
     U: DeserializeOwned + Serialize,
 {
     fn try_compact(&self, mut sstable: SSTable<T, U>) -> Result<()> {
@@ -109,16 +108,15 @@ where
                 .iter()
                 .max_by_key(|sstable| sstable.summary.tag);
             match sstable {
-                Some(sstable) => sstable.summary.tag,
+                Some(sstable) => sstable.summary.tag + 1,
                 None => 0,
             }
         };
         curr_metadata.sstables.push(sstable);
         curr_metadata.sstables.sort_by_key(|sstable| sstable.summary.size);
-        drop(curr_metadata);
 
-        if let Some(range) = self.get_compaction_range() {
-            println!("COMPACTING");
+        if let Some(range) = self.get_compaction_range(&*curr_metadata) {
+            println!("COMPACTING {:?}", range);
         }
 
         Ok(())
@@ -126,5 +124,19 @@ where
 
     fn get_max_in_memory_size(&self) -> u64 {
         self.max_in_memory_size
+    }
+
+    fn get(&self, key: &T) -> Result<Option<U>> {
+        let mut curr_metadata = self.curr_metadata.lock().unwrap();
+        curr_metadata.sstables.sort_by_key(|sstable| sstable.summary.tag);
+        curr_metadata.sstables.reverse();
+
+        for sstable in &curr_metadata.sstables {
+            if let Some(value) = sstable.get(key)? {
+                return Ok(value);
+            }
+        }
+
+        Ok(None)
     }
 }
