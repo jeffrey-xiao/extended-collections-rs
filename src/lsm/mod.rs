@@ -31,9 +31,7 @@ pub type Result<T> = result::Result<T, Error>;
 pub trait CompactionStrategy<T, U> {
     fn get_max_in_memory_size(&self) -> u64;
 
-    fn should_compact(&self) -> bool;
-
-    fn try_compact(&self, sstable: PathBuf);
+    fn try_compact(&self, sstable: SSTable<T, U>) -> Result<()>;
 }
 
 pub struct Tree<T, U, V> {
@@ -49,7 +47,11 @@ where
     U: DeserializeOwned + Serialize,
     V: CompactionStrategy<T, U>,
 {
-    pub fn new(db_path: PathBuf, compaction_strategy: V) -> Result<Self> {
+    pub fn new<P>(db_path: P, compaction_strategy: V) -> Result<Self>
+    where
+        P: AsRef<Path>,
+    {
+        let db_path = PathBuf::from(db_path.as_ref());
         fs::create_dir(db_path.clone()).map_err(Error::IOError)?;
         Ok(Tree {
             db_path,
@@ -68,7 +70,8 @@ where
         for entry in mem::replace(&mut self.in_memory_tree, BTreeMap::new()) {
             sstable_builder.append(entry.0, entry.1)?;
         }
-        sstable_builder.flush()?;
+        let sstable = SSTable::new(sstable_builder.flush()?)?;
+        self.compaction_strategy.try_compact(sstable)?;
         Ok(())
     }
 
