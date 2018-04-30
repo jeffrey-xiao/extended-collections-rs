@@ -28,11 +28,7 @@ struct Metadata {
     free_page: Option<usize>,
 }
 
-pub struct Pager<T, U>
-where
-    T: Ord + Clone + Serialize + DeserializeOwned,
-    U: Serialize + DeserializeOwned,
-{
+pub struct Pager<T, U> {
     db_file: File,
     metadata: Metadata,
     _marker: PhantomData<(T, U)>,

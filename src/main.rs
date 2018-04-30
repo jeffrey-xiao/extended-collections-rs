@@ -12,7 +12,7 @@ fn main() {
         100,
     );
 
-    let mut tree = Tree::new(PathBuf::from("test_db"), sts);
+    let mut tree = Tree::new(PathBuf::from("test_db"), sts).unwrap();
 
     for i in 0..100 {
         tree.insert(i, i).unwrap();

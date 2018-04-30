@@ -29,10 +29,7 @@ use std::marker::PhantomData;
 ///
 /// assert!((hhl.len().round() - 3.0).abs() < EPSILON);
 /// ```
-pub struct HyperLogLog<T>
-where
-    T: Hash,
-{
+pub struct HyperLogLog<T> {
     alpha: f64,
     p: usize,
     registers: Vec<u8>,

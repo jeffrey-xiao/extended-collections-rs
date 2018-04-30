@@ -7,11 +7,7 @@ use std::io::{BufWriter, BufReader, BufRead, Read, Write};
 use std::path::{PathBuf};
 use std::sync::{Arc, Mutex, atomic::AtomicBool};
 
-struct SizeTieredMetadata<T, U>
-where
-    T: Hash + DeserializeOwned + Serialize,
-    U: DeserializeOwned + Serialize,
-{
+struct SizeTieredMetadata<T, U> {
     sstables: Vec<SSTable<T, U>>,
 }
 
@@ -29,11 +25,7 @@ where
     pub fn should_compact(&self) -> bool { false }
 }
 
-pub struct SizeTieredStrategy<T, U>
-where
-    T: Hash + DeserializeOwned + Serialize,
-    U: DeserializeOwned + Serialize,
-{
+pub struct SizeTieredStrategy<T, U> {
     min_sstable_count: usize,
     min_sstable_size: u64,
     bucket_low: f64,

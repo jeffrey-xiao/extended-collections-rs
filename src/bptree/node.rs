@@ -8,10 +8,7 @@ const OPT_U64_SIZE: u64 = mem::size_of::<Option<u64>>() as u64;
 pub const BLOCK_SIZE: u64 = 4096;
 
 #[derive(Serialize, Deserialize)]
-pub struct InternalNode<T, U>
-where
-    T: Ord + Clone,
-{
+pub struct InternalNode<T, U> {
     pub len: usize,
     pub keys: Box<[Option<T>]>,
     pub pointers: Box<[usize]>,
@@ -181,19 +178,13 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct LeafNode<T, U>
-where
-    T: Ord + Clone,
-{
+pub struct LeafNode<T, U> {
     pub len: usize,
     pub entries: Box<[Option<Entry<T, U>>]>,
     pub next_leaf: Option<usize>,
 }
 
-pub enum InsertCases<T, U>
-where
-    T: Ord + Clone,
-{
+pub enum InsertCases<T, U> {
     Split {
         split_key: T,
         split_node: Node<T, U>,
@@ -363,10 +354,7 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum Node<T, U>
-where
-    T: Ord + Clone,
-{
+pub enum Node<T, U> {
     Internal(InternalNode<T, U>),
     Leaf(LeafNode<T, U>),
     Free(Option<usize>),

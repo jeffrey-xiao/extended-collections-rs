@@ -40,11 +40,7 @@ type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 /// # }
 /// # foo();
 /// ```
-pub struct BPMap<T, U>
-where
-    T: Ord + Clone + Serialize + DeserializeOwned,
-    U: Serialize + DeserializeOwned,
-{
+pub struct BPMap<T, U> {
     pager: Pager<T, U>,
 }
 
@@ -663,8 +659,8 @@ where
 /// This iterator traverses the elements of the map in ascending order and yields owned entries.
 pub struct BPMapIterMut<'a, T, U>
 where
-    T: 'a + Ord + Clone + Serialize + DeserializeOwned,
-    U: 'a + Serialize + DeserializeOwned,
+    T: 'a,
+    U: 'a,
 {
     pager: &'a mut Pager<T, U>,
     curr_node: LeafNode<T, U>,
