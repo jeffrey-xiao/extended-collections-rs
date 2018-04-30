@@ -4,6 +4,7 @@ use entry::Entry;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::mem;
+use std::path::Path;
 
 // (page, node, index)
 type SearchHistory<T, U> = Vec<(usize, Node<T, U>, usize)>;
@@ -66,11 +67,14 @@ where
     /// # }
     /// # foo();
     /// ```
-    pub fn new(
-        file_path: &str,
+    pub fn new<P>(
+        file_path: P,
         key_size: u64,
         value_size: u64,
-    ) -> Result<BPMap<T, U>> {
+    ) -> Result<BPMap<T, U>>
+    where
+        P: AsRef<Path>,
+    {
         let leaf_degree = LeafNode::<T, U>::get_degree(key_size, value_size);
         let internal_degree = InternalNode::<T, U>::get_degree(key_size);
         Pager::new(file_path, key_size, value_size, leaf_degree, internal_degree)
@@ -93,13 +97,16 @@ where
     /// # }
     /// # foo();
     /// ```
-    pub fn with_degrees(
-        file_path: &str,
+    pub fn with_degrees<P>(
+        file_path: P,
         key_size: u64,
         value_size: u64,
         leaf_degree: usize,
         internal_degree: usize,
-    ) -> Result<BPMap<T, U>> {
+    ) -> Result<BPMap<T, U>>
+    where
+        P: AsRef<Path>,
+    {
         assert!(LeafNode::<T, U>::get_max_size(leaf_degree, key_size, value_size) <= BLOCK_SIZE);
         assert!(InternalNode::<T, U>::get_max_size(internal_degree, key_size) <= BLOCK_SIZE);
         Pager::new(file_path, key_size, value_size, leaf_degree, internal_degree)
@@ -119,7 +126,10 @@ where
     /// # }
     /// # foo();
     /// ```
-    pub fn open(file_path: &str) -> Result<BPMap<T, U>> {
+    pub fn open<P>(file_path: P) -> Result<BPMap<T, U>>
+    where
+        P: AsRef<Path>,
+    {
         Pager::open(file_path).map(|pager| BPMap { pager })
     }
 

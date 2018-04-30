@@ -6,6 +6,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, self, Write};
 use std::marker::PhantomData;
 use std::mem;
+use std::path::Path;
 use std::result;
 
 #[derive(Debug)]
@@ -39,13 +40,16 @@ where
     T: Ord + Clone + Serialize + DeserializeOwned,
     U: Serialize + DeserializeOwned,
 {
-    pub fn new(
-        file_path: &str,
+    pub fn new<P>(
+        file_path: P,
         key_size: u64,
         value_size: u64,
         leaf_degree: usize,
         internal_degree: usize,
-    ) -> Result<Pager<T, U>> {
+    ) -> Result<Pager<T, U>>
+    where
+        P: AsRef<Path>,
+    {
         let header_size = Self::get_metadata_size();
         let body_size = Node::<T, U>::get_max_size(
             key_size,
@@ -90,7 +94,10 @@ where
         Ok(pager)
     }
 
-    pub fn open(file_path: &str) -> Result<Pager<T, U>> {
+    pub fn open<P>(file_path: P) -> Result<Pager<T, U>>
+    where
+        P: AsRef<Path>,
+    {
         let mut db_file = OpenOptions::new()
             .read(true)
             .write(true)
