@@ -1,4 +1,5 @@
 extern crate bincode;
+extern crate byteorder;
 extern crate crossbeam_epoch as epoch;
 extern crate rand;
 extern crate serde;

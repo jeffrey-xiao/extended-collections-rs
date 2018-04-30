@@ -30,34 +30,27 @@ const PRIME: u64 = 0xFFFF_FFFF_FFFF_FFC5;
 /// assert_eq!(filter.bit_count(), 10);
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
-pub struct BSBloomFilter<T>
-where
-    T: Hash,
-{
+pub struct BSBloomFilter {
     bit_vec: BitVec,
     hashers: [SipHasher; 2],
     rng: XorShiftRng,
     bit_count: usize,
     hasher_count: usize,
-    _marker: PhantomData<T>,
 }
 
-impl<T> BSBloomFilter<T>
-where
-    T: Hash,
-{
+impl BSBloomFilter {
     fn get_hasher_count(fpp: f64) -> usize {
         ((1.0 + fpp.ln() / (1.0 - 1.0 / consts::E).ln() + 1.0) / 2.0).ceil() as usize
     }
 
-    /// Constructs a new, empty `BSBloomFilter<T>` with `bit_count` bits per filter and a false
+    /// Constructs a new, empty `BSBloomFilter` with `bit_count` bits per filter and a false
     /// positive probability of `fpp`.
     ///
     /// # Examples
     /// ```
     /// use extended_collections::bloom::BSBloomFilter;
     ///
-    /// let filter: BSBloomFilter<u32> = BSBloomFilter::new(10, 0.01);
+    /// let filter = BSBloomFilter::new(10, 0.01);
     /// ```
     pub fn new(bit_count: usize, fpp: f64) -> Self {
         let hasher_count = Self::get_hasher_count(fpp);
@@ -71,11 +64,13 @@ where
             rng,
             bit_count,
             hasher_count,
-            _marker: PhantomData,
         }
     }
 
-    fn get_hashes(&self, item: &T) -> [u64; 2] {
+    fn get_hashes<T>(&self, item: &T) -> [u64; 2]
+    where
+        T: Hash,
+    {
         let mut ret = [0; 2];
         for (index, hash) in ret.iter_mut().enumerate() {
             let mut sip = self.hashers[index];
@@ -95,7 +90,10 @@ where
     ///
     /// filter.insert(&"foo");
     /// ```
-    pub fn insert(&mut self, item: &T) {
+    pub fn insert<T>(&mut self, item: &T)
+    where
+        T: Hash,
+    {
         let hashes = self.get_hashes(item);
         if !self.contains_hashes(hashes) {
             let bit_count = self.bit_count();
@@ -128,7 +126,10 @@ where
     /// filter.insert(&"foo");
     /// assert!(filter.contains(&"foo"));
     /// ```
-    pub fn contains(&self, item: &T) -> bool {
+    pub fn contains<T>(&self, item: &T) -> bool
+    where
+        T: Hash,
+    {
         let hashes = self.get_hashes(item);
         self.contains_hashes(hashes)
     }
@@ -149,7 +150,7 @@ where
     /// ```
     /// use extended_collections::bloom::BSBloomFilter;
     ///
-    /// let filter: BSBloomFilter<u32> = BSBloomFilter::new(10, 0.01);
+    /// let filter = BSBloomFilter::new(10, 0.01);
     ///
     /// assert_eq!(filter.len(), 70);
     /// ```
@@ -163,7 +164,7 @@ where
     /// ```
     /// use extended_collections::bloom::BSBloomFilter;
     ///
-    /// let filter: BSBloomFilter<u32> = BSBloomFilter::new(10, 0.01);
+    /// let filter = BSBloomFilter::new(10, 0.01);
     ///
     /// assert!(!filter.is_empty());
     /// ```
@@ -177,7 +178,7 @@ where
     /// ```
     /// use extended_collections::bloom::BSBloomFilter;
     ///
-    /// let filter: BSBloomFilter<u32> = BSBloomFilter::new(10, 0.01);
+    /// let filter = BSBloomFilter::new(10, 0.01);
     ///
     /// assert_eq!(filter.bit_count(), 10);
     /// ```
@@ -191,7 +192,7 @@ where
     /// ```
     /// use extended_collections::bloom::BSBloomFilter;
     ///
-    /// let filter: BSBloomFilter<u32> = BSBloomFilter::new(10, 0.01);
+    /// let filter = BSBloomFilter::new(10, 0.01);
     ///
     /// assert_eq!(filter.hasher_count(), 7);
     /// ```
@@ -270,34 +271,27 @@ where
 /// assert_eq!(filter.bit_count(), 10);
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
-pub struct BSSDBloomFilter<T>
-where
-    T: Hash,
-{
+pub struct BSSDBloomFilter {
     bit_vec: BitVec,
     hashers: [SipHasher; 2],
     rng: XorShiftRng,
     bit_count: usize,
     hasher_count: usize,
-    _marker: PhantomData<T>,
 }
 
-impl<T> BSSDBloomFilter<T>
-where
-    T: Hash,
-{
+impl BSSDBloomFilter {
     fn get_hasher_count(fpp: f64) -> usize {
         ((1.0 + fpp.ln() / (1.0 - 1.0 / consts::E).ln() + 1.0) / 2.0).ceil() as usize
     }
 
-    /// Constructs a new, empty `BSSDBloomFilter<T>` with `bit_count` bits per filter and a false
+    /// Constructs a new, empty `BSSDBloomFilter` with `bit_count` bits per filter and a false
     /// positive probability of `fpp`.
     ///
     /// # Examples
     /// ```
     /// use extended_collections::bloom::BSSDBloomFilter;
     ///
-    /// let filter: BSSDBloomFilter<u32> = BSSDBloomFilter::new(10, 0.01);
+    /// let filter = BSSDBloomFilter::new(10, 0.01);
     /// ```
     pub fn new(bit_count: usize, fpp: f64) -> Self {
         let hasher_count = Self::get_hasher_count(fpp);
@@ -311,11 +305,13 @@ where
             rng,
             bit_count,
             hasher_count,
-            _marker: PhantomData,
         }
     }
 
-    fn get_hashes(&self, item: &T) -> [u64; 2] {
+    fn get_hashes<T>(&self, item: &T) -> [u64; 2]
+    where
+        T: Hash,
+    {
         let mut ret = [0; 2];
         for (index, hash) in ret.iter_mut().enumerate() {
             let mut sip = self.hashers[index];
@@ -335,7 +331,10 @@ where
     ///
     /// filter.insert(&"foo");
     /// ```
-    pub fn insert(&mut self, item: &T) {
+    pub fn insert<T>(&mut self, item: &T)
+    where
+        T: Hash,
+    {
         if !self.contains(item) {
             let hashes = self.get_hashes(item);
             let bit_count = self.bit_count();
@@ -368,7 +367,10 @@ where
     /// filter.insert(&"foo");
     /// assert!(filter.contains(&"foo"));
     /// ```
-    pub fn contains(&self, item: &T) -> bool {
+    pub fn contains<T>(&self, item: &T) -> bool
+    where
+        T: Hash,
+    {
         let hashes = self.get_hashes(item);
         (0..self.hasher_count).all(|index| {
             let mut offset = (index as u64).wrapping_mul(hashes[1]) % PRIME;
@@ -385,7 +387,7 @@ where
     /// ```
     /// use extended_collections::bloom::BSSDBloomFilter;
     ///
-    /// let filter: BSSDBloomFilter<u32> = BSSDBloomFilter::new(10, 0.01);
+    /// let filter = BSSDBloomFilter::new(10, 0.01);
     ///
     /// assert_eq!(filter.len(), 70);
     /// ```
@@ -399,7 +401,7 @@ where
     /// ```
     /// use extended_collections::bloom::BSSDBloomFilter;
     ///
-    /// let filter: BSSDBloomFilter<u32> = BSSDBloomFilter::new(10, 0.01);
+    /// let filter = BSSDBloomFilter::new(10, 0.01);
     ///
     /// assert!(!filter.is_empty());
     /// ```
@@ -413,7 +415,7 @@ where
     /// ```
     /// use extended_collections::bloom::BSSDBloomFilter;
     ///
-    /// let filter: BSSDBloomFilter<u32> = BSSDBloomFilter::new(10, 0.01);
+    /// let filter = BSSDBloomFilter::new(10, 0.01);
     ///
     /// assert_eq!(filter.bit_count(), 10);
     /// ```
@@ -427,7 +429,7 @@ where
     /// ```
     /// use extended_collections::bloom::BSSDBloomFilter;
     ///
-    /// let filter: BSSDBloomFilter<u32> = BSSDBloomFilter::new(10, 0.01);
+    /// let filter = BSSDBloomFilter::new(10, 0.01);
     ///
     /// assert_eq!(filter.hasher_count(), 7);
     /// ```
@@ -506,34 +508,27 @@ where
 /// assert_eq!(filter.bit_count(), 10);
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
-pub struct RLBSBloomFilter<T>
-where
-    T: Hash,
-{
+pub struct RLBSBloomFilter {
     bit_vecs: Vec<BitVec>,
     hashers: [SipHasher; 2],
     rng: XorShiftRng,
     bit_count: usize,
     hasher_count: usize,
-    _marker: PhantomData<T>,
 }
 
-impl<T> RLBSBloomFilter<T>
-where
-    T: Hash,
-{
+impl RLBSBloomFilter {
     fn get_hasher_count(fpp: f64) -> usize {
         ((1.0 + fpp.ln() / (1.0 - 1.0 / consts::E).ln() + 1.0) / 2.0).ceil() as usize
     }
 
-    /// Constructs a new, empty `RLBSBloomFilter<T>` with `bit_count` bits per filter and a false
+    /// Constructs a new, empty `RLBSBloomFilter` with `bit_count` bits per filter and a false
     /// positive probability of `fpp`.
     ///
     /// # Examples
     /// ```
     /// use extended_collections::bloom::RLBSBloomFilter;
     ///
-    /// let filter: RLBSBloomFilter<u32> = RLBSBloomFilter::new(10, 0.01);
+    /// let filter = RLBSBloomFilter::new(10, 0.01);
     /// ```
     pub fn new(bit_count: usize, fpp: f64) -> Self {
         let hasher_count = Self::get_hasher_count(fpp);
@@ -547,11 +542,13 @@ where
             rng,
             bit_count,
             hasher_count,
-            _marker: PhantomData,
         }
     }
 
-    fn get_hashes(&self, item: &T) -> [u64; 2] {
+    fn get_hashes<T>(&self, item: &T) -> [u64; 2]
+    where
+        T: Hash,
+    {
         let mut ret = [0; 2];
         for (index, hash) in ret.iter_mut().enumerate() {
             let mut sip = self.hashers[index];
@@ -571,7 +568,10 @@ where
     ///
     /// filter.insert(&"foo");
     /// ```
-    pub fn insert(&mut self, item: &T) {
+    pub fn insert<T>(&mut self, item: &T)
+    where
+        T: Hash,
+    {
         if !self.contains(item) {
             let hashes = self.get_hashes(item);
             let bit_count = self.bit_count();
@@ -606,7 +606,10 @@ where
     /// filter.insert(&"foo");
     /// assert!(filter.contains(&"foo"));
     /// ```
-    pub fn contains(&self, item: &T) -> bool {
+    pub fn contains<T>(&self, item: &T) -> bool
+    where
+        T: Hash,
+    {
         let hashes = self.get_hashes(item);
         (0..self.hasher_count).all(|filter_index| {
             let mut offset = (filter_index as u64).wrapping_mul(hashes[1]) % PRIME;
@@ -622,7 +625,7 @@ where
     /// ```
     /// use extended_collections::bloom::RLBSBloomFilter;
     ///
-    /// let filter: RLBSBloomFilter<u32> = RLBSBloomFilter::new(10, 0.01);
+    /// let filter = RLBSBloomFilter::new(10, 0.01);
     ///
     /// assert_eq!(filter.len(), 70);
     /// ```
@@ -636,7 +639,7 @@ where
     /// ```
     /// use extended_collections::bloom::RLBSBloomFilter;
     ///
-    /// let filter: RLBSBloomFilter<u32> = RLBSBloomFilter::new(10, 0.01);
+    /// let filter = RLBSBloomFilter::new(10, 0.01);
     ///
     /// assert!(!filter.is_empty());
     /// ```
@@ -650,7 +653,7 @@ where
     /// ```
     /// use extended_collections::bloom::RLBSBloomFilter;
     ///
-    /// let filter: RLBSBloomFilter<u32> = RLBSBloomFilter::new(10, 0.01);
+    /// let filter = RLBSBloomFilter::new(10, 0.01);
     ///
     /// assert_eq!(filter.bit_count(), 10);
     /// ```
@@ -664,7 +667,7 @@ where
     /// ```
     /// use extended_collections::bloom::RLBSBloomFilter;
     ///
-    /// let filter: RLBSBloomFilter<u32> = RLBSBloomFilter::new(10, 0.01);
+    /// let filter = RLBSBloomFilter::new(10, 0.01);
     ///
     /// assert_eq!(filter.hasher_count(), 7);
     /// ```

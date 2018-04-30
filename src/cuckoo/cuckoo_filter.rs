@@ -31,22 +31,15 @@ use std::marker::PhantomData;
 /// assert_eq!(filter.bucket_len(), 32);
 /// assert_eq!(filter.fingerprint_bit_count(), 8);
 /// ```
-pub struct CuckooFilter<T>
-where
-    T: Hash,
-{
+pub struct CuckooFilter {
     max_kicks: usize,
     entries_per_index: usize,
     fingerprint_vec: BitArrayVec,
     pub(super) extra_items: Vec<(u64, usize)>,
     hashers: [SipHasher; 2],
-    _marker: PhantomData<T>,
 }
 
-impl<T> CuckooFilter<T>
-where
-    T: Hash,
-{
+impl CuckooFilter {
     fn get_hashers() -> [SipHasher; 2] {
         let mut rng = XorShiftRng::new_unseeded();
         [
@@ -55,10 +48,10 @@ where
         ]
     }
 
-    /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`.
-    /// By default, the cuckoo filter will have 8 bits per item fingerprint, 4 entries per index,
-    /// and a maximum of 512 item displacements before terminating the insertion process. The
-    /// cuckoo filter will have an estimated maximum false positive probability of 3%.
+    /// Constructs a new, empty `CuckooFilter` with an estimated max capacity of `item_count`. By
+    /// default, the cuckoo filter will have 8 bits per item fingerprint, 4 entries per index, and
+    /// a maximum of 512 item displacements before terminating the insertion process. The cuckoo
+    /// filter will have an estimated maximum false positive probability of 3%.
     ///
     /// The length of each bucket will be rounded off to the next power of two.
     ///
@@ -69,7 +62,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    /// let filter = CuckooFilter::new(100);
     /// ```
     pub fn new(item_count: usize) -> Self {
         assert!(item_count > 0);
@@ -83,11 +76,10 @@ where
             ),
             extra_items: Vec::new(),
             hashers: Self::get_hashers(),
-            _marker: PhantomData,
         }
     }
 
-    /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`, a
+    /// Constructs a new, empty `CuckooFilter` with an estimated max capacity of `item_count`, a
     /// fingerprint bit count of `fingerprint_bit_count`, `entries_per_index` entries per index,
     /// and a maximum of 512 item displacements before terminating the insertion process. This
     /// method provides no guarantees on the false positive probability of the cuckoo filter.
@@ -102,7 +94,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::from_parameters(100, 16, 8);
+    /// let filter = CuckooFilter::from_parameters(100, 16, 8);
     /// ```
     pub fn from_parameters(
         item_count: usize,
@@ -125,12 +117,11 @@ where
             ),
             extra_items: Vec::new(),
             hashers: Self::get_hashers(),
-            _marker: PhantomData,
         }
     }
 
-    /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`,
-    /// an estimated maximum false positive probability of `fpp`, `entries_per_index` entries per
+    /// Constructs a new, empty `CuckooFilter` with an estimated max capacity of `item_count`, an
+    /// estimated maximum false positive probability of `fpp`, `entries_per_index` entries per
     /// index, and a maximum of 512 item displacements before terminating the insertion process.
     ///
     /// The length of each bucket will be rounded off to the next power of two.
@@ -142,7 +133,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::from_entries_per_index(100, 0.01, 4);
+    /// let filter = CuckooFilter::from_entries_per_index(100, 0.01, 4);
     /// ```
     pub fn from_entries_per_index(item_count: usize, fpp: f64, entries_per_index: usize) -> Self {
         assert!(item_count > 0 && entries_per_index > 0);
@@ -158,12 +149,11 @@ where
             ),
             extra_items: Vec::new(),
             hashers: Self::get_hashers(),
-            _marker: PhantomData,
         }
     }
 
-    /// Constructs a new, empty `CuckooFilter<T>` with an estimated max capacity of `item_count`,
-    /// an estimated maximum false positive probability of `fpp`, a fingerprint bit count of
+    /// Constructs a new, empty `CuckooFilter` with an estimated max capacity of `item_count`, an
+    /// estimated maximum false positive probability of `fpp`, a fingerprint bit count of
     /// `fingerprint_bit_count`, and a maximum of 512 item displacements before terminating the
     /// insertion process.
     ///
@@ -177,7 +167,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::from_fingerprint_bit_count(100, 0.01, 10);
+    /// let filter = CuckooFilter::from_fingerprint_bit_count(100, 0.01, 10);
     /// ```
     pub fn from_fingerprint_bit_count(
         item_count: usize,
@@ -199,11 +189,13 @@ where
             ),
             extra_items: Vec::new(),
             hashers: Self::get_hashers(),
-            _marker: PhantomData,
         }
     }
 
-    fn get_hashes(&self, item: &T) -> [u64; 2] {
+    fn get_hashes<T>(&self, item: &T) -> [u64; 2]
+    where
+        T: Hash,
+    {
         let mut ret = [0; 2];
         for (index, hash) in ret.iter_mut().enumerate() {
             let mut sip = self.hashers[index];
@@ -260,7 +252,10 @@ where
     /// let mut filter = CuckooFilter::new(100);
     /// filter.insert(&"foo");
     /// ```
-    pub fn insert(&mut self, item: &T) {
+    pub fn insert<T>(&mut self, item: &T)
+    where
+        T: Hash,
+    {
         let hashes = self.get_hashes(item);
         let (mut fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(hashes);
         if !self.contains_fingerprint(&fingerprint, index_1, index_2) {
@@ -323,7 +318,10 @@ where
     /// filter.remove(&"foo");
     /// assert!(!filter.contains(&"foo"));
     /// ```
-    pub fn remove(&mut self, item: &T) {
+    pub fn remove<T>(&mut self, item: &T)
+    where
+        T: Hash,
+    {
         let hashes = self.get_hashes(item);
         let (fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(hashes);
         self.remove_fingerprint(&fingerprint, index_1, index_2)
@@ -359,7 +357,10 @@ where
     /// filter.insert(&"foo");
     /// assert!(filter.contains(&"foo"));
     /// ```
-    pub fn contains(&self, item: &T) -> bool {
+    pub fn contains<T>(&self, item: &T) -> bool
+    where
+        T: Hash,
+    {
         let (fingerprint, index_1, index_2) = self.get_fingerprint_and_indexes(self.get_hashes(item));
         self.contains_fingerprint(&fingerprint, index_1, index_2)
     }
@@ -404,7 +405,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    /// let filter = CuckooFilter::new(100);
     ///
     /// assert_eq!(filter.len(), 0);
     /// ```
@@ -418,7 +419,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    /// let filter = CuckooFilter::new(100);
     ///
     /// assert!(filter.is_empty());
     /// ```
@@ -433,7 +434,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    /// let filter = CuckooFilter::new(100);
     ///
     /// assert_eq!(filter.capacity(), 128);
     /// ```
@@ -447,7 +448,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    /// let filter = CuckooFilter::new(100);
     ///
     /// assert_eq!(filter.bucket_len(), 32);
     /// ```
@@ -461,7 +462,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    /// let filter = CuckooFilter::new(100);
     ///
     /// assert_eq!(filter.entries_per_index(), 4);
     /// ```
@@ -507,7 +508,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::CuckooFilter;
     ///
-    /// let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+    /// let filter = CuckooFilter::new(100);
     ///
     /// assert_eq!(filter.fingerprint_bit_count(), 8);
     /// ```
@@ -543,9 +544,9 @@ mod tests {
 
     #[test]
     fn test_get_fingerprint() {
-        let fingerprint = CuckooFilter::<u32>::get_fingerprint(0x7FBFDFEFF7FBFDFE);
+        let fingerprint = CuckooFilter::get_fingerprint(0x7FBFDFEFF7FBFDFE);
         assert_eq!(
-            CuckooFilter::<u32>::get_raw_fingerprint(&fingerprint),
+            CuckooFilter::get_raw_fingerprint(&fingerprint),
             0x7FBFDFEFF7FBFDFE
         );
     }
@@ -554,14 +555,14 @@ mod tests {
     fn test_get_raw_fingerprint() {
         let fingerprint = vec![0xFF, 0xFF];
         assert_eq!(
-            CuckooFilter::<u32>::get_raw_fingerprint(&fingerprint),
+            CuckooFilter::get_raw_fingerprint(&fingerprint),
             0xFFFF
         );
     }
 
     #[test]
     fn test_new() {
-        let filter: CuckooFilter<u32> = CuckooFilter::new(100);
+        let filter = CuckooFilter::new(100);
         assert_eq!(filter.len(), 0);
         assert!(filter.is_empty());
         assert_eq!(filter.capacity(), 128);
@@ -572,7 +573,7 @@ mod tests {
 
     #[test]
     fn test_from_parameters() {
-        let filter: CuckooFilter<u32> = CuckooFilter::from_parameters(100, 16, 8);
+        let filter = CuckooFilter::from_parameters(100, 16, 8);
         assert_eq!(filter.len(), 0);
         assert!(filter.is_empty());
         assert_eq!(filter.capacity(), 128);
@@ -583,7 +584,7 @@ mod tests {
 
     #[test]
     fn test_from_entries_per_index() {
-        let filter: CuckooFilter<u32> = CuckooFilter::from_entries_per_index(100, 0.01, 4);
+        let filter = CuckooFilter::from_entries_per_index(100, 0.01, 4);
         assert_eq!(filter.len(), 0);
         assert!(filter.is_empty());
         assert_eq!(filter.capacity(), 128);
@@ -594,7 +595,7 @@ mod tests {
 
     #[test]
     fn test_from_fingerprint_bit_count() {
-        let filter: CuckooFilter<u32> = CuckooFilter::from_fingerprint_bit_count(100, 0.01, 10);
+        let filter = CuckooFilter::from_fingerprint_bit_count(100, 0.01, 10);
         assert_eq!(filter.len(), 0);
         assert!(filter.is_empty());
         assert_eq!(filter.capacity(), 160);

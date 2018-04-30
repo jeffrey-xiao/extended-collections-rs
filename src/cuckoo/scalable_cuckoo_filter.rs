@@ -8,10 +8,10 @@ use std::hash::Hash;
 /// variations of tradition Bloom filters that support deletion (E.G. counting Bloom filters).
 ///
 /// This implementation is a scalable version of a cuckoo filter inspired by
-/// `ScalableBloomFilter<T>`. Currently, the scalable cuckoo filter will naively insert into the
-/// last inserted cuckoo filter despite the fact that deletions could free space in previously
-/// inserted cuckoo filters. Checking if there is space in previously inserted cuckoo filters is
-/// fairly expensive and would significantly slow down the scalable cuckoo filter.
+/// `ScalableBloomFilter`. Currently, the scalable cuckoo filter will naively insert into the last
+/// inserted cuckoo filter despite the fact that deletions could free space in previously inserted
+/// cuckoo filters. Checking if there is space in previously inserted cuckoo filters is fairly
+/// expensive and would significantly slow down the scalable cuckoo filter.
 ///
 /// The overall false positive probability of the scalable cuckoo filter will be `initial_fpp * 1 /
 /// (1 - tightening_ratio)`.
@@ -33,24 +33,18 @@ use std::hash::Hash;
 /// assert_eq!(filter.capacity(), 128);
 /// assert_eq!(filter.filter_count(), 1);
 /// ```
-pub struct ScalableCuckooFilter<T>
-where
-    T: Hash,
-{
-    filters: Vec<CuckooFilter<T>>,
+pub struct ScalableCuckooFilter {
+    filters: Vec<CuckooFilter>,
     initial_item_count: usize,
     initial_fpp: f64,
     growth_ratio: f64,
     tightening_ratio: f64,
 }
 
-impl<T> ScalableCuckooFilter<T>
-where
-    T: Hash,
-{
-    /// Constructs a new, empty `ScalableCuckooFilter<T>` with an estimated initial item capacity
-    /// of `item_count` and an initial maximum false positive probability of `fpp`. Every time a
-    /// new cuckoo filter is added, the size will be approximately `growth_ratio` multiplied by the
+impl ScalableCuckooFilter {
+    /// Constructs a new, empty `ScalableCuckooFilter` with an estimated initial item capacity of
+    /// `item_count` and an initial maximum false positive probability of `fpp`. Every time a new
+    /// cuckoo filter is added, the size will be approximately `growth_ratio` multiplied by the
     /// previous size, and the false positive probability will be `tightening_ratio` multipled by
     /// the previous false positive probability.
     ///
@@ -60,7 +54,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::ScalableCuckooFilter;
     ///
-    /// let filter: ScalableCuckooFilter<u32> = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
+    /// let filter = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
     /// ```
     pub fn new(item_count: usize, fpp: f64, growth_ratio: f64, tightening_ratio: f64) -> Self {
         ScalableCuckooFilter {
@@ -76,8 +70,8 @@ where
         }
     }
 
-    /// Constructs a new, empty `ScalableCuckooFilter<T>` with an estimated initial item capacity
-    /// of `item_count`, an initial maximum false positive probability of `fpp`, and
+    /// Constructs a new, empty `ScalableCuckooFilter` with an estimated initial item capacity of
+    /// `item_count`, an initial maximum false positive probability of `fpp`, and
     /// `entries_per_index` entries per index. Every time a new cuckoo filter is added, the size
     /// will be approximately `growth_ratio` multiplied by the previous size, and the false positive
     /// probability will be `tightening_ratio` multipled by the previous false positive probability.
@@ -88,7 +82,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::ScalableCuckooFilter;
     ///
-    /// let filter: ScalableCuckooFilter<u32> = ScalableCuckooFilter::from_entries_per_index(100, 0.01, 4, 2.0, 0.5);
+    /// let filter = ScalableCuckooFilter::from_entries_per_index(100, 0.01, 4, 2.0, 0.5);
     /// ```
     pub fn from_entries_per_index(
         item_count: usize,
@@ -129,7 +123,7 @@ where
                 for fingerprint_entry in filter.extra_items.drain(..) {
                     let index_1 = fingerprint_entry.1;
                     let index_2 = (fingerprint_entry.1 ^ fingerprint_entry.0 as usize) % new_filter.bucket_len();
-                    let fingerprint = CuckooFilter::<T>::get_fingerprint(fingerprint_entry.0);
+                    let fingerprint = CuckooFilter::get_fingerprint(fingerprint_entry.0);
                     // Should always have room in a new filter.
                     if !new_filter.insert_fingerprint(fingerprint.as_slice(), index_1) {
                         new_filter.insert_fingerprint(fingerprint.as_slice(), index_2);
@@ -155,7 +149,10 @@ where
     ///
     /// filter.insert(&"foo");
     /// ```
-    pub fn insert(&mut self, item: &T) {
+    pub fn insert<T>(&mut self, item: &T)
+    where
+        T: Hash,
+    {
         if !self.filters
             .iter()
             .any(|ref mut filter| filter.contains(item))
@@ -182,7 +179,10 @@ where
     /// filter.insert(&"foo");
     /// assert!(filter.contains(&"foo"));
     /// ```
-    pub fn contains(&mut self, item: &T) -> bool {
+    pub fn contains<T>(&mut self, item: &T) -> bool
+    where
+        T: Hash,
+    {
         self.filters
             .iter()
             .any(|ref mut filter| filter.contains(item))
@@ -203,7 +203,10 @@ where
     /// filter.remove(&"foo");
     /// assert!(!filter.contains(&"foo"));
     /// ```
-    pub fn remove(&mut self, item: &T) {
+    pub fn remove<T>(&mut self, item: &T)
+    where
+        T: Hash,
+    {
         for filter in &mut self.filters {
             filter.remove(item);
         }
@@ -215,7 +218,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::ScalableCuckooFilter;
     ///
-    /// let filter: ScalableCuckooFilter<u32> = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
+    /// let filter = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
     ///
     /// assert_eq!(filter.len(), 0);
     /// ```
@@ -229,7 +232,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::ScalableCuckooFilter;
     ///
-    /// let filter: ScalableCuckooFilter<u32> = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
+    /// let filter = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
     ///
     /// assert!(filter.is_empty());
     /// ```
@@ -244,7 +247,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::ScalableCuckooFilter;
     ///
-    /// let filter: ScalableCuckooFilter<u32> = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
+    /// let filter = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
     ///
     /// assert_eq!(filter.capacity(), 128);
     /// ```
@@ -258,7 +261,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::ScalableCuckooFilter;
     ///
-    /// let filter: ScalableCuckooFilter<u32> = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
+    /// let filter = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
     ///
     /// assert_eq!(filter.entries_per_index(), 4);
     /// ```
@@ -277,7 +280,7 @@ where
     /// ```
     /// use extended_collections::cuckoo::ScalableCuckooFilter;
     ///
-    /// let filter: ScalableCuckooFilter<u32> = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
+    /// let filter = ScalableCuckooFilter::new(100, 0.01, 2.0, 0.5);
     ///
     /// assert_eq!(filter.filter_count(), 1);
     /// ```

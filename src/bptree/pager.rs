@@ -1,9 +1,9 @@
-use bincode::{self, deserialize, serialize, serialized_size};
+use bincode::{deserialize, self, serialize, serialized_size};
 use bptree::node::{LeafNode, Node};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fs::{File, OpenOptions};
-use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, SeekFrom, self, Write};
 use std::marker::PhantomData;
 use std::mem;
 use std::result;
