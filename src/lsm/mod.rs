@@ -3,7 +3,7 @@ mod sstable;
 mod write_ahead_log;
 
 pub use self::size_tiered::SizeTieredStrategy;
-use self::sstable::{SSTable, SSTableBuilder};
+pub use self::sstable::{SSTable, SSTableBuilder};
 
 use bincode::{deserialize, self, serialize, serialized_size};
 use bloom::BloomFilter;
@@ -29,6 +29,8 @@ pub enum Error {
 pub type Result<T> = result::Result<T, Error>;
 
 pub trait CompactionStrategy<T, U> {
+    fn get_db_path(&self) -> &Path;
+
     fn get_max_in_memory_size(&self) -> u64;
 
     fn try_compact(&self, sstable: SSTable<T, U>) -> Result<()>;
@@ -49,11 +51,8 @@ where
     U: Clone + DeserializeOwned + Serialize,
     V: CompactionStrategy<T, U>,
 {
-    pub fn new<P>(db_path: P, compaction_strategy: V) -> Result<Self>
-    where
-        P: AsRef<Path>,
-    {
-        let db_path = PathBuf::from(db_path.as_ref());
+    pub fn new(compaction_strategy: V) -> Result<Self> {
+        let db_path = PathBuf::from(compaction_strategy.get_db_path());
         fs::create_dir(db_path.clone()).map_err(Error::IOError)?;
         Ok(Tree {
             db_path,

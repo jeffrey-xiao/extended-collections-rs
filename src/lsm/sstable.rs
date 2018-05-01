@@ -5,14 +5,13 @@ use lsm::{Error, Result};
 use rand::{thread_rng, Rng};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::io::{BufWriter, BufReader, BufRead, Read, Seek, SeekFrom, Write};
-use std::iter::ExactSizeIterator;
+use std::io::{BufWriter, BufReader, BufRead, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::fs;
 use std::hash::Hash;
 use std::marker::{PhantomData};
 use std::path::{Path, PathBuf};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct SSTableSummary<T> {
     pub item_count: usize,
     pub size: u64,
@@ -136,7 +135,7 @@ where
     }
 }
 
-
+#[derive(Clone)]
 pub struct SSTable<T, U> {
     path: PathBuf,
     pub summary: SSTableSummary<T>,
@@ -191,11 +190,9 @@ where
     }
 
     pub fn get(&self, key: &T) -> Result<Option<Option<U>>> {
-        println!("looking in filter file");
         if !self.filter.contains(key) {
             return Ok(None);
         }
-        println!("looking in summary file");
 
         let index = {
             match Self::floor_offset(&self.summary.index, key) {
@@ -204,7 +201,6 @@ where
             }
         };
 
-
         let mut index_file = fs::File::open(self.path.join("index.dat")).map_err(Error::IOError)?;
         index_file.seek(SeekFrom::Start(self.summary.index[index].1)).map_err(Error::IOError)?;
         let size = index_file.read_u64::<BigEndian>().map_err(Error::IOError)?;
@@ -212,7 +208,6 @@ where
         index_file.read(buffer.as_mut_slice()).map_err(Error::IOError)?;
         let index_block: Vec<(T, u64)> = deserialize(&buffer).map_err(Error::SerdeError)?;
 
-        println!("looking in index file");
 
         let index = {
             match index_block.binary_search_by_key(&key, |index_entry| &index_entry.0) {
@@ -221,13 +216,53 @@ where
             }
         };
 
-        println!("looking in data file");
-
         let mut data_file = fs::File::open(self.path.join("data.dat")).map_err(Error::IOError)?;
         data_file.seek(SeekFrom::Start(index_block[index].1)).map_err(Error::IOError)?;
         let size = data_file.read_u64::<BigEndian>().map_err(Error::IOError)?;
         let mut buffer = vec![0; size as usize];
         data_file.read(buffer.as_mut_slice()).map_err(Error::IOError)?;
         deserialize(&buffer).map_err(Error::SerdeError).map(|entry: (T, Option<U>)| Some(entry.1))
+    }
+
+    pub fn data_iter(&self) -> Result<SSTableDataIter<T, U>> {
+        Ok(SSTableDataIter {
+            data_file: fs::File::open(self.path.join("data.dat")).map_err(Error::IOError)?,
+            _marker: PhantomData,
+        })
+    }
+}
+
+pub struct SSTableDataIter<T, U> {
+    data_file: fs::File,
+    _marker: PhantomData<(T, U)>,
+}
+
+impl<T, U> Iterator for SSTableDataIter<T, U>
+where
+    T: DeserializeOwned,
+    U: DeserializeOwned,
+{
+    type Item = Result<(T, Option<U>)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let size = {
+            match self.data_file.read_u64::<BigEndian>() {
+                Ok(size) => size,
+                Err(error) => {
+                    match error.kind() {
+                        ErrorKind::UnexpectedEof => return None,
+                        _ => return Some(Err(error).map_err(Error::IOError)),
+                    }
+                }
+            }
+        };
+
+        let mut buffer = vec![0; size as usize];
+        let result = self.data_file.read(buffer.as_mut_slice()).map_err(Error::IOError);
+        if let Err(error) = result {
+            return Some(Err(error));
+        }
+
+        Some(deserialize(&buffer).map_err(Error::SerdeError))
     }
 }

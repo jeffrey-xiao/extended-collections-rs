@@ -1,12 +1,16 @@
 use bincode::{deserialize, self, serialize, serialized_size};
-use lsm::{CompactionStrategy, sstable::SSTable, Result};
+use lsm::{CompactionStrategy, SSTable, SSTableBuilder, Result};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::collections::Bound;
 use std::hash::Hash;
 use std::io::{BufWriter, BufReader, BufRead, Read, Write};
-use std::path::{PathBuf};
-use std::sync::{Arc, Mutex, atomic::AtomicBool};
+use std::marker::Send;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
+use std::thread;
 
+#[derive(Clone)]
 struct SizeTieredMetadata<T, U> {
     sstables: Vec<SSTable<T, U>>,
 }
@@ -25,42 +29,45 @@ where
     pub fn should_compact(&self) -> bool { false }
 }
 
+#[derive(Clone)]
 pub struct SizeTieredStrategy<T, U> {
+    db_path: PathBuf,
     min_sstable_count: usize,
     min_sstable_size: u64,
     bucket_low: f64,
     bucket_high: f64,
     max_in_memory_size: u64,
-    should_compact: AtomicBool,
-    is_compacting: AtomicBool,
+    is_compacting: Arc<AtomicBool>,
     curr_metadata: Arc<Mutex<SizeTieredMetadata<T, U>>>,
     next_metadata: Arc<Mutex<Option<SizeTieredMetadata<T, U>>>>,
-    new_sstables: Vec<SSTable<T, U>>,
 }
 
 impl<T, U> SizeTieredStrategy<T, U>
 where
-    T: Hash + DeserializeOwned + Serialize,
-    U: DeserializeOwned + Serialize,
+    T: 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize,
+    U: 'static + Clone + DeserializeOwned + Send + Serialize,
 {
-    pub fn new(
+    pub fn new<P>(
+        db_path: P,
         min_sstable_count: usize,
         min_sstable_size: u64,
         bucket_low: f64,
         bucket_high: f64,
         max_in_memory_size: u64,
-    ) -> Self {
+    ) -> Self
+    where
+        P: AsRef<Path>,
+    {
         SizeTieredStrategy {
+            db_path: PathBuf::from(db_path.as_ref()),
             min_sstable_count,
             min_sstable_size,
             bucket_low,
             bucket_high,
             max_in_memory_size,
-            should_compact: AtomicBool::new(false),
-            is_compacting: AtomicBool::new(false),
+            is_compacting: Arc::new(AtomicBool::new(false)),
             curr_metadata: Arc::new(Mutex::new(SizeTieredMetadata::new())),
             next_metadata: Arc::new(Mutex::new(None)),
-            new_sstables: Vec::new(),
         }
     }
 
@@ -94,13 +101,46 @@ where
             None
         }
     }
+
+    fn spawn_compaction_thread(
+        &self,
+        mut next_metadata: SizeTieredMetadata<T, U>,
+        range: (usize, usize),
+    ) {
+        let strategy = (*self).clone();
+        thread::spawn(move || {
+            println!("Started compacting.");
+            let old_sstables: Vec<SSTable<T, U>> = next_metadata.sstables
+                .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
+                .collect();
+
+            let new_sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
+                strategy.db_path,
+                old_sstables.iter().map(|sstable| sstable.summary.item_count).sum(),
+            ).unwrap();
+
+            let old_sstable_data_iters = old_sstables.iter().map(|sstable| sstable.data_iter());
+
+            strategy.is_compacting.store(false, Ordering::Release);
+            println!("Finished compacting.");
+        });
+        self.is_compacting.store(true, Ordering::Release);
+    }
 }
 
 impl<T, U> CompactionStrategy<T, U> for SizeTieredStrategy<T, U>
 where
-    T: Hash + DeserializeOwned + Ord + Serialize,
-    U: DeserializeOwned + Serialize,
+    T: 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize,
+    U: 'static + Clone + DeserializeOwned + Send + Serialize,
 {
+    fn get_db_path(&self) -> &Path {
+        self.db_path.as_path()
+    }
+
+    fn get_max_in_memory_size(&self) -> u64 {
+        self.max_in_memory_size
+    }
+
     fn try_compact(&self, mut sstable: SSTable<T, U>) -> Result<()> {
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
         sstable.summary.tag = {
@@ -113,17 +153,17 @@ where
             }
         };
         curr_metadata.sstables.push(sstable);
-        curr_metadata.sstables.sort_by_key(|sstable| sstable.summary.size);
+        if self.is_compacting.load(Ordering::Acquire) {
+            return Ok(());
+        }
 
+        curr_metadata.sstables.sort_by_key(|sstable| sstable.summary.size);
         if let Some(range) = self.get_compaction_range(&*curr_metadata) {
-            println!("COMPACTING {:?}", range);
+            // taking snapshot of current metadata
+            self.spawn_compaction_thread((*curr_metadata).clone(), range);
         }
 
         Ok(())
-    }
-
-    fn get_max_in_memory_size(&self) -> u64 {
-        self.max_in_memory_size
     }
 
     fn get(&self, key: &T) -> Result<Option<U>> {
