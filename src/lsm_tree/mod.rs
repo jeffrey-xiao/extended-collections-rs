@@ -11,13 +11,11 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use std::error;
 use std::fmt;
-use std::fs;
 use std::hash::Hash;
 use std::io::{self};
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::result;
-use std::sync::{Arc};
 
 #[derive(Debug)]
 pub enum Error {
@@ -69,16 +67,15 @@ pub trait CompactionStrategy<T, U> {
 
     fn get_max_in_memory_size(&self) -> u64;
 
-    fn try_compact(&self, sstable: SSTable<T, U>) -> Result<()>;
+    fn try_compact(&mut self, sstable: SSTable<T, U>) -> Result<()>;
 
     fn get(&self, key: &T) -> Result<Option<U>>;
 }
 
 pub struct LsmMap<T, U, V> {
-    db_path: PathBuf,
     in_memory_tree: BTreeMap<T, Option<U>>,
     in_memory_usage: u64,
-    compaction_strategy: Arc<V>,
+    compaction_strategy: V,
 }
 
 impl<T, U, V> LsmMap<T, U, V>
@@ -87,15 +84,12 @@ where
     U: ::std::fmt::Debug + Clone + DeserializeOwned + Serialize,
     V: CompactionStrategy<T, U>,
 {
-    pub fn new(compaction_strategy: V) -> Result<Self> {
-        let db_path = PathBuf::from(compaction_strategy.get_db_path());
-        fs::create_dir(db_path.as_path())?;
-        Ok(LsmMap {
-            db_path,
+    pub fn new(compaction_strategy: V) -> Self {
+        LsmMap {
             in_memory_tree: BTreeMap::new(),
             in_memory_usage: 0,
-            compaction_strategy: Arc::new(compaction_strategy),
-        })
+            compaction_strategy: compaction_strategy,
+        }
     }
 
     fn try_compact(&mut self) -> Result<()> {
@@ -103,7 +97,10 @@ where
             return Ok(());
         }
         self.in_memory_usage = 0;
-        let mut sstable_builder = SSTableBuilder::new(&self.db_path, self.in_memory_tree.len())?;
+        let mut sstable_builder = SSTableBuilder::new(
+            self.compaction_strategy.get_db_path(),
+            self.in_memory_tree.len(),
+        )?;
         for entry in mem::replace(&mut self.in_memory_tree, BTreeMap::new()) {
             sstable_builder.append(entry.0, entry.1)?;
         }
@@ -127,14 +124,17 @@ where
     pub fn remove(&mut self, key: T) -> Result<()> {
         let key_size = serialized_size(&key)?;
         if self.in_memory_tree.contains_key(&key) {
-            let value_size = serialized_size(&self.in_memory_tree[&key])
-                ?;
+            let value_size = serialized_size(&self.in_memory_tree[&key])?;
             self.in_memory_usage -= key_size + value_size;
         }
         self.in_memory_usage += serialized_size(&key)?;
         self.in_memory_usage += serialized_size::<Option<U>>(&None)?;
         self.in_memory_tree.insert(key, None);
         self.try_compact()
+    }
+
+    pub fn contains_key(&self, key: &T) -> Result<bool> {
+        self.get(key).map(|value| value.is_some())
     }
 
     pub fn get(&self, key: &T) -> Result<Option<U>> {

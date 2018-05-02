@@ -1,4 +1,4 @@
-use bincode::serialize;
+use bincode::{deserialize, serialize};
 use lsm_tree::{CompactionStrategy, SSTable, SSTableBuilder, SSTableDataIter, Result};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -6,7 +6,7 @@ use std::collections::{BinaryHeap, Bound, HashSet};
 use std::cmp;
 use std::fs;
 use std::hash::Hash;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::iter::FromIterator;
 use std::marker::Send;
 use std::mem;
@@ -17,6 +17,11 @@ use std::thread;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SizeTieredMetadata<T, U> {
+    min_sstable_count: usize,
+    min_sstable_size: u64,
+    bucket_low: f64,
+    bucket_high: f64,
+    max_in_memory_size: u64,
     sstables: Vec<Arc<SSTable<T, U>>>,
 }
 
@@ -25,21 +30,27 @@ where
     T: Hash + DeserializeOwned + Serialize,
     U: DeserializeOwned + Serialize,
 {
-    pub fn new() -> Self {
+    pub fn new(
+        min_sstable_count: usize,
+        min_sstable_size: u64,
+        bucket_low: f64,
+        bucket_high: f64,
+        max_in_memory_size: u64,
+    ) -> Self {
         SizeTieredMetadata {
+            min_sstable_count,
+            min_sstable_size,
+            bucket_low,
+            bucket_high,
+            max_in_memory_size,
             sstables: Vec::new(),
         }
     }
 }
 
-#[derive(Clone)]
 pub struct SizeTieredStrategy<T, U> {
     db_path: PathBuf,
-    min_sstable_count: usize,
-    min_sstable_size: u64,
-    bucket_low: f64,
-    bucket_high: f64,
-    max_in_memory_size: u64,
+    compaction_thread_join_handle: Option<thread::JoinHandle<()>>,
     is_compacting: Arc<AtomicBool>,
     curr_metadata: Arc<Mutex<SizeTieredMetadata<T, U>>>,
     next_metadata: Arc<Mutex<Option<SizeTieredMetadata<T, U>>>>,
@@ -57,21 +68,40 @@ where
         bucket_low: f64,
         bucket_high: f64,
         max_in_memory_size: u64,
-    ) -> Self
+    ) -> Result<Self>
     where
         P: AsRef<Path>,
     {
-        SizeTieredStrategy {
+        fs::create_dir(db_path.as_ref())?;
+        Ok(SizeTieredStrategy {
             db_path: PathBuf::from(db_path.as_ref()),
-            min_sstable_count,
-            min_sstable_size,
-            bucket_low,
-            bucket_high,
-            max_in_memory_size,
+            compaction_thread_join_handle: None,
             is_compacting: Arc::new(AtomicBool::new(false)),
-            curr_metadata: Arc::new(Mutex::new(SizeTieredMetadata::new())),
+            curr_metadata: Arc::new(Mutex::new(SizeTieredMetadata::new(
+                min_sstable_count,
+                min_sstable_size,
+                bucket_low,
+                bucket_high,
+                max_in_memory_size,
+            ))),
             next_metadata: Arc::new(Mutex::new(None)),
-        }
+        })
+    }
+
+    pub fn open<P>(db_path: P) -> Result<Self>
+    where
+        P: AsRef<Path>,
+    {
+        let mut metadata_file = fs::File::open(db_path.as_ref().join("metadata.dat"))?;
+        let mut buffer = Vec::new();
+        metadata_file.read_to_end(&mut buffer)?;
+        Ok(SizeTieredStrategy {
+            db_path: PathBuf::from(db_path.as_ref()),
+            compaction_thread_join_handle: None,
+            is_compacting: Arc::new(AtomicBool::new(false)),
+            curr_metadata: Arc::new(Mutex::new(deserialize(&buffer)?)),
+            next_metadata: Arc::new(Mutex::new(None)),
+        })
     }
 
     fn get_compaction_range(&self, metadata: &SizeTieredMetadata<T, U>) -> Option<(usize, usize)> {
@@ -83,14 +113,14 @@ where
             let curr_size = metadata.sstables[curr].summary.size;
             let curr_avg = (range_size + curr_size) as f64 / (curr - start + 1) as f64;
 
-            let in_min_bucket = curr_size <= self.min_sstable_size;
-            let in_bucket = curr_avg * self.bucket_low <= start_size as f64
-                && curr_size as f64 <= curr_avg * self.bucket_high;
+            let in_min_bucket = curr_size <= metadata.min_sstable_size;
+            let in_bucket = curr_avg * metadata.bucket_low <= start_size as f64
+                && curr_size as f64 <= curr_avg * metadata.bucket_high;
 
             curr += 1;
             if in_min_bucket || in_bucket {
                 range_size += curr_size;
-            } else if curr - start > self.min_sstable_count {
+            } else if curr - start > metadata.min_sstable_count {
                 return Some((start, curr));
             } else {
                 range_size = 0;
@@ -98,7 +128,7 @@ where
             }
         }
 
-        if curr - start > self.min_sstable_count {
+        if curr - start > metadata.min_sstable_count {
             Some((start, curr))
         } else {
             None
@@ -106,17 +136,20 @@ where
     }
 
     fn spawn_compaction_thread(
-        &self,
-        mut next_metadata: SizeTieredMetadata<T, U>,
+        &mut self,
+        mut metadata: SizeTieredMetadata<T, U>,
         range: (usize, usize),
     ) {
-        let strategy = (*self).clone();
-        thread::spawn(move || {
+        let db_path = self.db_path.clone();
+        let curr_metadata = self.curr_metadata.clone();
+        let next_metadata = self.next_metadata.clone();
+        let is_compacting = self.is_compacting.clone();
+        self.compaction_thread_join_handle = Some(thread::spawn(move || {
             println!("Started compacting.");
-            let mut old_sstables: Vec<Arc<SSTable<T, U>>> = next_metadata.sstables
+            let mut old_sstables: Vec<Arc<SSTable<T, U>>> = metadata.sstables
                 .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
                 .collect();
-            println!("next sstables {:?}", next_metadata.sstables);
+            // println!("next sstables {:?}", metadata.sstables);
             old_sstables.sort_by_key(|sstable| sstable.summary.tag);
 
             let new_tag = {
@@ -127,11 +160,11 @@ where
             };
 
             let mut new_sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
-                strategy.db_path,
+                db_path,
                 old_sstables.iter().map(|sstable| sstable.summary.item_count).sum(),
             ).unwrap();
 
-            println!("old sstables {:#?}", old_sstables);
+            // println!("old sstables {:#?}", old_sstables);
             let mut old_sstable_data_iters: Vec<SSTableDataIter<T, U>> = old_sstables
                 .iter()
                 .map(|sstable| sstable.data_iter().unwrap())
@@ -169,23 +202,23 @@ where
 
             new_sstable_builder.summary.tag = new_tag;
             let new_sstable = Arc::new(SSTable::new(new_sstable_builder.flush().unwrap()).unwrap());
-            next_metadata.sstables.push(new_sstable);
+            metadata.sstables.push(new_sstable);
 
-            let curr_metadata = strategy.curr_metadata.lock().unwrap();
-            next_metadata.sstables.extend(
+            let curr_metadata = curr_metadata.lock().unwrap();
+            metadata.sstables.extend(
                 curr_metadata.sstables
                     .iter()
                     .filter(|sstable| sstable.summary.tag > new_tag)
                     .map(|sstable| Arc::clone(sstable)),
             );
 
-            *strategy.next_metadata.lock().unwrap() = Some(next_metadata);
+            *next_metadata.lock().unwrap() = Some(metadata);
 
-            strategy.is_compacting.store(false, atomic::Ordering::Release);
+            is_compacting.store(false, atomic::Ordering::Release);
             println!("Finished compacting.");
-            println!("New sstable: {:?}", new_sstable_builder.path);
-            println!("New metadata: {:#?}", *strategy.next_metadata.lock().unwrap());
-        });
+            // println!("New sstable: {:?}", new_sstable_builder.path);
+            // println!("New metadata: {:#?}", *next_metadata.lock().unwrap());
+        }));
         self.is_compacting.store(true, atomic::Ordering::Release);
     }
 
@@ -204,8 +237,8 @@ where
 
             for old_sstable in old_sstables {
                 if !new_sstable_paths.contains(&old_sstable.path) {
-                    println!("Removing {:?}", old_sstable.path);
-                    fs::remove_dir_all(old_sstable.path.clone())?;
+                    // println!("Removing {:?}", old_sstable.path);
+                    fs::remove_dir_all(old_sstable.path.as_path())?;
                 }
             }
         }
@@ -232,31 +265,34 @@ where
     }
 
     fn get_max_in_memory_size(&self) -> u64 {
-        self.max_in_memory_size
+        self.curr_metadata.lock().unwrap().max_in_memory_size
     }
 
-    fn try_compact(&self, mut sstable: SSTable<T, U>) -> Result<()> {
+    fn try_compact(&mut self, mut sstable: SSTable<T, U>) -> Result<()> {
         self.try_replace_metadata()?;
-        let mut curr_metadata = self.curr_metadata.lock().unwrap();
-        sstable.summary.tag = {
-            let sstable = curr_metadata.sstables
-                .iter()
-                .max_by_key(|sstable| sstable.summary.tag);
-            match sstable {
-                Some(sstable) => sstable.summary.tag + 1,
-                None => 0,
-            }
+        let mut metadata_snapshot = {
+            let mut curr_metadata = self.curr_metadata.lock().unwrap();
+            sstable.summary.tag = {
+                let sstable = curr_metadata.sstables
+                    .iter()
+                    .max_by_key(|sstable| sstable.summary.tag);
+                match sstable {
+                    Some(sstable) => sstable.summary.tag + 1,
+                    None => 0,
+                }
+            };
+            curr_metadata.sstables.push(Arc::new(sstable));
+            self.flush_metadata(&*curr_metadata)?;
+            curr_metadata.clone()
         };
-        curr_metadata.sstables.push(Arc::new(sstable));
-        self.flush_metadata(&*curr_metadata)?;
         if self.is_compacting.load(atomic::Ordering::Acquire) {
             return Ok(());
         }
 
-        curr_metadata.sstables.sort_by_key(|sstable| sstable.summary.size);
-        if let Some(range) = self.get_compaction_range(&*curr_metadata) {
+        metadata_snapshot.sstables.sort_by_key(|sstable| sstable.summary.size);
+        if let Some(range) = self.get_compaction_range(&metadata_snapshot) {
             // taking snapshot of current metadata
-            self.spawn_compaction_thread((*curr_metadata).clone(), range);
+            self.spawn_compaction_thread(metadata_snapshot, range);
         }
 
         Ok(())
@@ -264,16 +300,25 @@ where
 
     fn get(&self, key: &T) -> Result<Option<U>> {
         self.try_replace_metadata()?;
-        let mut curr_metadata = self.curr_metadata.lock().unwrap();
-        curr_metadata.sstables.sort_by_key(|sstable| sstable.summary.tag);
-        curr_metadata.sstables.reverse();
+        let curr_metadata = self.curr_metadata.lock().unwrap();
 
-        for sstable in &curr_metadata.sstables {
+        for sstable in curr_metadata.sstables.iter().rev() {
             if let Some(value) = sstable.get(key)? {
                 return Ok(value);
             }
         }
 
         Ok(None)
+    }
+}
+
+impl<T, U> Drop for SizeTieredStrategy<T, U> {
+    fn drop(&mut self) {
+        if let Some(compaction_thread_join_handle) = self.compaction_thread_join_handle.take() {
+            match compaction_thread_join_handle.join() {
+                Ok(_) => println!("Child thread terminated successfully."),
+                Err(error) => println!("Child thread terminated with error: {:?}", error),
+            }
+        }
     }
 }
