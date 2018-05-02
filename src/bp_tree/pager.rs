@@ -32,15 +32,15 @@ impl From<bincode::Error> for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match self {
-            Error::IOError(error) => error.description(),
-            Error::SerdeError(error) => error.description(),
+            &Error::IOError(ref error) => error.description(),
+            &Error::SerdeError(ref error) => error.description(),
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         match self {
-            Error::IOError(error) => error.cause(),
-            Error::SerdeError(error) => error.cause(),
+            &Error::IOError(ref error) => error.cause(),
+            &Error::SerdeError(ref error) => error.cause(),
         }
     }
 }
@@ -48,8 +48,8 @@ impl error::Error for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::IOError(error) => write!(f, "{}", error),
-            Error::SerdeError(error) => write!(f, "{}", error),
+            &Error::IOError(ref error) => write!(f, "{}", error),
+            &Error::SerdeError(ref error) => write!(f, "{}", error),
         }
     }
 }
