@@ -4,16 +4,13 @@ use bloom::BloomFilter;
 use entry::Entry;
 use lsm_tree::{Error, Result};
 use rand::{thread_rng, Rng};
-use serde::de::{Deserialize, DeserializeOwned, Deserializer, Visitor};
-use serde::ser::{Serialize, Serializer};
-use std::error;
-use std::fmt;
+use serde::de::DeserializeOwned;
+use serde::ser::Serialize;
 use std::fs;
 use std::hash::Hash;
 use std::io::{BufWriter, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::marker::{PhantomData};
 use std::path::{Path, PathBuf};
-use std::result;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SSTableSummary<T> {

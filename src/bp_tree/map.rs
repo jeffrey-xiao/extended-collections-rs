@@ -36,7 +36,7 @@ type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 ///
 /// assert_eq!(map.remove(&0)?, Some((0, 1)));
 /// assert_eq!(map.remove(&1)?, None);
-/// # fs::remove_file("example.dat").map_err(bp_tree::Error::IOError)?;
+/// # fs::remove_file("example.dat")?;
 /// # Ok(())
 /// # }
 /// # foo();
@@ -62,7 +62,7 @@ where
     ///
     /// // keys have a maximum of 4 bytes and values have a maximum of 8 bytes
     /// let map: BpMap<u32, u64> = BpMap::new("example_new.dat", 4, 8)?;
-    /// # fs::remove_file("example_new.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_new.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -92,7 +92,7 @@ where
     /// use extended_collections::bp_tree::BpMap;
     ///
     /// let map: BpMap<u32, u64> = BpMap::with_degrees("example_with_degrees.dat", 4, 8, 3, 3)?;
-    /// # fs::remove_file("example_with_degrees.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_with_degrees.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -168,7 +168,7 @@ where
     /// assert_eq!(map.get(&1)?, Some(1));
     /// assert_eq!(map.insert(1, 2)?, Some((1, 1)));
     /// assert_eq!(map.get(&1)?, Some(2));
-    /// # fs::remove_file("example_insert.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_insert.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -247,7 +247,7 @@ where
     /// map.insert(1, 1)?;
     /// assert_eq!(map.remove(&1)?, Some((1, 1)));
     /// assert_eq!(map.remove(&1)?, None);
-    /// # fs::remove_file("example_remove.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_remove.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -426,7 +426,7 @@ where
     /// map.insert(1, 1)?;
     /// assert!(!map.contains_key(&0)?);
     /// assert!(map.contains_key(&1)?);
-    /// # fs::remove_file("example_contains_key.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_contains_key.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -449,7 +449,7 @@ where
     /// map.insert(1, 1)?;
     /// assert_eq!(map.get(&0)?, None);
     /// assert_eq!(map.get(&1)?, Some(1));
-    /// # fs::remove_file("example_get.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_get.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -481,7 +481,7 @@ where
     /// let mut map: BpMap<u32, u64> = BpMap::new("example_len.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// assert_eq!(map.len(), 1);
-    /// # fs::remove_file("example_len.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_len.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -501,7 +501,7 @@ where
     ///
     /// let map: BpMap<u32, u64> = BpMap::new("example_is_empty.dat", 4, 8)?;
     /// assert!(map.is_empty());
-    /// # fs::remove_file("example_is_empty.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_is_empty.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -524,7 +524,7 @@ where
     /// map.insert(2, 2)?;
     /// map.clear();
     /// assert_eq!(map.is_empty(), true);
-    /// # fs::remove_file("example_clear.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_clear.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -546,7 +546,7 @@ where
     /// map.insert(1, 1)?;
     /// map.insert(3, 3)?;
     /// assert_eq!(map.min()?, Some(1));
-    /// # fs::remove_file("example_min.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_min.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -579,7 +579,7 @@ where
     /// map.insert(1, 1)?;
     /// map.insert(3, 3)?;
     /// assert_eq!(map.max()?, Some(3));
-    /// # fs::remove_file("example_max.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_max.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();
@@ -624,7 +624,7 @@ where
     /// assert_eq!(iterator.next(), Some((1, 1)));
     /// assert_eq!(iterator.next(), Some((2, 2)));
     /// assert_eq!(iterator.next(), None);
-    /// # fs::remove_file("example_iter_mut.dat").map_err(bp_tree::Error::IOError)?;
+    /// # fs::remove_file("example_iter_mut.dat")?;
     /// # Ok(())
     /// # }
     /// # foo();

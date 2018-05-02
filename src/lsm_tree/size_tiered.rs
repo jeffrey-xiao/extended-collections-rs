@@ -1,5 +1,5 @@
 use bincode::serialize;
-use lsm_tree::{CompactionStrategy, Error, SSTable, SSTableBuilder, SSTableDataIter, Result};
+use lsm_tree::{CompactionStrategy, SSTable, SSTableBuilder, SSTableDataIter, Result};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::{BinaryHeap, Bound, HashSet};

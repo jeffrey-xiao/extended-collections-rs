@@ -2,6 +2,8 @@ use bincode::{deserialize, self, serialize, serialized_size};
 use bp_tree::node::{LeafNode, Node};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::error;
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, self, Write};
 use std::marker::PhantomData;
@@ -13,6 +15,43 @@ use std::result;
 pub enum Error {
     IOError(io::Error),
     SerdeError(bincode::Error),
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::IOError(err)
+    }
+}
+
+impl From<bincode::Error> for Error {
+    fn from(err: bincode::Error) -> Error {
+        Error::SerdeError(err)
+    }
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match self {
+            Error::IOError(error) => error.description(),
+            Error::SerdeError(error) => error.description(),
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match self {
+            Error::IOError(error) => error.cause(),
+            Error::SerdeError(error) => error.cause(),
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::IOError(error) => write!(f, "{}", error),
+            Error::SerdeError(error) => write!(f, "{}", error),
+        }
+    }
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -71,19 +110,16 @@ where
             .read(true)
             .write(true)
             .create(true)
-            .open(file_path)
-            .map_err(Error::IOError)?;
-        db_file
-            .set_len(header_size + body_size)
-            .map_err(Error::IOError)?;
+            .open(file_path)?;
+        db_file.set_len(header_size + body_size)?;
 
-        db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
-        let serialized_metadata = &serialize(&metadata).map_err(Error::SerdeError)?;
-        db_file.write_all(serialized_metadata).map_err(Error::IOError)?;
+        db_file.seek(SeekFrom::Start(0))?;
+        let serialized_metadata = &serialize(&metadata)?;
+        db_file.write_all(serialized_metadata)?;
 
-        db_file.seek(SeekFrom::Start(header_size)).map_err(Error::IOError)?;
-        let serialized_node = &serialize(&Node::Leaf(LeafNode::<T, U>::new(leaf_degree))).map_err(Error::SerdeError)?;
-        db_file.write_all(serialized_node).map_err(Error::IOError)?;
+        db_file.seek(SeekFrom::Start(header_size))?;
+        let serialized_node = &serialize(&Node::Leaf(LeafNode::<T, U>::new(leaf_degree)))?;
+        db_file.write_all(serialized_node)?;
 
         let pager = Pager {
             db_file,
@@ -102,13 +138,12 @@ where
             .read(true)
             .write(true)
             .create(true)
-            .open(file_path)
-            .map_err(Error::IOError)?;
-        db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
+            .open(file_path)?;
+        db_file.seek(SeekFrom::Start(0))?;
 
         let mut buffer: Vec<u8> = vec![0; Self::get_metadata_size() as usize];
-        db_file.read_exact(buffer.as_mut_slice()).map_err(Error::IOError)?;
-        let metadata = deserialize(buffer.as_slice()).map_err(Error::SerdeError)?;
+        db_file.read_exact(buffer.as_mut_slice())?;
+        let metadata = deserialize(buffer.as_slice())?;
 
         Ok(Pager {
             db_file,
@@ -152,8 +187,8 @@ where
 
     pub fn set_len(&mut self, len: usize) -> Result<()> {
         self.metadata.len = len;
-        self.db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
-        let serialized_metadata = &serialize(&self.metadata).map_err(Error::SerdeError)?;
+        self.db_file.seek(SeekFrom::Start(0))?;
+        let serialized_metadata = &serialize(&self.metadata)?;
         self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
     }
 
@@ -163,16 +198,16 @@ where
 
     pub fn set_root_page(&mut self, new_root_page: usize) -> Result<()> {
         self.metadata.root_page = new_root_page;
-        self.db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
-        let serialized_metadata = &serialize(&self.metadata).map_err(Error::SerdeError)?;
+        self.db_file.seek(SeekFrom::Start(0))?;
+        let serialized_metadata = &serialize(&self.metadata)?;
         self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
     }
 
     pub fn get_page(&mut self, index: usize) -> Result<Node<T, U>> {
         let offset = self.calculate_page_offset(index);
-        self.db_file.seek(SeekFrom::Start(offset)).map_err(Error::IOError)?;
+        self.db_file.seek(SeekFrom::Start(offset))?;
         let mut buffer: Vec<u8> = vec![0; self.get_node_size() as usize];
-        self.db_file.read_exact(buffer.as_mut_slice()).map_err(Error::IOError)?;
+        self.db_file.read_exact(buffer.as_mut_slice())?;
         deserialize(buffer.as_slice()).map_err(Error::SerdeError)
     }
 
@@ -182,15 +217,15 @@ where
                 self.metadata.pages += 1;
                 let len = self.calculate_page_offset(self.metadata.pages);
                 let node_size = self.get_node_size();
-                self.db_file.set_len(len).map_err(Error::IOError)?;
+                self.db_file.set_len(len)?;
 
-                self.db_file.seek(SeekFrom::Start(len - node_size)).map_err(Error::IOError)?;
-                let serialized_node = &serialize(&new_node).map_err(Error::SerdeError)?;
-                self.db_file.write_all(serialized_node).map_err(Error::IOError)?;
+                self.db_file.seek(SeekFrom::Start(len - node_size))?;
+                let serialized_node = &serialize(&new_node)?;
+                self.db_file.write_all(serialized_node)?;
 
-                self.db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
-                let serialized_metadata = &serialize(&self.metadata).map_err(Error::SerdeError)?;
-                self.db_file.write_all(serialized_metadata).map_err(Error::IOError)?;
+                self.db_file.seek(SeekFrom::Start(0))?;
+                let serialized_metadata = &serialize(&self.metadata)?;
+                self.db_file.write_all(serialized_metadata)?;
 
                 Ok(self.metadata.pages - 1)
             },
@@ -198,20 +233,20 @@ where
                 let offset = self.calculate_page_offset(free_page);
                 let mut buffer: Vec<u8> = vec![0; self.get_node_size() as usize];
 
-                self.db_file.seek(SeekFrom::Start(offset)).map_err(Error::IOError)?;
-                self.db_file.read_exact(buffer.as_mut_slice()).map_err(Error::IOError)?;
+                self.db_file.seek(SeekFrom::Start(offset))?;
+                self.db_file.read_exact(buffer.as_mut_slice())?;
 
-                self.db_file.seek(SeekFrom::Start(offset)).map_err(Error::IOError)?;
-                let serialized_node = &serialize(&new_node).map_err(Error::SerdeError)?;
-                self.db_file.write_all(serialized_node).map_err(Error::IOError)?;
+                self.db_file.seek(SeekFrom::Start(offset))?;
+                let serialized_node = &serialize(&new_node)?;
+                self.db_file.write_all(serialized_node)?;
 
-                match deserialize(buffer.as_slice()).map_err(Error::SerdeError)? {
+                match deserialize(buffer.as_slice())? {
                     Node::Free::<T, U>(new_free_page) => self.metadata.free_page = new_free_page,
                     _ => unreachable!(),
                 }
-                self.db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
-                let serialized_metadata = &serialize(&self.metadata).map_err(Error::SerdeError)?;
-                self.db_file.write_all(serialized_metadata).map_err(Error::IOError)?;
+                self.db_file.seek(SeekFrom::Start(0))?;
+                let serialized_metadata = &serialize(&self.metadata)?;
+                self.db_file.write_all(serialized_metadata)?;
 
                 Ok(free_page)
             }
@@ -221,20 +256,20 @@ where
     pub fn deallocate_node(&mut self, index: usize) -> Result<()> {
         let offset = self.calculate_page_offset(index);
 
-        self.db_file.seek(SeekFrom::Start(offset)).map_err(Error::IOError)?;
-        let serialized_node = &serialize(&Node::Free::<T, U>(self.metadata.free_page)).map_err(Error::SerdeError)?;
-        self.db_file.write_all(serialized_node).map_err(Error::IOError)?;
+        self.db_file.seek(SeekFrom::Start(offset))?;
+        let serialized_node = &serialize(&Node::Free::<T, U>(self.metadata.free_page))?;
+        self.db_file.write_all(serialized_node)?;
 
         self.metadata.free_page = Some(index);
-        self.db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
-        let serialized_metadata = &serialize(&self.metadata).map_err(Error::SerdeError)?;
+        self.db_file.seek(SeekFrom::Start(0))?;
+        let serialized_metadata = &serialize(&self.metadata)?;
         self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
     }
 
     pub fn write_node(&mut self, index: usize, node: &Node<T, U>) -> Result<()> {
         let offset = self.calculate_page_offset(index);
-        self.db_file.seek(SeekFrom::Start(offset)).map_err(Error::IOError)?;
-        let serialized_node = &serialize(&node).map_err(Error::SerdeError)?;
+        self.db_file.seek(SeekFrom::Start(offset))?;
+        let serialized_node = &serialize(&node)?;
         self.db_file.write_all(serialized_node).map_err(Error::IOError)
     }
 
@@ -245,25 +280,25 @@ where
         self.metadata.len = 0;
         self.metadata.root_page = 0;
         self.metadata.free_page = None;
-        self.db_file.set_len(header_size + body_size).map_err(Error::IOError)?;
+        self.db_file.set_len(header_size + body_size)?;
 
-        self.db_file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
-        let serialized_metadata = &serialize(&self.metadata).map_err(Error::SerdeError)?;
-        self.db_file.write_all(serialized_metadata).map_err(Error::IOError)?;
+        self.db_file.seek(SeekFrom::Start(0))?;
+        let serialized_metadata = &serialize(&self.metadata)?;
+        self.db_file.write_all(serialized_metadata)?;
 
-        self.db_file.seek(SeekFrom::Start(header_size)).map_err(Error::IOError)?;
-        let serialized_node = &serialize(&Node::Leaf(LeafNode::<T, U>::new(self.metadata.leaf_degree))).map_err(Error::SerdeError)?;
+        self.db_file.seek(SeekFrom::Start(header_size))?;
+        let serialized_node = &serialize(&Node::Leaf(LeafNode::<T, U>::new(self.metadata.leaf_degree)))?;
         self.db_file.write_all(serialized_node).map_err(Error::IOError)
     }
 
     pub fn validate_key(&self, key: &T) -> Result<()> {
-        assert!(serialized_size(key).map_err(Error::SerdeError)? <= self.metadata.key_size);
+        assert!(serialized_size(key)? <= self.metadata.key_size);
         Ok(())
     }
 
     pub fn validate_value(&self, value: &U) -> Result<()> {
-        println!("{:?}", serialized_size(value).map_err(Error::SerdeError)?);
-        assert!(serialized_size(value).map_err(Error::SerdeError)? <= self.metadata.value_size);
+        println!("{:?}", serialized_size(value)?);
+        assert!(serialized_size(value)? <= self.metadata.value_size);
         Ok(())
     }
 }
