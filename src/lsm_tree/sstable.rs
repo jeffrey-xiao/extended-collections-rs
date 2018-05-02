@@ -23,7 +23,7 @@ pub struct SSTableSummary<T> {
 }
 
 pub struct SSTableBuilder<T, U> {
-    pub path: PathBuf,
+    pub sstable_path: PathBuf,
     pub summary: SSTableSummary<T>,
     block_index: usize,
     block_size: usize,
@@ -60,7 +60,7 @@ where
         let index_stream = BufWriter::new(index_file);
 
         Ok(SSTableBuilder {
-            path: sstable_path,
+            sstable_path,
             summary: SSTableSummary {
                 item_count: 0,
                 size: 0,
@@ -123,16 +123,16 @@ where
         }
 
         let serialized_summary = serialize(&self.summary)?;
-        let mut summary_file = fs::File::create(self.path.join("summary.dat"))?;
+        let mut summary_file = fs::File::create(self.sstable_path.join("summary.dat"))?;
         summary_file.write_all(&serialized_summary)?;
 
         let serialized_filter = serialize(&self.filter)?;
-        let mut filter_file = fs::File::create(self.path.join("filter.dat"))?;
+        let mut filter_file = fs::File::create(self.sstable_path.join("filter.dat"))?;
         filter_file.write_all(&serialized_filter)?;
 
         self.index_stream.flush()?;
         self.data_stream.flush()?;
-        Ok(self.path.clone())
+        Ok(self.sstable_path.clone())
     }
 }
 

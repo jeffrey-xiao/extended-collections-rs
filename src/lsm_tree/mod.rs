@@ -1,6 +1,5 @@
 mod size_tiered;
 mod sstable;
-mod write_ahead_log;
 
 pub use self::size_tiered::SizeTieredStrategy;
 pub use self::sstable::{SSTable, SSTableBuilder, SSTableDataIter};
@@ -92,10 +91,7 @@ where
         }
     }
 
-    fn try_compact(&mut self) -> Result<()> {
-        if self.in_memory_usage <= self.compaction_strategy.get_max_in_memory_size() {
-            return Ok(());
-        }
+    fn compact(&mut self) -> Result<()> {
         self.in_memory_usage = 0;
         let mut sstable_builder = SSTableBuilder::new(
             self.compaction_strategy.get_db_path(),
@@ -105,8 +101,7 @@ where
             sstable_builder.append(entry.0, entry.1)?;
         }
         let sstable = SSTable::new(sstable_builder.flush()?)?;
-        self.compaction_strategy.try_compact(sstable)?;
-        Ok(())
+        self.compaction_strategy.try_compact(sstable)
     }
 
     pub fn insert(&mut self, key: T, value: U) -> Result<()> {
@@ -118,7 +113,12 @@ where
         }
         self.in_memory_usage += key_size + value_size;
         self.in_memory_tree.insert(key, Some(value));
-        self.try_compact()
+
+        if self.in_memory_usage > self.compaction_strategy.get_max_in_memory_size() {
+            self.compact()
+        } else {
+            Ok(())
+        }
     }
 
     pub fn remove(&mut self, key: T) -> Result<()> {
@@ -130,7 +130,12 @@ where
         self.in_memory_usage += serialized_size(&key)?;
         self.in_memory_usage += serialized_size::<Option<U>>(&None)?;
         self.in_memory_tree.insert(key, None);
-        self.try_compact()
+
+        if self.in_memory_usage > self.compaction_strategy.get_max_in_memory_size() {
+            self.compact()
+        } else {
+            Ok(())
+        }
     }
 
     pub fn contains_key(&self, key: &T) -> Result<bool> {
@@ -142,6 +147,14 @@ where
             Ok(entry.clone())
         } else {
             self.compaction_strategy.get(key)
+        }
+    }
+
+    pub fn flush(&mut self) -> Result<()> {
+        if !self.in_memory_tree.is_empty() {
+            self.compact()
+        } else {
+            Ok(())
         }
     }
 }

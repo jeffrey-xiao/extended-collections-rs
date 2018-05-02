@@ -159,6 +159,8 @@ where
                 }
             };
 
+            let newest_tag_opt = metadata.sstables.iter().map(|sstable| sstable.summary.tag).min();
+
             let mut new_sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
                 db_path,
                 old_sstables.iter().map(|sstable| sstable.summary.item_count).sum(),
@@ -187,6 +189,11 @@ where
                     match last_entry_opt {
                         Some(ref last_entry) => *last_entry != entry.key,
                         None => true,
+                    }
+                } && {
+                    match newest_tag_opt {
+                        Some(newest_tag) => new_tag > newest_tag || entry.value.is_some(),
+                        None => entry.value.is_some(),
                     }
                 };
 
