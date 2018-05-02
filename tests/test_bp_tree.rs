@@ -2,7 +2,7 @@ extern crate extended_collections;
 extern crate rand;
 
 use self::rand::{thread_rng, Rng};
-use extended_collections::bptree::{BPMap, Result};
+use extended_collections::bp_tree::{BpMap, Result};
 use std::fs;
 use std::panic;
 use std::vec::Vec;
@@ -23,12 +23,13 @@ where
 }
 
 #[test]
-fn int_test_bpmap() {
-    let test_name = "int_test_bpmap";
+fn int_test_bp_map() {
+    let test_name = "int_test_bp_map";
+    let file_name = &format!("{}.dat", test_name);
     run_test(
         || {
             let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
-            let mut map = BPMap::with_degrees(&format!("{}.dat", test_name), 4, 8, 5, 5)?;
+            let mut map = BpMap::with_degrees(file_name, 4, 8, 3, 3)?;
             let mut expected = Vec::new();
             for _ in 0..10_000 {
                 let key = rng.gen::<u32>();
@@ -42,7 +43,7 @@ fn int_test_bpmap() {
             expected.sort_by(|l, r| l.0.cmp(&r.0));
             expected.dedup_by_key(|pair| pair.0);
 
-            map = BPMap::open(&format!("{}.dat", test_name))?;
+            map = BpMap::open(&format!("{}.dat", test_name))?;
 
             assert_eq!(map.len(), expected.len());
 

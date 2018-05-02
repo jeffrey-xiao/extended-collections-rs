@@ -1,5 +1,5 @@
 use bincode::{deserialize, self, serialize, serialized_size};
-use bptree::node::{LeafNode, Node};
+use bp_tree::node::{LeafNode, Node};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fs::{File, OpenOptions};

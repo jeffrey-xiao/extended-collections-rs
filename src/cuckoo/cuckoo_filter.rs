@@ -4,7 +4,6 @@ use rand::{Rng, XorShiftRng};
 use siphasher::sip::SipHasher;
 use std::cmp;
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 
 /// A space-efficient probabilistic data structure to test for membership in a set. Cuckoo filters
 /// also provide the flexibility to remove items.

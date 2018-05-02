@@ -22,7 +22,7 @@ byteorder = "1"
 bincode = "1.0"
 crossbeam-epoch = "0.2"
 siphasher = "0.2"
-serde = "1.0"
+serde = { version = "1.0", features = ["rc"] }
 serde_derive = "1.0"
 rand = "0.4"
 

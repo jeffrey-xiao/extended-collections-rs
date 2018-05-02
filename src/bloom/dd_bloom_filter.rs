@@ -3,7 +3,6 @@ use rand::{Rng, XorShiftRng};
 use siphasher::sip::SipHasher;
 use std::f64::consts;
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 
 const PRIME: u64 = 0xFFFF_FFFF_FFFF_FFC5;
 

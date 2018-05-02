@@ -1,5 +1,3 @@
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 use std::mem;
 use std::ops::{Index, Range};
 use std::slice;
@@ -655,7 +653,7 @@ impl<'a> Iterator for BitVecIter<'a> {
     type Item = bool;
 
     fn next(&mut self) -> Option<bool> {
-        self.range.next().map(|i| self.bit_vec.get(i).unwrap())
+        self.range.next().map(|index| self.bit_vec.get(index).unwrap())
     }
 }
 
@@ -680,7 +678,7 @@ impl Iterator for BitVecIntoIter {
     type Item = bool;
 
     fn next(&mut self) -> Option<bool> {
-        self.range.next().map(|i| self.bit_vec.get(i).unwrap())
+        self.range.next().map(|index| self.bit_vec.get(index).unwrap())
     }
 }
 
@@ -717,8 +715,8 @@ static FALSE: bool = false;
 impl Index<usize> for BitVec {
     type Output = bool;
 
-    fn index(&self, i: usize) -> &bool {
-        if self.get(i).expect("Index out of bounds.") {
+    fn index(&self, index: usize) -> &bool {
+        if self.get(index).expect("Index out of bounds.") {
             &TRUE
         } else {
             &FALSE

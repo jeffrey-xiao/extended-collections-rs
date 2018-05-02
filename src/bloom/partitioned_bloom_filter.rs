@@ -2,7 +2,6 @@ use bit_vec::BitVec;
 use rand::{Rng, XorShiftRng};
 use siphasher::sip::SipHasher;
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 
 /// A space-efficient probabilistic data structure to test for membership in a set.
 ///

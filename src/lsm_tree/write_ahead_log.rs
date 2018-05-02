@@ -1,11 +1,10 @@
-use bincode::{deserialize, self, serialize, serialized_size};
-use lsm::{Error, Result};
+use bincode::serialize;
+use lsm_tree::{Error, Result};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fs::{File, OpenOptions};
-use std::io::{Write, self};
-use std::marker::{PhantomData, Send, Sync};
-use std::hash::Hash;
+use std::io::Write;
+use std::marker::PhantomData;
 
 pub struct WriteAheadLog<T, U>
 where
@@ -26,8 +25,7 @@ where
             .read(true)
             .append(true)
             .create(true)
-            .open(log_path)
-            .map_err(Error::IOError)?;
+            .open(log_path)?;
 
         Ok(WriteAheadLog {
             log,
@@ -40,7 +38,7 @@ where
     }
 
     pub fn append(&mut self, key: T, value: Option<U>) -> Result<()> {
-        let serialized_entry = serialize(&(key, value)).map_err(Error::SerdeError)?;
+        let serialized_entry = serialize(&(key, value))?;
         self.log.write_all(&serialized_entry).map_err(Error::IOError)
     }
 }

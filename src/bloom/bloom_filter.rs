@@ -344,7 +344,7 @@ impl<'de> Deserialize<'de> for BloomFilter {
                 formatter.write_str("struct BloomFilter")
             }
 
-            fn visit_seq<V>(self, mut seq: V) -> Result<BloomFilter, V::Error>
+            fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
             where
                 V: SeqAccess<'de>,
             {
@@ -366,7 +366,7 @@ impl<'de> Deserialize<'de> for BloomFilter {
                 })
             }
 
-            fn visit_map<V>(self, mut map: V) -> Result<BloomFilter, V::Error>
+            fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
             where
                 V: MapAccess<'de>,
             {
