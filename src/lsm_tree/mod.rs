@@ -69,19 +69,21 @@ pub trait CompactionStrategy<T, U> {
 
     fn try_compact(&mut self, sstable: SSTable<T, U>) -> Result<()>;
 
-    fn get(&self, key: &T) -> Result<Option<U>>;
+    fn flush(&mut self) -> Result<()>;
 
-    fn len_hint(&self) -> Result<usize>;
+    fn get(&mut self, key: &T) -> Result<Option<U>>;
 
-    fn len(&self) -> Result<usize>;
+    fn len_hint(&mut self) -> Result<usize>;
+
+    fn len(&mut self) -> Result<usize>;
 
     fn clear(&mut self) -> Result<()>;
 
-    fn min(&self) -> Result<Option<T>>;
+    fn min(&mut self) -> Result<Option<T>>;
 
-    fn max(&self) -> Result<Option<T>>;
+    fn max(&mut self) -> Result<Option<T>>;
 
-    fn iter(&self) -> Result<Box<Iterator<Item=Result<(T, U)>>>>;
+    fn iter(&mut self) -> Result<Box<Iterator<Item=Result<(T, U)>>>>;
 }
 
 pub struct LsmMap<T, U, V> {
@@ -92,8 +94,8 @@ pub struct LsmMap<T, U, V> {
 
 impl<T, U, V> LsmMap<T, U, V>
 where
-    T: ::std::fmt::Debug + Clone + Ord + Hash + DeserializeOwned + Serialize,
-    U: ::std::fmt::Debug + Clone + DeserializeOwned + Serialize,
+    T: Clone + Ord + Hash + DeserializeOwned + Serialize,
+    U: Clone + DeserializeOwned + Serialize,
     V: CompactionStrategy<T, U>,
 {
     pub fn new(compaction_strategy: V) -> Self {
@@ -151,11 +153,11 @@ where
         }
     }
 
-    pub fn contains_key(&self, key: &T) -> Result<bool> {
+    pub fn contains_key(&mut self, key: &T) -> Result<bool> {
         self.get(key).map(|value| value.is_some())
     }
 
-    pub fn get(&self, key: &T) -> Result<Option<U>> {
+    pub fn get(&mut self, key: &T) -> Result<Option<U>> {
         if let Some(entry) = self.in_memory_tree.get(&key) {
             Ok(entry.clone())
         } else {
@@ -163,7 +165,7 @@ where
         }
     }
 
-    pub fn len_hint(&self) -> Result<usize> {
+    pub fn len_hint(&mut self) -> Result<usize> {
         Ok(self.in_memory_tree.len() + self.compaction_strategy.len_hint()?)
     }
 
@@ -179,7 +181,7 @@ where
         self.compaction_strategy.clear()
     }
 
-    pub fn min(&self) -> Result<Option<T>> {
+    pub fn min(&mut self) -> Result<Option<T>> {
         let in_memory_min = self.in_memory_tree
             .iter()
             .skip_while(|entry| entry.1.is_none())
@@ -196,7 +198,7 @@ where
         }
     }
 
-    pub fn max(&self) -> Result<Option<T>> {
+    pub fn max(&mut self) -> Result<Option<T>> {
         Ok(cmp::max(
             self.in_memory_tree
                 .iter()
@@ -210,7 +212,8 @@ where
 
     pub fn flush(&mut self) -> Result<()> {
         if !self.in_memory_tree.is_empty() {
-            self.compact()
+            self.compact()?;
+            self.compaction_strategy.flush()
         } else {
             Ok(())
         }

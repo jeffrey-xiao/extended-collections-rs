@@ -65,6 +65,7 @@ fn int_test_bp_map() {
                 assert_eq!(old_entry, Some((entry.0, entry.1)));
                 assert_eq!(map.len(), expected_len);
             }
+
             Ok(())
         },
         test_name,

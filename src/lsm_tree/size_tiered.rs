@@ -4,19 +4,21 @@ use lsm_tree::{CompactionStrategy, SSTable, SSTableBuilder, SSTableDataIter, Res
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::{BinaryHeap, Bound, HashSet};
+use std::cell::RefCell;
 use std::cmp;
 use std::fs;
 use std::hash::Hash;
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::iter::FromIterator;
 use std::marker::Send;
 use std::mem;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::sync::atomic::{AtomicBool, self};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct SizeTieredMetadata<T, U> {
     min_sstable_count: usize,
     min_sstable_size: u64,
@@ -53,14 +55,16 @@ pub struct SizeTieredStrategy<T, U> {
     db_path: PathBuf,
     compaction_thread_join_handle: Option<thread::JoinHandle<()>>,
     is_compacting: Arc<AtomicBool>,
+    metadata_lock_count: Rc<RefCell<u64>>,
+    metadata_file: fs::File,
     curr_metadata: Arc<Mutex<SizeTieredMetadata<T, U>>>,
     next_metadata: Arc<Mutex<Option<SizeTieredMetadata<T, U>>>>,
 }
 
 impl<T, U> SizeTieredStrategy<T, U>
 where
-    T: ::std::fmt::Debug + 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
-    U: ::std::fmt::Debug + 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
+    T: 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
+    U: 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
 {
     pub fn new<P>(
         db_path: P,
@@ -74,10 +78,17 @@ where
         P: AsRef<Path>,
     {
         fs::create_dir(db_path.as_ref())?;
-        Ok(SizeTieredStrategy {
+        let metadata_file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(db_path.as_ref().join("metadata.dat"))?;
+        let mut ret = SizeTieredStrategy {
             db_path: PathBuf::from(db_path.as_ref()),
             compaction_thread_join_handle: None,
             is_compacting: Arc::new(AtomicBool::new(false)),
+            metadata_lock_count: Rc::new(RefCell::new(0)),
+            metadata_file,
             curr_metadata: Arc::new(Mutex::new(SizeTieredMetadata::new(
                 min_sstable_count,
                 min_sstable_size,
@@ -86,20 +97,33 @@ where
                 max_in_memory_size,
             ))),
             next_metadata: Arc::new(Mutex::new(None)),
-        })
+        };
+
+        {
+            let curr_metadata = ret.curr_metadata.lock().unwrap();
+            ret.metadata_file.seek(SeekFrom::Start(0))?;
+            ret.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
+        }
+
+        Ok(ret)
     }
 
     pub fn open<P>(db_path: P) -> Result<Self>
     where
         P: AsRef<Path>,
     {
-        let mut metadata_file = fs::File::open(db_path.as_ref().join("metadata.dat"))?;
+        let mut metadata_file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(db_path.as_ref().join("metadata.dat"))?;
         let mut buffer = Vec::new();
         metadata_file.read_to_end(&mut buffer)?;
         Ok(SizeTieredStrategy {
             db_path: PathBuf::from(db_path.as_ref()),
             compaction_thread_join_handle: None,
             is_compacting: Arc::new(AtomicBool::new(false)),
+            metadata_lock_count: Rc::new(RefCell::new(0)),
+            metadata_file,
             curr_metadata: Arc::new(Mutex::new(deserialize(&buffer)?)),
             next_metadata: Arc::new(Mutex::new(None)),
         })
@@ -221,18 +245,17 @@ where
 
             *next_metadata.lock().unwrap() = Some(metadata);
 
-            is_compacting.store(false, atomic::Ordering::Release);
+            is_compacting.store(false, Ordering::Release);
             println!("Finished compacting");
         }));
-        self.is_compacting.store(true, atomic::Ordering::Release);
+        self.is_compacting.store(true, Ordering::Release);
     }
 
-    fn try_replace_metadata(&self, curr_metadata: &mut MutexGuard<SizeTieredMetadata<T, U>>) -> Result<()> {
+    fn try_replace_metadata(&self, curr_metadata: &mut MutexGuard<SizeTieredMetadata<T, U>>) -> Result<bool> {
         let mut next_metadata = self.next_metadata.lock().unwrap();
 
         if let Some(next_metadata) = next_metadata.take() {
             let old_sstables = mem::replace(&mut curr_metadata.sstables, next_metadata.sstables);
-            self.flush_metadata(&*curr_metadata)?;
             let new_sstable_paths: HashSet<&PathBuf> = HashSet::from_iter(
                 curr_metadata.sstables
                     .iter()
@@ -244,24 +267,17 @@ where
                     fs::remove_dir_all(old_sstable.path.as_path())?;
                 }
             }
+            Ok(true)
+        } else {
+            Ok(false)
         }
-
-        Ok(())
-    }
-
-    fn flush_metadata(&self, metadata: &SizeTieredMetadata<T, U>) -> Result<()> {
-        let mut metadata_file = fs::File::create(self.db_path.join("metadata.dat"))?;
-
-        let serialized_metadata = serialize(metadata)?;
-        metadata_file.write_all(&serialized_metadata)?;
-        Ok(())
     }
 }
 
 impl<T, U> CompactionStrategy<T, U> for SizeTieredStrategy<T, U>
 where
-    T: ::std::fmt::Debug + 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
-    U: ::std::fmt::Debug + 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
+    T: 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
+    U: 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
 {
     fn get_db_path(&self) -> &Path {
         self.db_path.as_path()
@@ -285,11 +301,17 @@ where
                 }
             };
             curr_metadata.sstables.push(Arc::new(sstable));
-            self.flush_metadata(&*curr_metadata)?;
+            self.metadata_file.seek(SeekFrom::Start(0))?;
+            self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
             curr_metadata.clone()
         };
 
-        if self.is_compacting.load(atomic::Ordering::Acquire) {
+        if self.is_compacting.load(Ordering::Acquire) {
+            return Ok(());
+        }
+
+        if *self.metadata_lock_count.borrow() != 0 {
+            println!("SKipped compaction because of lock");
             return Ok(());
         }
 
@@ -302,9 +324,28 @@ where
         Ok(())
     }
 
-    fn get(&self, key: &T) -> Result<Option<U>> {
+    fn flush(&mut self) -> Result<()> {
+        if let Some(compaction_thread_join_handle) = self.compaction_thread_join_handle.take() {
+            match compaction_thread_join_handle.join() {
+                Ok(_) => println!("Child thread terminated successfully."),
+                Err(error) => println!("Child thread terminated with error: {:?}", error),
+            }
+
+            let mut curr_metadata = self.curr_metadata.lock().unwrap();
+            if self.try_replace_metadata(&mut curr_metadata)? {
+                self.metadata_file.seek(SeekFrom::Start(0))?;
+                self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn get(&mut self, key: &T) -> Result<Option<U>> {
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
-        self.try_replace_metadata(&mut curr_metadata)?;
+        if self.try_replace_metadata(&mut curr_metadata)? {
+            self.metadata_file.seek(SeekFrom::Start(0))?;
+            self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
+        }
 
         for sstable in curr_metadata.sstables.iter().rev() {
             if let Some(value) = sstable.get(key)? {
@@ -315,9 +356,12 @@ where
         Ok(None)
     }
 
-    fn len_hint(&self) -> Result<usize> {
+    fn len_hint(&mut self) -> Result<usize> {
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
-        self.try_replace_metadata(&mut curr_metadata)?;
+        if self.try_replace_metadata(&mut curr_metadata)? {
+            self.metadata_file.seek(SeekFrom::Start(0))?;
+            self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
+        }
 
         let len_hint = curr_metadata.sstables
             .iter()
@@ -327,7 +371,7 @@ where
         Ok(len_hint)
     }
 
-    fn len(&self) -> Result<usize> {
+    fn len(&mut self) -> Result<usize> {
         Ok(self.iter()?.count())
     }
 
@@ -350,28 +394,34 @@ where
             }
         }
 
-        self.flush_metadata(&curr_metadata)?;
+        self.metadata_file.seek(SeekFrom::Start(0))?;
+        self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
 
         Ok(())
     }
 
-    fn min(&self) -> Result<Option<T>> {
+    fn min(&mut self) -> Result<Option<T>> {
         match self.iter()?.next() {
             Some(entry) => Ok(Some(entry?.0)),
             None => Ok(None),
         }
     }
 
-    fn max(&self) -> Result<Option<T>> {
+    fn max(&mut self) -> Result<Option<T>> {
         match self.iter()?.last() {
             Some(entry) => Ok(Some(entry?.0)),
             None => Ok(None),
         }
     }
 
-    fn iter(&self) -> Result<Box<Iterator<Item=Result<(T, U)>>>> {
+    fn iter(&mut self) -> Result<Box<Iterator<Item=Result<(T, U)>>>> {
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
-        self.try_replace_metadata(&mut curr_metadata)?;
+        if self.try_replace_metadata(&mut curr_metadata)? {
+            self.metadata_file.seek(SeekFrom::Start(0))?;
+            self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
+        }
+
+        *self.metadata_lock_count.borrow_mut() += 1;
 
         let mut sstable_data_iters = Vec::with_capacity(curr_metadata.sstables.len());
 
@@ -387,13 +437,16 @@ where
         }
 
         Ok(Box::new(SizeTieredIter {
+            sstable_lock_count: Rc::clone(&self.metadata_lock_count),
             sstable_data_iters,
-            entries, last_entry_opt: None
+            entries,
+            last_entry_opt: None,
         }))
     }
 }
 
 pub struct SizeTieredIter<T, U> {
+    sstable_lock_count: Rc<RefCell<u64>>,
     sstable_data_iters: Vec<SSTableDataIter<T, U>>,
     entries: BinaryHeap<(cmp::Reverse<Entry<T, Option<U>>>, usize)>,
     last_entry_opt: Option<T>,
@@ -435,14 +488,13 @@ where
     }
 }
 
+impl<T, U> Drop for SizeTieredIter<T, U> {
+    fn drop(&mut self) {
+        *self.sstable_lock_count.borrow_mut() -= 1;
+    }
+}
 
 impl<T, U> Drop for SizeTieredStrategy<T, U> {
     fn drop(&mut self) {
-        if let Some(compaction_thread_join_handle) = self.compaction_thread_join_handle.take() {
-            match compaction_thread_join_handle.join() {
-                Ok(_) => println!("Child thread terminated successfully."),
-                Err(error) => println!("Child thread terminated with error: {:?}", error),
-            }
-        }
     }
 }

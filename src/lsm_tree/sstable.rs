@@ -12,7 +12,7 @@ use std::io::{BufWriter, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::marker::{PhantomData};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct SSTableSummary<T> {
     pub entry_count: usize,
     pub tombstone_count: usize,
@@ -278,12 +278,5 @@ where
         }
 
         Some(deserialize(&buffer).map_err(Error::SerdeError))
-    }
-}
-
-impl<T, U> ::std::fmt::Debug for SSTable<T, U>
-where T: ::std::fmt::Debug {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(f, "SSTable with path: {:?} and summary {:#?}", self.path, self.summary)
     }
 }
