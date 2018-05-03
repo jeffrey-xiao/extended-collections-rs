@@ -1,6 +1,7 @@
 use bincode::{deserialize, serialize};
 use entry::Entry;
-use lsm_tree::{CompactionStrategy, SSTable, SSTableBuilder, SSTableDataIter, Result};
+use lsm_tree::{SSTable, SSTableBuilder, SSTableDataIter, Result};
+use lsm_tree::compaction::CompactionStrategy;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::{BinaryHeap, Bound, HashSet};
@@ -385,7 +386,9 @@ where
 
 
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
+        let mut next_metadata = self.next_metadata.lock().unwrap();
         curr_metadata.sstables.clear();
+        *next_metadata = None;
 
         for dir_entry in fs::read_dir(self.db_path.as_path())? {
             let dir_path = dir_entry?.path();
