@@ -35,16 +35,22 @@ fn int_test_lsm_map_size_tiered_strategy() {
             for _ in 0..10_000 {
                 let key = rng.gen::<u32>();
                 let val = rng.gen::<u64>();
-
+                
                 map.insert(key, val)?;
                 expected.push((key, val));
             }
-            map.flush()?;
-
+            
             expected.reverse();
             expected.sort_by(|l, r| l.0.cmp(&r.0));
             expected.dedup_by_key(|pair| pair.0);
 
+            assert_eq!(map.len()?, expected.len());
+            assert_eq!(map.len_hint()?, expected.len());
+
+            assert_eq!(map.min()?, Some(expected[0].0));
+            assert_eq!(map.max()?, Some(expected[expected.len() - 1].0));
+
+            map.flush()?;
             sts = SizeTieredStrategy::open(test_name)?;
             map = LsmMap::new(sts);
 
@@ -57,11 +63,15 @@ fn int_test_lsm_map_size_tiered_strategy() {
 
             let mut expected_len = expected.len();
 
-            for entry in expected {
-                let old_entry = map.remove(entry.0)?;
+            for (index, entry) in expected.iter().enumerate() {
+                map.remove(entry.0)?;
                 expected_len -= 1;
                 assert!(!map.contains_key(&entry.0)?);
                 assert_eq!(map.get(&entry.0)?, None);
+
+                if index % 1000 == 0 {
+                    // assert_eq!(map.len()?, expected_len);
+                }
             }
             Ok(())
         },

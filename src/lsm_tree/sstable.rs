@@ -14,10 +14,11 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SSTableSummary<T> {
-    pub item_count: usize,
+    pub entry_count: usize,
+    pub tombstone_count: usize,
     pub size: u64,
-    pub min: Option<T>,
-    pub max: Option<T>,
+    pub min_entry: Option<T>,
+    pub max_entry: Option<T>,
     pub index: Vec<(T, u64)>,
     pub tag: u64,
 }
@@ -45,7 +46,7 @@ where
         thread_rng().gen_ascii_chars().take(32).collect()
     }
 
-    pub fn new<P>(db_path: P, item_count_hint: usize) -> Result<Self>
+    pub fn new<P>(db_path: P, entry_count_hint: usize) -> Result<Self>
     where
         P: AsRef<Path>,
     {
@@ -62,17 +63,18 @@ where
         Ok(SSTableBuilder {
             sstable_path,
             summary: SSTableSummary {
-                item_count: 0,
+                entry_count: 0,
+                tombstone_count: 0,
                 size: 0,
-                min: None,
-                max: None,
+                min_entry: None,
+                max_entry: None,
                 index: Vec::new(),
                 tag: 0,
             },
             block_index: 0,
-            block_size: (item_count_hint as f64).sqrt().ceil() as usize,
+            block_size: (entry_count_hint as f64).sqrt().ceil() as usize,
             index_block: Vec::new(),
-            filter: BloomFilter::new(item_count_hint, 0.05),
+            filter: BloomFilter::new(entry_count_hint, 0.05),
             index_offset: 0,
             index_stream,
             data_offset: 0,
@@ -82,11 +84,14 @@ where
     }
 
     pub fn append(&mut self, key: T, value: Option<U>) -> Result<()> {
-        self.summary.item_count += 1;
-        if self.summary.min.is_none() {
-            self.summary.min = Some(key.clone());
+        self.summary.entry_count += 1;
+        if value.is_none() {
+            self.summary.tombstone_count += 1;
         }
-        self.summary.max = Some(key.clone());
+        if self.summary.min_entry.is_none() {
+            self.summary.min_entry = Some(key.clone());
+        }
+        self.summary.max_entry = Some(key.clone());
 
         self.filter.insert(&key);
         self.index_block.push((key.clone(), self.data_offset));

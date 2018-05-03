@@ -7,6 +7,7 @@ pub use self::sstable::{SSTable, SSTableBuilder, SSTableDataIter};
 use bincode::{self, serialized_size};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::cmp;
 use std::collections::BTreeMap;
 use std::error;
 use std::fmt;
@@ -69,6 +70,18 @@ pub trait CompactionStrategy<T, U> {
     fn try_compact(&mut self, sstable: SSTable<T, U>) -> Result<()>;
 
     fn get(&self, key: &T) -> Result<Option<U>>;
+
+    fn len_hint(&self) -> Result<usize>;
+
+    fn len(&self) -> Result<usize>;
+
+    fn clear(&mut self) -> Result<()>;
+
+    fn min(&self) -> Result<Option<T>>;
+
+    fn max(&self) -> Result<Option<T>>;
+
+    fn iter(&self) -> Result<Box<Iterator<Item=Result<(T, U)>>>>;
 }
 
 pub struct LsmMap<T, U, V> {
@@ -148,6 +161,51 @@ where
         } else {
             self.compaction_strategy.get(key)
         }
+    }
+
+    pub fn len_hint(&self) -> Result<usize> {
+        Ok(self.in_memory_tree.len() + self.compaction_strategy.len_hint()?)
+    }
+
+    pub fn len(&self) -> Result<usize> {
+        Ok(self.in_memory_tree.len() + self.compaction_strategy.len()?)
+    }
+
+    pub fn is_empty(&self) -> Result<bool> {
+        self.len().map(|len| len == 0)
+    }
+
+    pub fn clear(&mut self) -> Result<()> {
+        self.compaction_strategy.clear()
+    }
+
+    pub fn min(&self) -> Result<Option<T>> {
+        let in_memory_min = self.in_memory_tree
+            .iter()
+            .skip_while(|entry| entry.1.is_none())
+            .next()
+            .map(|entry| entry.0.clone());
+        let disk_min = self.compaction_strategy.min()?;
+
+        if in_memory_min.is_none() {
+            Ok(disk_min)
+        } else if disk_min.is_none() {
+            Ok(in_memory_min)
+        } else {
+            Ok(cmp::min(in_memory_min, disk_min))
+        }
+    }
+
+    pub fn max(&self) -> Result<Option<T>> {
+        Ok(cmp::max(
+            self.in_memory_tree
+                .iter()
+                .rev()
+                .skip_while(|entry| entry.1.is_none())
+                .next()
+                .map(|entry| entry.0.clone()),
+            self.compaction_strategy.max()?,
+        ))
     }
 
     pub fn flush(&mut self) -> Result<()> {

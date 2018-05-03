@@ -1,4 +1,5 @@
 use bincode::{deserialize, serialize};
+use entry::Entry;
 use lsm_tree::{CompactionStrategy, SSTable, SSTableBuilder, SSTableDataIter, Result};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -11,7 +12,7 @@ use std::iter::FromIterator;
 use std::marker::Send;
 use std::mem;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::sync::atomic::{AtomicBool, self};
 use std::thread;
 
@@ -149,7 +150,6 @@ where
             let mut old_sstables: Vec<Arc<SSTable<T, U>>> = metadata.sstables
                 .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
                 .collect();
-            // println!("next sstables {:?}", metadata.sstables);
             old_sstables.sort_by_key(|sstable| sstable.summary.tag);
 
             let new_tag = {
@@ -163,10 +163,9 @@ where
 
             let mut new_sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
                 db_path,
-                old_sstables.iter().map(|sstable| sstable.summary.item_count).sum(),
+                old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
             ).unwrap();
 
-            // println!("old sstables {:#?}", old_sstables);
             let mut old_sstable_data_iters: Vec<SSTableDataIter<T, U>> = old_sstables
                 .iter()
                 .map(|sstable| sstable.data_iter().unwrap())
@@ -185,6 +184,10 @@ where
             }
 
             while let Some((cmp::Reverse(entry), index)) = entries.pop() {
+                if let Some(entry) = old_sstable_data_iters[index].next() {
+                    entries.push((cmp::Reverse(entry.unwrap()), index));
+                }
+
                 let should_append = {
                     match last_entry_opt {
                         Some(ref last_entry) => *last_entry != entry.key,
@@ -199,12 +202,9 @@ where
 
                 if should_append {
                     new_sstable_builder.append(entry.key.clone(), entry.value).unwrap();
-                    last_entry_opt = Some(entry.key);
                 }
 
-                if let Some(entry) = old_sstable_data_iters[index].next() {
-                    entries.push((cmp::Reverse(entry.unwrap()), index));
-                }
+                last_entry_opt = Some(entry.key);
             }
 
             new_sstable_builder.summary.tag = new_tag;
@@ -222,15 +222,12 @@ where
             *next_metadata.lock().unwrap() = Some(metadata);
 
             is_compacting.store(false, atomic::Ordering::Release);
-            println!("Finished compacting.");
-            // println!("New sstable: {:?}", new_sstable_builder.path);
-            // println!("New metadata: {:#?}", *next_metadata.lock().unwrap());
+            println!("Finished compacting");
         }));
         self.is_compacting.store(true, atomic::Ordering::Release);
     }
 
-    fn try_replace_metadata(&self) -> Result<()> {
-        let mut curr_metadata = self.curr_metadata.lock().unwrap();
+    fn try_replace_metadata(&self, curr_metadata: &mut MutexGuard<SizeTieredMetadata<T, U>>) -> Result<()> {
         let mut next_metadata = self.next_metadata.lock().unwrap();
 
         if let Some(next_metadata) = next_metadata.take() {
@@ -244,7 +241,6 @@ where
 
             for old_sstable in old_sstables {
                 if !new_sstable_paths.contains(&old_sstable.path) {
-                    // println!("Removing {:?}", old_sstable.path);
                     fs::remove_dir_all(old_sstable.path.as_path())?;
                 }
             }
@@ -276,9 +272,9 @@ where
     }
 
     fn try_compact(&mut self, mut sstable: SSTable<T, U>) -> Result<()> {
-        self.try_replace_metadata()?;
         let mut metadata_snapshot = {
             let mut curr_metadata = self.curr_metadata.lock().unwrap();
+            self.try_replace_metadata(&mut curr_metadata)?;
             sstable.summary.tag = {
                 let sstable = curr_metadata.sstables
                     .iter()
@@ -292,6 +288,7 @@ where
             self.flush_metadata(&*curr_metadata)?;
             curr_metadata.clone()
         };
+
         if self.is_compacting.load(atomic::Ordering::Acquire) {
             return Ok(());
         }
@@ -306,8 +303,8 @@ where
     }
 
     fn get(&self, key: &T) -> Result<Option<U>> {
-        self.try_replace_metadata()?;
-        let curr_metadata = self.curr_metadata.lock().unwrap();
+        let mut curr_metadata = self.curr_metadata.lock().unwrap();
+        self.try_replace_metadata(&mut curr_metadata)?;
 
         for sstable in curr_metadata.sstables.iter().rev() {
             if let Some(value) = sstable.get(key)? {
@@ -317,7 +314,127 @@ where
 
         Ok(None)
     }
+
+    fn len_hint(&self) -> Result<usize> {
+        let mut curr_metadata = self.curr_metadata.lock().unwrap();
+        self.try_replace_metadata(&mut curr_metadata)?;
+
+        let len_hint = curr_metadata.sstables
+            .iter()
+            .map(|sstable| sstable.summary.entry_count - sstable.summary.tombstone_count)
+            .sum();
+
+        Ok(len_hint)
+    }
+
+    fn len(&self) -> Result<usize> {
+        Ok(self.iter()?.count())
+    }
+
+    fn clear(&mut self) -> Result<()> {
+        if let Some(compaction_thread_join_handle) = self.compaction_thread_join_handle.take() {
+            match compaction_thread_join_handle.join() {
+                Ok(_) => println!("Child thread terminated successfully."),
+                Err(error) => println!("Child thread terminated with error: {:?}", error),
+            }
+        }
+
+
+        let mut curr_metadata = self.curr_metadata.lock().unwrap();
+        curr_metadata.sstables.clear();
+
+        for dir_entry in fs::read_dir(self.db_path.as_path())? {
+            let dir_path = dir_entry?.path();
+            if dir_path.is_dir() {
+                fs::remove_dir_all(dir_path)?;
+            }
+        }
+
+        self.flush_metadata(&curr_metadata)?;
+
+        Ok(())
+    }
+
+    fn min(&self) -> Result<Option<T>> {
+        match self.iter()?.next() {
+            Some(entry) => Ok(Some(entry?.0)),
+            None => Ok(None),
+        }
+    }
+
+    fn max(&self) -> Result<Option<T>> {
+        match self.iter()?.last() {
+            Some(entry) => Ok(Some(entry?.0)),
+            None => Ok(None),
+        }
+    }
+
+    fn iter(&self) -> Result<Box<Iterator<Item=Result<(T, U)>>>> {
+        let mut curr_metadata = self.curr_metadata.lock().unwrap();
+        self.try_replace_metadata(&mut curr_metadata)?;
+
+        let mut sstable_data_iters = Vec::with_capacity(curr_metadata.sstables.len());
+
+        for sstable in &curr_metadata.sstables {
+            sstable_data_iters.push(sstable.data_iter()?);
+        }
+        let mut entries = BinaryHeap::new();
+
+        for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
+            if let Some(entry) = sstable_data_iter.next() {
+                entries.push((cmp::Reverse(entry?), index));
+            }
+        }
+
+        Ok(Box::new(SizeTieredIter {
+            sstable_data_iters,
+            entries, last_entry_opt: None
+        }))
+    }
 }
+
+struct SizeTieredIter<T, U> {
+    sstable_data_iters: Vec<SSTableDataIter<T, U>>,
+    entries: BinaryHeap<(cmp::Reverse<Entry<T, Option<U>>>, usize)>,
+    last_entry_opt: Option<T>,
+}
+
+impl<T, U> Iterator for SizeTieredIter<T, U>
+where
+    T: DeserializeOwned + Ord,
+    U: DeserializeOwned,
+{
+    type Item = Result<(T, U)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some((cmp::Reverse(entry), index)) = self.entries.pop() {
+            if let Some(entry) = self.sstable_data_iters[index].next() {
+                match entry {
+                    Ok(entry) => self.entries.push((cmp::Reverse(entry), index)),
+                    Err(error) => return Some(Err(error)),
+                }
+            }
+            if let Some(value) = entry.value {
+                let should_return = {
+                    match self.last_entry_opt {
+                        Some(ref last_entry) => *last_entry != entry.key,
+                        None => true,
+                    }
+                };
+
+                if should_return {
+                    return Some(Ok((entry.key, value)));
+                }
+            }
+
+            self.last_entry_opt = Some(entry.key);
+
+        }
+
+        None
+    }
+}
+
 
 impl<T, U> Drop for SizeTieredStrategy<T, U> {
     fn drop(&mut self) {
