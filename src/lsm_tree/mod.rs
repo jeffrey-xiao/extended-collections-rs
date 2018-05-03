@@ -1,7 +1,7 @@
 mod size_tiered;
 mod sstable;
 
-pub use self::size_tiered::SizeTieredStrategy;
+pub use self::size_tiered::{SizeTieredIter, SizeTieredStrategy};
 pub use self::sstable::{SSTable, SSTableBuilder, SSTableDataIter};
 
 use bincode::{self, serialized_size};
@@ -167,11 +167,11 @@ where
         Ok(self.in_memory_tree.len() + self.compaction_strategy.len_hint()?)
     }
 
-    pub fn len(&self) -> Result<usize> {
-        Ok(self.in_memory_tree.len() + self.compaction_strategy.len()?)
+    pub fn len(&mut self) -> Result<usize> {
+        Ok(self.iter()?.count())
     }
 
-    pub fn is_empty(&self) -> Result<bool> {
+    pub fn is_empty(&mut self) -> Result<bool> {
         self.len().map(|len| len == 0)
     }
 
@@ -214,5 +214,10 @@ where
         } else {
             Ok(())
         }
+    }
+
+    pub fn iter(&mut self) -> Result<Box<Iterator<Item=Result<(T, U)>>>> {
+        self.flush()?;
+        self.compaction_strategy.iter()
     }
 }

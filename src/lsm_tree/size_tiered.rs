@@ -393,7 +393,7 @@ where
     }
 }
 
-struct SizeTieredIter<T, U> {
+pub struct SizeTieredIter<T, U> {
     sstable_data_iters: Vec<SSTableDataIter<T, U>>,
     entries: BinaryHeap<(cmp::Reverse<Entry<T, Option<U>>>, usize)>,
     last_entry_opt: Option<T>,

@@ -70,9 +70,10 @@ fn int_test_lsm_map_size_tiered_strategy() {
                 assert_eq!(map.get(&entry.0)?, None);
 
                 if index % 1000 == 0 {
-                    // assert_eq!(map.len()?, expected_len);
+                    assert_eq!(map.len()?, expected_len);
                 }
             }
+
             Ok(())
         },
         test_name,
