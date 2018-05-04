@@ -1,7 +1,7 @@
 use skiplist::map::{SkipMap, SkipMapIntoIter, SkipMapIter};
 use std::ops::{Add, Sub};
 
-/// An ordered set implemented by a skiplist.
+/// An ordered set implemented using a skiplist.
 ///
 /// A skiplist is a probabilistic data structure that allows for binary search tree operations by
 /// maintaining a linked hierarchy of subsequences. The first subsequence is essentially a sorted

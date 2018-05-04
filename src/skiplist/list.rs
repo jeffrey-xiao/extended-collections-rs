@@ -67,7 +67,7 @@ impl<T> Node<T> {
     }
 }
 
-/// A list implemented by a skiplist.
+/// A list implemented using a skiplist.
 ///
 /// A skiplist is a probabilistic data structure that allows for binary search tree operations by
 /// maintaining a linked hierarchy of subsequences. The first subsequence is essentially a sorted

@@ -2,7 +2,7 @@ use radix::node::Node;
 use radix::tree;
 use std::ops::{Index, IndexMut};
 
-/// An ordered map implemented by a radix tree.
+/// An ordered map implemented using a radix tree.
 ///
 /// A radix tree is a space optimized trie where nodes are merged with its parent if it is the only
 /// child or if it contains a value. This particular implementation of a radix tree accepts keys as

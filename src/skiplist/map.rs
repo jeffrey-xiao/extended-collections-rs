@@ -62,7 +62,7 @@ impl<T, U> Node<T, U> {
     }
 }
 
-/// An ordered map implemented by a skiplist.
+/// An ordered map implemented using a skiplist.
 ///
 /// A skiplist is a probabilistic data structure that allows for binary search tree operations by
 /// maintaining a linked hierarchy of subsequences. The first subsequence is essentially a sorted

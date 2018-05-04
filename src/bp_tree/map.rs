@@ -11,7 +11,7 @@ type SearchHistory<T, U> = Vec<(usize, Node<T, U>, usize)>;
 // (page, node, history)
 type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 
-/// An ordered map implemented by an on-disk B+ tree.
+/// An ordered map implemented using an on-disk B+ tree.
 ///
 /// A B+ is an N-ary tree with a variable number of children per node. A B+ tree is a B-tree in
 /// which each internal node contains keys and pointers to other nodes, and each leaf node
@@ -19,8 +19,8 @@ type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 ///
 /// # Examples
 /// ```
-/// # use extended_collections::bp_tree;
-/// # fn foo() -> bp_tree::Result<()> {
+/// # use extended_collections::bp_tree::Result;
+/// # fn foo() -> Result<()> {
 /// # use std::fs;
 /// use extended_collections::bp_tree::BpMap;
 ///
@@ -39,7 +39,7 @@ type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 /// # fs::remove_file("example.dat")?;
 /// # Ok(())
 /// # }
-/// # foo();
+/// # foo().unwrap();
 /// ```
 pub struct BpMap<T, U> {
     pager: Pager<T, U>,
@@ -55,8 +55,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -65,7 +65,7 @@ where
     /// # fs::remove_file("example_new.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn new<P>(
         file_path: P,
@@ -86,8 +86,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -95,7 +95,7 @@ where
     /// # fs::remove_file("example_with_degrees.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn with_degrees<P>(
         file_path: P,
@@ -117,14 +117,14 @@ where
     ///
     /// # Examples
     /// ```no run
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// use extended_collections::bp_tree::BpMap;
     ///
     /// let map: BpMap<u32, u64> = BpMap::open("example_open.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn open<P>(file_path: P) -> Result<BpMap<T, U>>
     where
@@ -158,8 +158,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -171,7 +171,7 @@ where
     /// # fs::remove_file("example_insert.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn insert(&mut self, key: T, value: U) -> Result<Option<(T, U)>> {
         self.pager.validate_key(&key)?;
@@ -238,8 +238,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -250,7 +250,7 @@ where
     /// # fs::remove_file("example_remove.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn remove(&mut self, key: &T) -> Result<Option<(T, U)>> {
         let (curr_page, curr_node, mut stack) = self.search_node(key)?;
@@ -417,8 +417,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -429,7 +429,7 @@ where
     /// # fs::remove_file("example_contains_key.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn contains_key(&mut self, key: &T) -> Result<bool> {
         self.get(key).map(|value| value.is_some())
@@ -440,8 +440,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -452,7 +452,7 @@ where
     /// # fs::remove_file("example_get.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn get(&mut self, key: &T) -> Result<Option<U>> {
         let (_, curr_node, _) = self.search_node(key)?;
@@ -473,8 +473,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -484,7 +484,7 @@ where
     /// # fs::remove_file("example_len.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn len(&self) -> usize {
         self.pager.get_len()
@@ -494,8 +494,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -504,7 +504,7 @@ where
     /// # fs::remove_file("example_is_empty.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn is_empty(&self) -> bool {
         self.pager.get_len() == 0
@@ -514,20 +514,20 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
     /// let mut map: BpMap<u32, u64> = BpMap::new("example_clear.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// map.insert(2, 2)?;
-    /// map.clear();
+    /// map.clear()?;
     /// assert_eq!(map.is_empty(), true);
     /// # fs::remove_file("example_clear.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn clear(&mut self) -> Result<()> {
         self.pager.clear()
@@ -537,8 +537,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -549,7 +549,7 @@ where
     /// # fs::remove_file("example_min.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn min(&mut self) -> Result<Option<T>> {
         let mut curr_page = self.pager.get_root_page();
@@ -570,8 +570,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -582,7 +582,7 @@ where
     /// # fs::remove_file("example_max.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn max(&mut self) -> Result<Option<T>> {
         let mut curr_page = self.pager.get_root_page();
@@ -611,8 +611,8 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bp_tree;
-    /// # fn foo() -> bp_tree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
@@ -627,7 +627,7 @@ where
     /// # fs::remove_file("example_iter_mut.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn iter_mut(&mut self) -> Result<BpMapIterMut<T, U>> {
         let mut curr_page = self.pager.get_root_page();
