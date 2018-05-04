@@ -52,6 +52,19 @@ where
     }
 }
 
+/// A compaction strategy based on bucketing SSTables by their sizes and then compacting buckets
+/// when they become too full.
+///
+/// # Configuration Parameters
+///  - `min_sstable_count`: The minimum number of SSTables in a bucket for a compaction to trigger.
+///  - `min_sstable_size`: The size threshold for the first bucket. All SSTables with size
+///  smaller than `min_sstable_size` will be bucketed into the first bucket.
+///  - `bucket_low`: SSTables in a bucket other than the first must have size greater than or equal
+///  to `bucket_low * bucket_average` where `bucket_average` is the average of the bucket.
+///  - `bucket_high`: SSTables in a bucket other than the first must have size smaller than or equal
+///  to `bucket_high * bucket_average` where `bucket_average` is the average of the bucket.
+///  - `max_in_memory_size`: The maximum size of the in-memory tree before it must be flushed onto
+///  disk as a SSTable.
 pub struct SizeTieredStrategy<T, U> {
     db_path: PathBuf,
     compaction_thread_join_handle: Option<thread::JoinHandle<()>>,
@@ -67,6 +80,21 @@ where
     T: 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
     U: 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
 {
+    /// Constructs a new `SizeTieredStrategy<T, U>` with specific configuration parameters.
+    ///
+    /// # Examples
+    /// ```
+    /// # use extended_collections::lsm_tree::Result;
+    /// # fn foo() -> Result<()> {
+    /// # use std::fs;
+    /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    ///
+    /// let sts: SizeTieredStrategy<u32, u32> = SizeTieredStrategy::new("size_tiered_metadata_new", 4, 50000, 0.5, 1.5, 10000)?;
+    /// # fs::remove_dir_all("size_tiered_metadata_new")?;
+    /// # Ok(())
+    /// # }
+    /// # foo().unwrap();
+    /// ```
     pub fn new<P>(
         db_path: P,
         min_sstable_count: usize,
@@ -109,6 +137,21 @@ where
         Ok(ret)
     }
 
+    /// Opens an existing `SizeTieredStrategy<T, U>` from a folder.
+    ///
+    /// # Examples
+    /// ```no run
+    /// # use extended_collections::lsm_tree::Result;
+    /// # fn foo() -> Result<()> {
+    /// # use std::fs;
+    /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    ///
+    /// let sts: SizeTieredStrategy<u32, u32> = SizeTieredStrategy::open("size_tiered_metadata_open")?;
+    /// # fs::remove_dir_all("size_tiered_metadata_open")?;
+    /// # Ok(())
+    /// # }
+    /// # foo().unwrap();
+    /// ```
     pub fn open<P>(db_path: P) -> Result<Self>
     where
         P: AsRef<Path>,
@@ -448,7 +491,7 @@ where
     }
 }
 
-pub struct SizeTieredIter<T, U> {
+struct SizeTieredIter<T, U> {
     sstable_lock_count: Rc<RefCell<u64>>,
     sstable_data_iters: Vec<SSTableDataIter<T, U>>,
     entries: BinaryHeap<(cmp::Reverse<Entry<T, Option<U>>>, usize)>,
@@ -494,10 +537,5 @@ where
 impl<T, U> Drop for SizeTieredIter<T, U> {
     fn drop(&mut self) {
         *self.sstable_lock_count.borrow_mut() -= 1;
-    }
-}
-
-impl<T, U> Drop for SizeTieredStrategy<T, U> {
-    fn drop(&mut self) {
     }
 }

@@ -24,7 +24,7 @@ type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 /// # use std::fs;
 /// use extended_collections::bp_tree::BpMap;
 ///
-/// let mut map: BpMap<u32, u64> = BpMap::new("example.dat", 4, 8)?;
+/// let mut map: BpMap<u32, u64> = BpMap::new("bp_map.dat", 4, 8)?;
 /// map.insert(0, 1)?;
 /// map.insert(3, 4)?;
 ///
@@ -36,7 +36,7 @@ type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 ///
 /// assert_eq!(map.remove(&0)?, Some((0, 1)));
 /// assert_eq!(map.remove(&1)?, None);
-/// # fs::remove_file("example.dat")?;
+/// # fs::remove_file("bp_map.dat")?;
 /// # Ok(())
 /// # }
 /// # foo().unwrap();
@@ -61,8 +61,8 @@ where
     /// use extended_collections::bp_tree::BpMap;
     ///
     /// // keys have a maximum of 4 bytes and values have a maximum of 8 bytes
-    /// let map: BpMap<u32, u64> = BpMap::new("example_new.dat", 4, 8)?;
-    /// # fs::remove_file("example_new.dat")?;
+    /// let map: BpMap<u32, u64> = BpMap::new("bp_map_example_new.dat", 4, 8)?;
+    /// # fs::remove_file("bp_map_example_new.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -91,8 +91,8 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let map: BpMap<u32, u64> = BpMap::with_degrees("example_with_degrees.dat", 4, 8, 3, 3)?;
-    /// # fs::remove_file("example_with_degrees.dat")?;
+    /// let map: BpMap<u32, u64> = BpMap::with_degrees("bp_map_example_with_degrees.dat", 4, 8, 3, 3)?;
+    /// # fs::remove_file("bp_map_example_with_degrees.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -116,12 +116,12 @@ where
     /// Opens an existing `BpMap<T, U>` from a file.
     ///
     /// # Examples
-    /// ```no run
+    /// ```no_run
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let map: BpMap<u32, u64> = BpMap::open("example_open.dat")?;
+    /// let map: BpMap<u32, u64> = BpMap::open("bp_map_example_open.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -163,12 +163,12 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BpMap<u32, u64> = BpMap::new("example_insert.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_insert.dat", 4, 8)?;
     /// assert_eq!(map.insert(1, 1)?, None);
     /// assert_eq!(map.get(&1)?, Some(1));
     /// assert_eq!(map.insert(1, 2)?, Some((1, 1)));
     /// assert_eq!(map.get(&1)?, Some(2));
-    /// # fs::remove_file("example_insert.dat")?;
+    /// # fs::remove_file("bp_map_example_insert.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -243,11 +243,11 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BpMap<u32, u64> = BpMap::new("example_remove.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_remove.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// assert_eq!(map.remove(&1)?, Some((1, 1)));
     /// assert_eq!(map.remove(&1)?, None);
-    /// # fs::remove_file("example_remove.dat")?;
+    /// # fs::remove_file("bp_map_example_remove.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -422,11 +422,11 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BpMap<u32, u64> = BpMap::new("example_contains_key.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_contains_key.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// assert!(!map.contains_key(&0)?);
     /// assert!(map.contains_key(&1)?);
-    /// # fs::remove_file("example_contains_key.dat")?;
+    /// # fs::remove_file("bp_map_example_contains_key.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -445,11 +445,11 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BpMap<u32, u64> = BpMap::new("example_get.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_get.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// assert_eq!(map.get(&0)?, None);
     /// assert_eq!(map.get(&1)?, Some(1));
-    /// # fs::remove_file("example_get.dat")?;
+    /// # fs::remove_file("bp_map_example_get.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -478,10 +478,10 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BpMap<u32, u64> = BpMap::new("example_len.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_len.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// assert_eq!(map.len(), 1);
-    /// # fs::remove_file("example_len.dat")?;
+    /// # fs::remove_file("bp_map_example_len.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -499,9 +499,9 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let map: BpMap<u32, u64> = BpMap::new("example_is_empty.dat", 4, 8)?;
+    /// let map: BpMap<u32, u64> = BpMap::new("bp_map_example_is_empty.dat", 4, 8)?;
     /// assert!(map.is_empty());
-    /// # fs::remove_file("example_is_empty.dat")?;
+    /// # fs::remove_file("bp_map_example_is_empty.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -519,12 +519,12 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BpMap<u32, u64> = BpMap::new("example_clear.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_clear.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// map.insert(2, 2)?;
     /// map.clear()?;
     /// assert_eq!(map.is_empty(), true);
-    /// # fs::remove_file("example_clear.dat")?;
+    /// # fs::remove_file("bp_map_example_clear.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -542,11 +542,11 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BpMap<u32, u64> = BpMap::new("example_min.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_min.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// map.insert(3, 3)?;
     /// assert_eq!(map.min()?, Some(1));
-    /// # fs::remove_file("example_min.dat")?;
+    /// # fs::remove_file("bp_map_example_min.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -575,11 +575,11 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BpMap<u32, u64> = BpMap::new("example_max.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_max.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// map.insert(3, 3)?;
     /// assert_eq!(map.max()?, Some(3));
-    /// # fs::remove_file("example_max.dat")?;
+    /// # fs::remove_file("bp_map_example_max.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -616,7 +616,7 @@ where
     /// # use std::fs;
     /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BpMap<u32, u64> = BpMap::new("example_iter_mut.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_iter_mut.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// map.insert(2, 2)?;
     ///
@@ -624,7 +624,7 @@ where
     /// assert_eq!(iterator.next(), Some((1, 1)));
     /// assert_eq!(iterator.next(), Some((2, 2)));
     /// assert_eq!(iterator.next(), None);
-    /// # fs::remove_file("example_iter_mut.dat")?;
+    /// # fs::remove_file("bp_map_example_iter_mut.dat")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();

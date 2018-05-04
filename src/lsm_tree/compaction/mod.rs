@@ -1,10 +1,14 @@
 pub mod size_tiered;
 
-pub use self::size_tiered::{SizeTieredIter, SizeTieredStrategy};
+pub use self::size_tiered::SizeTieredStrategy;
 
 use lsm_tree::{SSTable, Result};
 use std::path::Path;
 
+/// Trait for types that have compaction logic for SSTables.
+///
+/// A compaction strategy should incrementally accept SStables and handle the logic for creating
+/// new SSTables, deleting stale SSTables, and searching through current SSTables.
 pub trait CompactionStrategy<T, U> {
     fn get_db_path(&self) -> &Path;
 
