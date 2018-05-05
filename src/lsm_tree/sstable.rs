@@ -6,13 +6,42 @@ use lsm_tree::{Error, Result};
 use rand::{thread_rng, Rng};
 use serde::de::{self, Deserialize, DeserializeOwned, Deserializer};
 use serde::ser::{Serialize, Serializer};
-use std::cmp::Ordering;
+use std::cmp;
 use std::fs;
 use std::hash::Hash;
 use std::io::{BufWriter, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::marker::{PhantomData};
 use std::path::{Path, PathBuf};
 use std::result;
+
+pub fn merge_ranges<T>(range_1: Option<(T, T)>, range_2: Option<(T, T)>) -> Option<(T, T)>
+where
+    T: Ord,
+{
+    match (range_1, range_2) {
+        (Some(range_1), Some(range_2)) => Some((
+            cmp::min(range_1.0, range_2.0),
+            cmp::max(range_1.1, range_2.1),
+        )),
+        (None, range) => range,
+        (range, None) => range,
+    }
+}
+
+pub fn is_intersecting<T>(range_1: &Option<(T, T)>, range_2: &Option<(T, T)>) -> bool
+where
+    T: Ord,
+{
+    match (range_1, range_2) {
+        (Some(ref range_1), Some(ref range_2)) => {
+            let l = cmp::max(&range_1.0, &range_2.0);
+            let r = cmp::min(&range_1.1, &range_2.1);
+            l <= r
+        },
+        (None, _) => false,
+        (_, None) => false,
+    }
+}
 
 #[derive(Deserialize, Serialize)]
 pub struct SSTableValue<U> {
@@ -27,13 +56,13 @@ impl<U> PartialEq for SSTableValue<U> {
 }
 
 impl<U> Ord for SSTableValue<U> {
-    fn cmp(&self, other: &SSTableValue<U>) -> Ordering {
+    fn cmp(&self, other: &SSTableValue<U>) -> cmp::Ordering {
         other.logical_time.cmp(&self.logical_time)
     }
 }
 
 impl<U> PartialOrd for SSTableValue<U> {
-    fn partial_cmp(&self, other: &SSTableValue<U>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &SSTableValue<U>) -> Option<cmp::Ordering> {
         Some(self.cmp(&other))
     }
 }
@@ -45,8 +74,8 @@ pub struct SSTableSummary<T> {
     pub entry_count: usize,
     pub tombstone_count: usize,
     pub size: u64,
-    pub min_entry: Option<T>,
-    pub max_entry: Option<T>,
+    pub key_range: Option<(T, T)>,
+    pub logical_time_range: Option<(u64, u64)>,
     pub index: Vec<(T, u64)>,
     pub logical_time: u64,
 }
@@ -94,8 +123,8 @@ where
                 entry_count: 0,
                 tombstone_count: 0,
                 size: 0,
-                min_entry: None,
-                max_entry: None,
+                key_range: None,
+                logical_time_range: None,
                 index: Vec::new(),
                 logical_time,
             },
@@ -112,14 +141,19 @@ where
     }
 
     pub fn append(&mut self, key: T, value: SSTableValue<U>) -> Result<()> {
+        let logical_time = value.logical_time;
         self.summary.entry_count += 1;
         if value.data.is_none() {
             self.summary.tombstone_count += 1;
         }
-        if self.summary.min_entry.is_none() {
-            self.summary.min_entry = Some(key.clone());
+        match self.summary.key_range.take() {
+            Some((start, _)) => self.summary.key_range = Some((start, key.clone())),
+            None => self.summary.key_range = Some((key.clone(), key.clone())),
         }
-        self.summary.max_entry = Some(key.clone());
+        match self.summary.logical_time_range.take() {
+            Some((start, _)) => self.summary.logical_time_range = Some((start, logical_time)),
+            None => self.summary.logical_time_range = Some((logical_time, logical_time)),
+        }
 
         self.filter.insert(&key);
         self.index_block.push((key.clone(), self.data_offset));

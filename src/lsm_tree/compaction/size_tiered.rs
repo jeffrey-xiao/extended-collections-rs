@@ -1,7 +1,7 @@
 use bincode::{deserialize, serialize};
 use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian};
 use entry::Entry;
-use lsm_tree::{SSTable, SSTableBuilder, SSTableDataIter, SSTableValue, Result};
+use lsm_tree::{sstable, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue, Result};
 use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
@@ -242,6 +242,39 @@ where
                     .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
                     .collect();
 
+                let sstable_max_logical_time_range = old_sstables
+                    .iter()
+                    .fold(None, |max_logical_time, sstable| {
+                        cmp::max(
+                            max_logical_time,
+                            match sstable.summary.logical_time_range {
+                                Some((_, r)) => Some(r),
+                                None => None,
+                            },
+                        )
+                    });
+                let sstable_key_range = old_sstables
+                    .iter()
+                    .fold(None, |range, sstable| {
+                        let sstable_range = sstable.summary.key_range.clone();
+                        sstable::merge_ranges(range, sstable_range)
+                    });
+                let purge_tombstone = metadata.sstables
+                    .iter()
+                    .all(|sstable| {
+                        let is_older_range = {
+                            match sstable.summary.logical_time_range {
+                                Some((l, _)) => sstable_max_logical_time_range < Some(l),
+                                None => true,
+                            }
+                        };
+                        let key_intersecting = sstable::is_intersecting(
+                            &sstable_key_range,
+                            &sstable.summary.key_range,
+                        );
+                        is_older_range && !key_intersecting
+                    });
+
                 let sstable_logical_time = {
                     match old_sstables.iter().map(|sstable| sstable.summary.logical_time).max() {
                         Some(logical_time) => logical_time,
@@ -256,7 +289,6 @@ where
                 )?;
 
                 let mut old_sstable_data_iters = Vec::with_capacity(old_sstables.len());
-
                 for sstable in &old_sstables {
                     old_sstable_data_iters.push(sstable.data_iter()?);
                 }
@@ -284,7 +316,11 @@ where
                             Some(ref last_key) => *last_key != key,
                             None => true,
                         }
-                    };
+                    } && (!purge_tombstone || value.data.is_some());
+
+                    if purge_tombstone && value.data.is_none() {
+                        println!("Purged");
+                    }
 
                     if should_append {
                         new_sstable_builder.append(key.clone(), value)?;

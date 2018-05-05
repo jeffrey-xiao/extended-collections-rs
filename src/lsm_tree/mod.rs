@@ -4,11 +4,11 @@ mod sstable;
 
 pub use self::map::LsmMap;
 
-use bincode::{self};
+use bincode;
 use self::sstable::{SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
 use std::error;
 use std::fmt;
-use std::io::{self};
+use std::io;
 use std::result;
 
 #[derive(Debug)]
@@ -55,4 +55,3 @@ impl fmt::Display for Error {
 }
 
 pub type Result<T> = result::Result<T, Error>;
-

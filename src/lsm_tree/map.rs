@@ -93,10 +93,7 @@ where
             logical_time,
         )?;
         for entry in mem::replace(&mut self.in_memory_tree, BTreeMap::new()) {
-            sstable_builder.append(
-                entry.0,
-                entry.1,
-            )?;
+            sstable_builder.append(entry.0, entry.1)?;
         }
         let sstable = SSTable::new(sstable_builder.flush()?)?;
         self.compaction_strategy.try_compact(sstable)
@@ -134,15 +131,14 @@ where
         };
         let key_size = serialized_size(&key)?;
         let value_size = serialized_size(&value)?;
+
         if let Some(ref value) = self.in_memory_tree.get(&key) {
             let value_size = serialized_size(value)?;
             self.in_memory_usage -= key_size + value_size;
         }
+
         self.in_memory_usage += key_size + value_size;
-        self.in_memory_tree.insert(
-            key,
-            value,
-        );
+        self.in_memory_tree.insert(key, value);
 
         if self.in_memory_usage > self.compaction_strategy.get_max_in_memory_size() {
             self.compact()
@@ -182,16 +178,15 @@ where
             data: None,
             logical_time: self.compaction_strategy.get_and_increment_logical_time()?,
         };
+
         if let Some(ref value) = self.in_memory_tree.get(&key) {
             let value_size = serialized_size(value)?;
             self.in_memory_usage -= key_size + value_size;
         }
+
         self.in_memory_usage += serialized_size(&key)?;
         self.in_memory_usage += serialized_size(&value)?;
-        self.in_memory_tree.insert(
-            key,
-            value,
-        );
+        self.in_memory_tree.insert(key, value);
 
         if self.in_memory_usage > self.compaction_strategy.get_max_in_memory_size() {
             self.compact()
