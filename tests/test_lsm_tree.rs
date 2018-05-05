@@ -66,6 +66,7 @@ fn int_test_lsm_map_size_tiered_strategy() {
             let mut expected_len = expected.len();
 
             for (index, entry) in expected.iter().rev().enumerate() {
+                assert!(map.contains_key(&entry.0)?);
                 map.remove(entry.0)?;
                 expected_len -= 1;
                 assert!(!map.contains_key(&entry.0)?);

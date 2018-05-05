@@ -2,7 +2,7 @@ pub mod size_tiered;
 
 pub use self::size_tiered::SizeTieredStrategy;
 
-use lsm_tree::{SSTable, Result};
+use lsm_tree::{Result, SSTable, SSTableValue};
 use std::path::Path;
 
 /// An iterator for the SSTables on disk.
@@ -17,11 +17,13 @@ pub trait CompactionStrategy<T, U> {
 
     fn get_max_in_memory_size(&self) -> u64;
 
+    fn get_and_increment_logical_time(&mut self) -> Result<u64>;
+
     fn try_compact(&mut self, sstable: SSTable<T, U>) -> Result<()>;
 
     fn flush(&mut self) -> Result<()>;
 
-    fn get(&mut self, key: &T) -> Result<Option<U>>;
+    fn get(&mut self, key: &T) -> Result<Option<SSTableValue<U>>>;
 
     fn len_hint(&mut self) -> Result<usize>;
 

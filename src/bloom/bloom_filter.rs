@@ -31,7 +31,7 @@ use std::hash::{Hash, Hasher};
 /// assert_eq!(filter.len(), 96);
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct BloomFilter {
     bit_vec: BitVec,
     hashers: [SipHasher; 2],

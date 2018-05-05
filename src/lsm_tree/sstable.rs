@@ -6,6 +6,7 @@ use lsm_tree::{Error, Result};
 use rand::{thread_rng, Rng};
 use serde::de::{self, Deserialize, DeserializeOwned, Deserializer};
 use serde::ser::{Serialize, Serializer};
+use std::cmp::Ordering;
 use std::fs;
 use std::hash::Hash;
 use std::io::{BufWriter, ErrorKind, Read, Seek, SeekFrom, Write};
@@ -13,11 +14,31 @@ use std::marker::{PhantomData};
 use std::path::{Path, PathBuf};
 use std::result;
 
-pub enum SSTableValue<U> {
-    Value(U),
-    Tombstone,
-    NotFound,
+#[derive(Deserialize, Serialize)]
+pub struct SSTableValue<U> {
+    pub data: Option<U>,
+    pub logical_time: u64,
 }
+
+impl<U> PartialEq for SSTableValue<U> {
+    fn eq(&self, other: &SSTableValue<U>) -> bool {
+        self.logical_time == other.logical_time
+    }
+}
+
+impl<U> Ord for SSTableValue<U> {
+    fn cmp(&self, other: &SSTableValue<U>) -> Ordering {
+        other.logical_time.cmp(&self.logical_time)
+    }
+}
+
+impl<U> PartialOrd for SSTableValue<U> {
+    fn partial_cmp(&self, other: &SSTableValue<U>) -> Option<Ordering> {
+        Some(self.cmp(&other))
+    }
+}
+
+impl<U> Eq for SSTableValue<U> {}
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct SSTableSummary<T> {
@@ -27,7 +48,7 @@ pub struct SSTableSummary<T> {
     pub min_entry: Option<T>,
     pub max_entry: Option<T>,
     pub index: Vec<(T, u64)>,
-    pub tag: u64,
+    pub logical_time: u64,
 }
 
 pub struct SSTableBuilder<T, U> {
@@ -53,7 +74,7 @@ where
         thread_rng().gen_ascii_chars().take(32).collect()
     }
 
-    pub fn new<P>(db_path: P, entry_count_hint: usize) -> Result<Self>
+    pub fn new<P>(db_path: P, entry_count_hint: usize, logical_time: u64) -> Result<Self>
     where
         P: AsRef<Path>,
     {
@@ -76,7 +97,7 @@ where
                 min_entry: None,
                 max_entry: None,
                 index: Vec::new(),
-                tag: 0,
+                logical_time,
             },
             block_index: 0,
             block_size: (entry_count_hint as f64).sqrt().ceil() as usize,
@@ -90,9 +111,9 @@ where
         })
     }
 
-    pub fn append(&mut self, key: T, value: Option<U>) -> Result<()> {
+    pub fn append(&mut self, key: T, value: SSTableValue<U>) -> Result<()> {
         self.summary.entry_count += 1;
-        if value.is_none() {
+        if value.data.is_none() {
             self.summary.tombstone_count += 1;
         }
         if self.summary.min_entry.is_none() {
@@ -208,15 +229,15 @@ where
         }
     }
 
-    pub fn get(&self, key: &T) -> Result<SSTableValue<U>> {
+    pub fn get(&self, key: &T) -> Result<Option<SSTableValue<U>>> {
         if !self.filter.contains(key) {
-            return Ok(SSTableValue::NotFound);
+            return Ok(None);
         }
 
         let index = {
             match Self::floor_offset(&self.summary.index, key) {
                 Some(index) => index,
-                None => return Ok(SSTableValue::NotFound),
+                None => return Ok(None),
             }
         };
 
@@ -231,7 +252,7 @@ where
         let index = {
             match index_block.binary_search_by_key(&key, |index_entry| &index_entry.0) {
                 Ok(index) => index,
-                Err(_) => return Ok(SSTableValue::NotFound),
+                Err(_) => return Ok(None),
             }
         };
 
@@ -242,12 +263,7 @@ where
         data_file.read_exact(buffer.as_mut_slice())?;
         deserialize(&buffer)
             .map_err(Error::SerdeError)
-            .map(|entry: Entry<T, Option<U>>| {
-                match entry.value {
-                    Some(value) => SSTableValue::Value(value),
-                    None => SSTableValue::Tombstone,
-                }
-            })
+            .map(|entry: Entry<T, SSTableValue<U>>| Some(entry.value))
     }
 
     pub fn data_iter(&self) -> Result<SSTableDataIter<T, U>> {
@@ -268,7 +284,7 @@ where
     T: DeserializeOwned,
     U: DeserializeOwned,
 {
-    type Item = Result<Entry<T, Option<U>>>;
+    type Item = Result<Entry<T, SSTableValue<U>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let size = {

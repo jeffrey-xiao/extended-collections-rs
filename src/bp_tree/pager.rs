@@ -297,7 +297,6 @@ where
     }
 
     pub fn validate_value(&self, value: &U) -> Result<()> {
-        println!("{:?}", serialized_size(value)?);
         assert!(serialized_size(value)? <= self.metadata.value_size);
         Ok(())
     }

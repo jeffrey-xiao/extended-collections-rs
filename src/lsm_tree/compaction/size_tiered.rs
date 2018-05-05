@@ -1,5 +1,5 @@
 use bincode::{deserialize, serialize};
-use entry::Entry;
+use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian};
 use lsm_tree::{SSTable, SSTableBuilder, SSTableDataIter, SSTableValue, Result};
 use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
 use serde::de::DeserializeOwned;
@@ -74,6 +74,8 @@ where
     db_path: PathBuf,
     compaction_thread_join_handle: Option<thread::JoinHandle<()>>,
     is_compacting: Arc<AtomicBool>,
+    curr_logical_time: u64,
+    logical_time_file: fs::File,
     metadata_lock_count: Rc<RefCell<u64>>,
     metadata_file: fs::File,
     curr_metadata: Arc<Mutex<SizeTieredMetadata<T, U>>>,
@@ -117,10 +119,17 @@ where
             .write(true)
             .create(true)
             .open(db_path.as_ref().join("metadata.dat"))?;
+        let logical_time_file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(db_path.as_ref().join("logical_time.dat"))?;
         let mut ret = SizeTieredStrategy {
             db_path: PathBuf::from(db_path.as_ref()),
             compaction_thread_join_handle: None,
             is_compacting: Arc::new(AtomicBool::new(false)),
+            curr_logical_time: 0,
+            logical_time_file,
             metadata_lock_count: Rc::new(RefCell::new(0)),
             metadata_file,
             curr_metadata: Arc::new(Mutex::new(SizeTieredMetadata::new(
@@ -165,12 +174,19 @@ where
             .read(true)
             .write(true)
             .open(db_path.as_ref().join("metadata.dat"))?;
+        let mut logical_time_file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(db_path.as_ref().join("logical_time.dat"))?;
         let mut buffer = Vec::new();
         metadata_file.read_to_end(&mut buffer)?;
+        logical_time_file.seek(SeekFrom::Start(0))?;
         Ok(SizeTieredStrategy {
             db_path: PathBuf::from(db_path.as_ref()),
             compaction_thread_join_handle: None,
             is_compacting: Arc::new(AtomicBool::new(false)),
+            curr_logical_time: logical_time_file.read_u64::<BigEndian>()?,
+            logical_time_file,
             metadata_lock_count: Rc::new(RefCell::new(0)),
             metadata_file,
             curr_metadata: Arc::new(Mutex::new(deserialize(&buffer)?)),
@@ -215,28 +231,26 @@ where
         range: (usize, usize),
     ) {
         let db_path = self.db_path.clone();
-        let curr_metadata = self.curr_metadata.clone();
         let next_metadata = self.next_metadata.clone();
         let is_compacting = self.is_compacting.clone();
+        self.is_compacting.store(true, Ordering::Release);
         self.compaction_thread_join_handle = Some(thread::spawn(move || {
             println!("Started compacting.");
-            let mut old_sstables: Vec<Arc<SSTable<T, U>>> = metadata.sstables
+            let old_sstables: Vec<Arc<SSTable<T, U>>> = metadata.sstables
                 .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
                 .collect();
-            old_sstables.sort_by_key(|sstable| sstable.summary.tag);
 
-            let new_tag = {
-                match old_sstables.iter().map(|sstable| sstable.summary.tag).max() {
-                    Some(new_tag) => new_tag,
+            let sstable_logical_time = {
+                match old_sstables.iter().map(|sstable| sstable.summary.logical_time).max() {
+                    Some(logical_time) => logical_time,
                     _ => unreachable!(),
                 }
             };
 
-            let newest_tag_opt = metadata.sstables.iter().map(|sstable| sstable.summary.tag).min();
-
             let mut new_sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
                 db_path,
                 old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
+                sstable_logical_time,
             ).unwrap();
 
             let mut old_sstable_data_iters: Vec<SSTableDataIter<T, U>> = old_sstables
@@ -247,64 +261,66 @@ where
             drop(old_sstables);
 
             let mut entries = BinaryHeap::new();
-            let mut last_entry_opt = None;
+            let mut last_key_opt = None;
 
             for (index, sstable_data_iter) in old_sstable_data_iters.iter_mut().enumerate() {
                 if let Some(entry) = sstable_data_iter.next() {
                     let entry = entry.unwrap();
-                    entries.push((cmp::Reverse(entry), index));
+                    entries.push(cmp::Reverse((entry.key, entry.value, index)));
                 }
             }
 
-            while let Some((cmp::Reverse(entry), index)) = entries.pop() {
+            while let Some(cmp::Reverse((key, value, index))) = entries.pop() {
                 if let Some(entry) = old_sstable_data_iters[index].next() {
-                    entries.push((cmp::Reverse(entry.unwrap()), index));
+                    let entry = entry.unwrap();
+                    entries.push(cmp::Reverse((entry.key, entry.value, index)));
                 }
 
                 let should_append = {
-                    match last_entry_opt {
-                        Some(ref last_entry) => *last_entry != entry.key,
+                    match last_key_opt {
+                        Some(ref last_key) => *last_key != key,
                         None => true,
-                    }
-                } && {
-                    match newest_tag_opt {
-                        Some(newest_tag) => new_tag > newest_tag || entry.value.is_some(),
-                        None => entry.value.is_some(),
                     }
                 };
 
                 if should_append {
-                    new_sstable_builder.append(entry.key.clone(), entry.value).unwrap();
+                    new_sstable_builder.append(key.clone(), value).unwrap();
                 }
 
-                last_entry_opt = Some(entry.key);
+                last_key_opt = Some(key);
             }
 
-            new_sstable_builder.summary.tag = new_tag;
             let new_sstable = Arc::new(SSTable::new(new_sstable_builder.flush().unwrap()).unwrap());
             metadata.sstables.push(new_sstable);
 
-            let curr_metadata = curr_metadata.lock().unwrap();
-            metadata.sstables.extend(
-                curr_metadata.sstables
-                    .iter()
-                    .filter(|sstable| sstable.summary.tag > new_tag)
-                    .map(|sstable| Arc::clone(sstable)),
-            );
-
+            println!("Locking in compaction");
             *next_metadata.lock().unwrap() = Some(metadata);
 
             is_compacting.store(false, Ordering::Release);
             println!("Finished compacting");
         }));
-        self.is_compacting.store(true, Ordering::Release);
     }
 
     fn try_replace_metadata(&self, curr_metadata: &mut MutexGuard<SizeTieredMetadata<T, U>>) -> Result<bool> {
         let mut next_metadata = self.next_metadata.lock().unwrap();
 
         if let Some(next_metadata) = next_metadata.take() {
+            let logical_time_opt = next_metadata.sstables
+                .iter()
+                .map(|sstable| sstable.summary.logical_time)
+                .max();
             let old_sstables = mem::replace(&mut curr_metadata.sstables, next_metadata.sstables);
+            curr_metadata.sstables.extend(
+                old_sstables
+                    .iter()
+                    .filter(|sstable| {
+                        match logical_time_opt {
+                            Some(logical_time) => sstable.summary.logical_time > logical_time,
+                            None => true,
+                        }
+                    })
+                    .map(|sstable| Arc::clone(sstable)),
+            );
             let new_sstable_paths: HashSet<&PathBuf> = HashSet::from_iter(
                 curr_metadata.sstables
                     .iter()
@@ -336,37 +352,31 @@ where
         self.curr_metadata.lock().unwrap().max_in_memory_size
     }
 
-    fn try_compact(&mut self, mut sstable: SSTable<T, U>) -> Result<()> {
+    fn get_and_increment_logical_time(&mut self) -> Result<u64> {
+        let ret = self.curr_logical_time;
+        self.curr_logical_time += 1;
+        self.logical_time_file.seek(SeekFrom::Start(0))?;
+        self.logical_time_file.write_u64::<BigEndian>(self.curr_logical_time)?;
+        Ok(ret)
+    }
+
+    fn try_compact(&mut self, sstable: SSTable<T, U>) -> Result<()> {
+        // taking snapshot of current metadata
         let mut metadata_snapshot = {
             let mut curr_metadata = self.curr_metadata.lock().unwrap();
             self.try_replace_metadata(&mut curr_metadata)?;
-            sstable.summary.tag = {
-                let sstable = curr_metadata.sstables
-                    .iter()
-                    .max_by_key(|sstable| sstable.summary.tag);
-                match sstable {
-                    Some(sstable) => sstable.summary.tag + 1,
-                    None => 0,
-                }
-            };
             curr_metadata.sstables.push(Arc::new(sstable));
             self.metadata_file.seek(SeekFrom::Start(0))?;
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
             curr_metadata.clone()
         };
 
-        if self.is_compacting.load(Ordering::Acquire) {
-            return Ok(());
-        }
-
-        if *self.metadata_lock_count.borrow() != 0 {
-            println!("SKipped compaction because of lock");
+        if self.is_compacting.load(Ordering::Acquire) || *self.metadata_lock_count.borrow() != 0 {
             return Ok(());
         }
 
         metadata_snapshot.sstables.sort_by_key(|sstable| sstable.summary.size);
         if let Some(range) = self.get_compaction_range(&metadata_snapshot) {
-            // taking snapshot of current metadata
             self.spawn_compaction_thread(metadata_snapshot, range);
         }
 
@@ -389,22 +399,23 @@ where
         Ok(())
     }
 
-    fn get(&mut self, key: &T) -> Result<Option<U>> {
+    fn get(&mut self, key: &T) -> Result<Option<SSTableValue<U>>> {
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
         if self.try_replace_metadata(&mut curr_metadata)? {
             self.metadata_file.seek(SeekFrom::Start(0))?;
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
         }
 
-        for sstable in curr_metadata.sstables.iter().rev() {
-            match sstable.get(key)? {
-                SSTableValue::Value(value) => return Ok(Some(value)),
-                SSTableValue::Tombstone => return Ok(None),
-                _ => (),
+        let mut ret = None;
+
+        for sstable in curr_metadata.sstables.iter() {
+            let res = sstable.get(key)?;
+            if res.is_some() && (ret.is_none() || res < ret) {
+                ret = res;
             }
         }
 
-        Ok(None)
+        Ok(ret)
     }
 
     fn len_hint(&mut self) -> Result<usize> {
@@ -489,7 +500,8 @@ where
 
         for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
             if let Some(entry) = sstable_data_iter.next() {
-                entries.push((cmp::Reverse(entry?), index));
+                let entry = entry?;
+                entries.push(cmp::Reverse((entry.key, entry.value, index)));
             }
         }
 
@@ -497,51 +509,52 @@ where
             sstable_lock_count: Rc::clone(&self.metadata_lock_count),
             sstable_data_iters,
             entries,
-            last_entry_opt: None,
+            last_key_opt: None,
         }))
     }
 }
 
-type EntryIndex<T, U> = (cmp::Reverse<Entry<T, Option<U>>>, usize);
+type EntryIndex<T, U> = cmp::Reverse<(T, SSTableValue<U>, usize)>;
 struct SizeTieredIter<T, U> {
     sstable_lock_count: Rc<RefCell<u64>>,
     sstable_data_iters: Vec<SSTableDataIter<T, U>>,
     entries: BinaryHeap<EntryIndex<T, U>>,
-    last_entry_opt: Option<T>,
+    last_key_opt: Option<T>,
 }
 
 impl<T, U> Iterator for SizeTieredIter<T, U>
 where
-    T: DeserializeOwned + Ord,
+    T: Clone + DeserializeOwned + Ord,
     U: DeserializeOwned,
 {
     type Item = Result<(T, U)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((cmp::Reverse(entry), index)) = self.entries.pop() {
+        while let Some(cmp::Reverse((key, value, index))) = self.entries.pop() {
             if let Some(entry) = self.sstable_data_iters[index].next() {
                 match entry {
-                    Ok(entry) => self.entries.push((cmp::Reverse(entry), index)),
+                    Ok(entry) => self.entries.push(cmp::Reverse((entry.key, entry.value, index))),
                     Err(error) => return Some(Err(error)),
                 }
             }
-            if let Some(value) = entry.value {
+
+            if let Some(data) = value.data {
                 let should_return = {
-                    match self.last_entry_opt {
-                        Some(ref last_entry) => *last_entry != entry.key,
+                    match self.last_key_opt {
+                        Some(ref last_key) => *last_key != key,
                         None => true,
                     }
                 };
 
+                self.last_key_opt = Some(key.clone());
+
                 if should_return {
-                    return Some(Ok((entry.key, value)));
+                    return Some(Ok((key, data)));
                 }
+            } else {
+                self.last_key_opt = Some(key.clone());
             }
-
-            self.last_entry_opt = Some(entry.key);
-
         }
-
         None
     }
 }

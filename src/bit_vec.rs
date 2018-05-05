@@ -32,7 +32,7 @@ use std::slice;
 /// bv.union(&clone);
 /// assert_eq!(bv.iter().collect::<Vec<bool>>(), vec![true, true, true, true, true]);
 /// ```
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Deserialize, PartialEq, Serialize)]
 pub struct BitVec {
     blocks: Vec<u8>,
     len: usize,
