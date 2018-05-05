@@ -447,7 +447,7 @@ where
 
         let mut ret = None;
 
-        for sstable in curr_metadata.sstables.iter() {
+        for sstable in &curr_metadata.sstables {
             let res = sstable.get(key)?;
             if res.is_some() && (ret.is_none() || res < ret) {
                 ret = res;
