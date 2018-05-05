@@ -55,7 +55,6 @@ fn int_test_lsm_map_size_tiered_strategy() {
             sts = SizeTieredStrategy::open(test_name)?;
             map = LsmMap::new(sts);
 
-
             for entry in &expected {
                 assert!(map.contains_key(&entry.0)?);
                 assert_eq!(map.get(&entry.0)?, Some(entry.1));

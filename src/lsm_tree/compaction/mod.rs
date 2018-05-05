@@ -6,7 +6,7 @@ use lsm_tree::{Result, SSTable, SSTableValue};
 use std::path::Path;
 
 /// An iterator for the SSTables on disk.
-pub type CompactionIter<T, U> = Iterator<Item=Result<(T, U)>>;
+pub type CompactionIter<T, U> = Iterator<Item = Result<(T, U)>>;
 
 /// Trait for types that have compaction logic for SSTables.
 ///

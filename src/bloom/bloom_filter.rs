@@ -1,7 +1,7 @@
 use bit_vec::BitVec;
 use rand::{Rng, XorShiftRng};
-use serde::de::{self, Deserialize, Deserializer, Visitor, SeqAccess, MapAccess};
-use serde::ser::{Serialize, Serializer, SerializeStruct};
+use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use siphasher::sip::SipHasher;
 use std::fmt;
 use std::hash::{Hash, Hasher};

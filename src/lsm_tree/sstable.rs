@@ -1,6 +1,6 @@
 use bincode::{deserialize, serialize};
-use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian};
 use bloom::BloomFilter;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use entry::Entry;
 use lsm_tree::{Error, Result};
 use rand::{thread_rng, Rng};
@@ -10,7 +10,7 @@ use std::cmp;
 use std::fs;
 use std::hash::Hash;
 use std::io::{BufWriter, ErrorKind, Read, Seek, SeekFrom, Write};
-use std::marker::{PhantomData};
+use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::result;
 
@@ -19,10 +19,12 @@ where
     T: Ord,
 {
     match (range_1, range_2) {
-        (Some(range_1), Some(range_2)) => Some((
-            cmp::min(range_1.0, range_2.0),
-            cmp::max(range_1.1, range_2.1),
-        )),
+        (Some(range_1), Some(range_2)) => {
+            Some((
+                cmp::min(range_1.0, range_2.0),
+                cmp::max(range_1.1, range_2.1),
+            ))
+        },
         (None, range) => range,
         (range, None) => range,
     }
@@ -282,7 +284,6 @@ where
         index_file.read_exact(buffer.as_mut_slice())?;
         let index_block: Vec<(T, u64)> = deserialize(&buffer)?;
 
-
         let index = {
             match index_block.binary_search_by_key(&key, |index_entry| &index_entry.0) {
                 Ok(index) => index,
@@ -329,7 +330,7 @@ where
                         ErrorKind::UnexpectedEof => return None,
                         _ => return Some(Err(Error::from(error))),
                     }
-                }
+                },
             }
         };
 
@@ -361,8 +362,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        let ret = SSTable::new(PathBuf::deserialize(deserializer)?)
-            .map_err(de::Error::custom);
+        let ret = SSTable::new(PathBuf::deserialize(deserializer)?).map_err(de::Error::custom);
         Ok(ret?)
     }
 }

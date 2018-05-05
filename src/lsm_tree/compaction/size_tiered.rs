@@ -1,13 +1,13 @@
 use bincode::{deserialize, serialize};
-use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use entry::Entry;
-use lsm_tree::{sstable, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue, Result};
 use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
+use lsm_tree::{sstable, Result, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
-use std::collections::{BinaryHeap, Bound, HashSet};
 use std::cell::RefCell;
 use std::cmp;
+use std::collections::{BinaryHeap, Bound, HashSet};
 use std::fs;
 use std::hash::Hash;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -16,8 +16,8 @@ use std::marker::Send;
 use std::mem;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex, MutexGuard};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -253,27 +253,21 @@ where
                             },
                         )
                     });
-                let sstable_key_range = old_sstables
-                    .iter()
-                    .fold(None, |range, sstable| {
-                        let sstable_range = sstable.summary.key_range.clone();
-                        sstable::merge_ranges(range, sstable_range)
-                    });
-                let purge_tombstone = metadata.sstables
-                    .iter()
-                    .all(|sstable| {
-                        let is_older_range = {
-                            match sstable.summary.logical_time_range {
-                                Some((l, _)) => sstable_max_logical_time_range < Some(l),
-                                None => true,
-                            }
-                        };
-                        let key_intersecting = sstable::is_intersecting(
-                            &sstable_key_range,
-                            &sstable.summary.key_range,
-                        );
-                        is_older_range && !key_intersecting
-                    });
+                let sstable_key_range = old_sstables.iter().fold(None, |range, sstable| {
+                    let sstable_range = sstable.summary.key_range.clone();
+                    sstable::merge_ranges(range, sstable_range)
+                });
+                let purge_tombstone = metadata.sstables.iter().all(|sstable| {
+                    let is_older_range = {
+                        match sstable.summary.logical_time_range {
+                            Some((l, _)) => sstable_max_logical_time_range < Some(l),
+                            None => true,
+                        }
+                    };
+                    let key_intersecting =
+                        sstable::is_intersecting(&sstable_key_range, &sstable.summary.key_range);
+                    is_older_range && !key_intersecting
+                });
 
                 let sstable_logical_time = {
                     match old_sstables.iter().map(|sstable| sstable.summary.logical_time).max() {
@@ -493,7 +487,6 @@ where
                 Err(error) => println!("Child thread terminated with error: {:?}", error),
             }
         }
-
 
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
         let mut next_metadata = self.next_metadata.lock().unwrap();

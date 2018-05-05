@@ -1,11 +1,11 @@
-use bincode::{deserialize, self, serialize, serialized_size};
+use bincode::{self, deserialize, serialize, serialized_size};
 use bp_tree::node::{LeafNode, Node};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::error;
 use std::fmt;
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom, self, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
 use std::mem;
 use std::path::Path;
@@ -249,7 +249,7 @@ where
                 self.db_file.write_all(serialized_metadata)?;
 
                 Ok(free_page)
-            }
+            },
         }
     }
 

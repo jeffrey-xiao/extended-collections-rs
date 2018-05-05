@@ -67,18 +67,19 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn new<P>(
-        file_path: P,
-        key_size: u64,
-        value_size: u64,
-    ) -> Result<BpMap<T, U>>
+    pub fn new<P>(file_path: P, key_size: u64, value_size: u64) -> Result<BpMap<T, U>>
     where
         P: AsRef<Path>,
     {
         let leaf_degree = LeafNode::<T, U>::get_degree(key_size, value_size);
         let internal_degree = InternalNode::<T, U>::get_degree(key_size);
-        Pager::new(file_path, key_size, value_size, leaf_degree, internal_degree)
-            .map(|pager| BpMap { pager })
+        Pager::new(
+            file_path,
+            key_size,
+            value_size,
+            leaf_degree,
+            internal_degree,
+        ).map(|pager| BpMap { pager })
     }
 
     /// Constructs a new, empty `BpMap<T, U>` with maximum sizes for keys and values and specific
@@ -109,8 +110,13 @@ where
     {
         assert!(LeafNode::<T, U>::get_max_size(leaf_degree, key_size, value_size) <= BLOCK_SIZE);
         assert!(InternalNode::<T, U>::get_max_size(internal_degree, key_size) <= BLOCK_SIZE);
-        Pager::new(file_path, key_size, value_size, leaf_degree, internal_degree)
-            .map(|pager| BpMap { pager })
+        Pager::new(
+            file_path,
+            key_size,
+            value_size,
+            leaf_degree,
+            internal_degree,
+        ).map(|pager| BpMap { pager })
     }
 
     /// Opens an existing `BpMap<T, U>` from a file.
@@ -937,7 +943,9 @@ mod tests {
                 map.insert(9, 10)?;
 
                 assert_eq!(
-                    map.iter_mut()?.map(|value| value.unwrap()).collect::<Vec<(u32, u64)>>(),
+                    map.iter_mut()?
+                        .map(|value| value.unwrap())
+                        .collect::<Vec<(u32, u64)>>(),
                     vec![(1, 2), (3, 4), (5, 6), (7, 8), (9, 10), (11, 12)],
                 );
                 Ok(())
