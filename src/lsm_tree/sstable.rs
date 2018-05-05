@@ -35,13 +35,13 @@ where
     T: Ord,
 {
     match (range_1, range_2) {
-        (Some(ref range_1), Some(ref range_2)) => {
+        (&Some(ref range_1), &Some(ref range_2)) => {
             let l = cmp::max(&range_1.0, &range_2.0);
             let r = cmp::min(&range_1.1, &range_2.1);
             l <= r
         },
-        (None, _) => false,
-        (_, None) => false,
+        (&None, _) => false,
+        (_, &None) => false,
     }
 }
 
