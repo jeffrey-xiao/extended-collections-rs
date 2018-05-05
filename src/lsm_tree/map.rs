@@ -440,10 +440,8 @@ where
     pub fn flush(&mut self) -> Result<()> {
         if !self.in_memory_tree.is_empty() {
             self.compact()?;
-            self.compaction_strategy.flush()
-        } else {
-            Ok(())
         }
+        self.compaction_strategy.flush()
     }
 
     /// Returns an iterator over the map. The iterator will yield key-value pairs in ascending
