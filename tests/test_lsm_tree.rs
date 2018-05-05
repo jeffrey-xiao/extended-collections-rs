@@ -79,7 +79,7 @@ fn int_test_lsm_map_size_tiered_strategy() {
 
             expected.clear();
 
-            for _ in 0..1_000 {
+            for _ in 0..1000 {
                 let key = rng.gen::<u32>();
                 let val = rng.gen::<u64>();
 
