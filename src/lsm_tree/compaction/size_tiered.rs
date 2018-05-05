@@ -293,7 +293,7 @@ where
                     last_key_opt = Some(key);
                 }
 
-                let new_sstable = Arc::new(SSTable::new(new_sstable_builder.flush()?).unwrap());
+                let new_sstable = Arc::new(SSTable::new(new_sstable_builder.flush()?)?);
                 metadata.sstables.push(new_sstable);
 
                 println!("Locking in compaction");
