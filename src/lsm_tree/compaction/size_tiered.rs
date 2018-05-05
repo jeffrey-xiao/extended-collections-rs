@@ -1,5 +1,6 @@
 use bincode::{deserialize, serialize};
 use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian};
+use entry::Entry;
 use lsm_tree::{SSTable, SSTableBuilder, SSTableDataIter, SSTableValue, Result};
 use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
 use serde::de::DeserializeOwned;
@@ -235,69 +236,77 @@ where
         let is_compacting = self.is_compacting.clone();
         self.is_compacting.store(true, Ordering::Release);
         self.compaction_thread_join_handle = Some(thread::spawn(move || {
-            println!("Started compacting.");
-            let old_sstables: Vec<Arc<SSTable<T, U>>> = metadata.sstables
-                .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
-                .collect();
+            let compaction_result = (|| -> Result<()> {
+                println!("Started compacting.");
+                let old_sstables: Vec<Arc<SSTable<T, U>>> = metadata.sstables
+                    .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
+                    .collect();
 
-            let sstable_logical_time = {
-                match old_sstables.iter().map(|sstable| sstable.summary.logical_time).max() {
-                    Some(logical_time) => logical_time,
-                    _ => unreachable!(),
-                }
-            };
-
-            let mut new_sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
-                db_path,
-                old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
-                sstable_logical_time,
-            ).unwrap();
-
-            let mut old_sstable_data_iters: Vec<SSTableDataIter<T, U>> = old_sstables
-                .iter()
-                .map(|sstable| sstable.data_iter().unwrap())
-                .collect();
-
-            drop(old_sstables);
-
-            let mut entries = BinaryHeap::new();
-            let mut last_key_opt = None;
-
-            for (index, sstable_data_iter) in old_sstable_data_iters.iter_mut().enumerate() {
-                if let Some(entry) = sstable_data_iter.next() {
-                    let entry = entry.unwrap();
-                    entries.push(cmp::Reverse((entry.key, entry.value, index)));
-                }
-            }
-
-            while let Some(cmp::Reverse((key, value, index))) = entries.pop() {
-                if let Some(entry) = old_sstable_data_iters[index].next() {
-                    let entry = entry.unwrap();
-                    entries.push(cmp::Reverse((entry.key, entry.value, index)));
-                }
-
-                let should_append = {
-                    match last_key_opt {
-                        Some(ref last_key) => *last_key != key,
-                        None => true,
+                let sstable_logical_time = {
+                    match old_sstables.iter().map(|sstable| sstable.summary.logical_time).max() {
+                        Some(logical_time) => logical_time,
+                        _ => unreachable!(),
                     }
                 };
 
-                if should_append {
-                    new_sstable_builder.append(key.clone(), value).unwrap();
+                let mut new_sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
+                    db_path,
+                    old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
+                    sstable_logical_time,
+                )?;
+
+                let mut old_sstable_data_iters = Vec::with_capacity(old_sstables.len());
+
+                for sstable in &old_sstables {
+                    old_sstable_data_iters.push(sstable.data_iter()?);
                 }
 
-                last_key_opt = Some(key);
+                drop(old_sstables);
+
+                let mut entries = BinaryHeap::new();
+                let mut last_key_opt = None;
+
+                for (index, sstable_data_iter) in old_sstable_data_iters.iter_mut().enumerate() {
+                    if let Some(entry) = sstable_data_iter.next() {
+                        let entry = entry?;
+                        entries.push(cmp::Reverse((entry.key, entry.value, index)));
+                    }
+                }
+
+                while let Some(cmp::Reverse((key, value, index))) = entries.pop() {
+                    if let Some(entry) = old_sstable_data_iters[index].next() {
+                        let Entry { key, value } = entry?;
+                        entries.push(cmp::Reverse((key, value, index)));
+                    }
+
+                    let should_append = {
+                        match last_key_opt {
+                            Some(ref last_key) => *last_key != key,
+                            None => true,
+                        }
+                    };
+
+                    if should_append {
+                        new_sstable_builder.append(key.clone(), value)?;
+                    }
+
+                    last_key_opt = Some(key);
+                }
+
+                let new_sstable = Arc::new(SSTable::new(new_sstable_builder.flush()?).unwrap());
+                metadata.sstables.push(new_sstable);
+
+                println!("Locking in compaction");
+                *next_metadata.lock().unwrap() = Some(metadata);
+
+                is_compacting.store(false, Ordering::Release);
+                println!("Finished compacting");
+                Ok(())
+            })();
+
+            if compaction_result.is_err() {
+                is_compacting.store(false, Ordering::Release);
             }
-
-            let new_sstable = Arc::new(SSTable::new(new_sstable_builder.flush().unwrap()).unwrap());
-            metadata.sstables.push(new_sstable);
-
-            println!("Locking in compaction");
-            *next_metadata.lock().unwrap() = Some(metadata);
-
-            is_compacting.store(false, Ordering::Release);
-            println!("Finished compacting");
         }));
     }
 
@@ -500,8 +509,8 @@ where
 
         for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
             if let Some(entry) = sstable_data_iter.next() {
-                let entry = entry?;
-                entries.push(cmp::Reverse((entry.key, entry.value, index)));
+                let Entry { key, value } = entry?;
+                entries.push(cmp::Reverse((key, value, index)));
             }
         }
 
