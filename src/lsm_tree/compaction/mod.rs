@@ -5,6 +5,9 @@ pub use self::size_tiered::SizeTieredStrategy;
 use lsm_tree::{SSTable, Result};
 use std::path::Path;
 
+/// An iterator for the SSTables on disk.
+pub type CompactionIter<T, U> = Iterator<Item=Result<(T, U)>>;
+
 /// Trait for types that have compaction logic for SSTables.
 ///
 /// A compaction strategy should incrementally accept SStables and handle the logic for creating
@@ -24,11 +27,13 @@ pub trait CompactionStrategy<T, U> {
 
     fn len(&mut self) -> Result<usize>;
 
+    fn is_empty(&mut self) -> Result<bool>;
+
     fn clear(&mut self) -> Result<()>;
 
     fn min(&mut self) -> Result<Option<T>>;
 
     fn max(&mut self) -> Result<Option<T>>;
 
-    fn iter(&mut self) -> Result<Box<Iterator<Item=Result<(T, U)>>>>;
+    fn iter(&mut self) -> Result<Box<CompactionIter<T, U>>>;
 }

@@ -2,7 +2,7 @@ use bp_tree::node::{InsertCases, InternalNode, LeafNode, Node, BLOCK_SIZE};
 use bp_tree::pager::{Pager, Result};
 use entry::Entry;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::ser::Serialize;
 use std::mem;
 use std::path::Path;
 

@@ -416,7 +416,7 @@ impl<'de> Deserialize<'de> for BloomFilter {
                 })
             }
         }
-        const FIELDS: &'static [&'static str] = &["hasher_count", "keys_0", "keys_1", "bit_vec"];
+        const FIELDS: &[&str] = &["hasher_count", "keys_0", "keys_1", "bit_vec"];
         deserializer.deserialize_struct("BloomFilter", FIELDS, BloomFilterVisitor)
     }
 }

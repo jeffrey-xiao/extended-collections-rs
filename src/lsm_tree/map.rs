@@ -1,8 +1,8 @@
 use bincode::serialized_size;
-use lsm_tree::compaction::CompactionStrategy;
+use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
 use lsm_tree::{SSTable, SSTableBuilder, Result};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::ser::Serialize;
 use std::cmp;
 use std::collections::BTreeMap;
 use std::hash::Hash;
@@ -80,7 +80,7 @@ where
         LsmMap {
             in_memory_tree: BTreeMap::new(),
             in_memory_usage: 0,
-            compaction_strategy: compaction_strategy,
+            compaction_strategy,
         }
     }
 
@@ -125,7 +125,7 @@ where
     pub fn insert(&mut self, key: T, value: U) -> Result<()> {
         let key_size = serialized_size(&key)?;
         let value_size = serialized_size(&value)?;
-        if let Some(Some(ref value)) = self.in_memory_tree.get(&key) {
+        if let Some(&Some(ref value)) = self.in_memory_tree.get(&key) {
             let value_size = serialized_size(value)?;
             self.in_memory_usage -= key_size + value_size;
         }
@@ -166,7 +166,7 @@ where
     /// ```
     pub fn remove(&mut self, key: T) -> Result<()> {
         let key_size = serialized_size(&key)?;
-        if let Some(Some(ref value)) = self.in_memory_tree.get(&key) {
+        if let Some(&Some(ref value)) = self.in_memory_tree.get(&key) {
             let value_size = serialized_size(value)?;
             self.in_memory_usage -= key_size + value_size;
         }
@@ -473,7 +473,7 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn iter(&mut self) -> Result<Box<Iterator<Item=Result<(T, U)>>>> {
+    pub fn iter(&mut self) -> Result<Box<CompactionIter<T, U>>> {
         self.flush()?;
         self.compaction_strategy.iter()
     }

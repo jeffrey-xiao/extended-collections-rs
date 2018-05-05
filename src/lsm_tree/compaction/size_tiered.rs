@@ -1,9 +1,9 @@
 use bincode::{deserialize, serialize};
 use entry::Entry;
-use lsm_tree::{SSTable, SSTableBuilder, SSTableDataIter, Result};
-use lsm_tree::compaction::CompactionStrategy;
+use lsm_tree::{SSTable, SSTableBuilder, SSTableDataIter, SSTableValue, Result};
+use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::ser::Serialize;
 use std::collections::{BinaryHeap, Bound, HashSet};
 use std::cell::RefCell;
 use std::cmp;
@@ -20,6 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "T: DeserializeOwned, U: DeserializeOwned"))]
 struct SizeTieredMetadata<T, U> {
     min_sstable_count: usize,
     min_sstable_size: u64,
@@ -65,7 +66,11 @@ where
 ///  to `bucket_high * bucket_average` where `bucket_average` is the average of the bucket.
 ///  - `max_in_memory_size`: The maximum size of the in-memory tree before it must be flushed onto
 ///  disk as a SSTable.
-pub struct SizeTieredStrategy<T, U> {
+pub struct SizeTieredStrategy<T, U>
+where
+    T: DeserializeOwned,
+    U: DeserializeOwned,
+{
     db_path: PathBuf,
     compaction_thread_join_handle: Option<thread::JoinHandle<()>>,
     is_compacting: Arc<AtomicBool>,
@@ -392,8 +397,10 @@ where
         }
 
         for sstable in curr_metadata.sstables.iter().rev() {
-            if let Some(value) = sstable.get(key)? {
-                return Ok(value);
+            match sstable.get(key)? {
+                SSTableValue::Value(value) => return Ok(Some(value)),
+                SSTableValue::Tombstone => return Ok(None),
+                _ => (),
             }
         }
 
@@ -417,6 +424,10 @@ where
 
     fn len(&mut self) -> Result<usize> {
         Ok(self.iter()?.count())
+    }
+
+    fn is_empty(&mut self) -> Result<bool> {
+        self.len().map(|len| len == 0)
     }
 
     fn clear(&mut self) -> Result<()> {
@@ -460,7 +471,7 @@ where
         }
     }
 
-    fn iter(&mut self) -> Result<Box<Iterator<Item=Result<(T, U)>>>> {
+    fn iter(&mut self) -> Result<Box<CompactionIter<T, U>>> {
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
         if self.try_replace_metadata(&mut curr_metadata)? {
             self.metadata_file.seek(SeekFrom::Start(0))?;
@@ -491,10 +502,11 @@ where
     }
 }
 
+type EntryIndex<T, U> = (cmp::Reverse<Entry<T, Option<U>>>, usize);
 struct SizeTieredIter<T, U> {
     sstable_lock_count: Rc<RefCell<u64>>,
     sstable_data_iters: Vec<SSTableDataIter<T, U>>,
-    entries: BinaryHeap<(cmp::Reverse<Entry<T, Option<U>>>, usize)>,
+    entries: BinaryHeap<EntryIndex<T, U>>,
     last_entry_opt: Option<T>,
 }
 

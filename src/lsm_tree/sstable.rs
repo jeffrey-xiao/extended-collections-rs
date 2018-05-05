@@ -4,13 +4,20 @@ use bloom::BloomFilter;
 use entry::Entry;
 use lsm_tree::{Error, Result};
 use rand::{thread_rng, Rng};
-use serde::de::DeserializeOwned;
-use serde::ser::Serialize;
+use serde::de::{self, Deserialize, DeserializeOwned, Deserializer};
+use serde::ser::{Serialize, Serializer};
 use std::fs;
 use std::hash::Hash;
 use std::io::{BufWriter, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::marker::{PhantomData};
 use std::path::{Path, PathBuf};
+use std::result;
+
+pub enum SSTableValue<U> {
+    Value(U),
+    Tombstone,
+    NotFound,
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct SSTableSummary<T> {
@@ -96,9 +103,9 @@ where
         self.filter.insert(&key);
         self.index_block.push((key.clone(), self.data_offset));
 
-        let serialized_entry = serialize(&(key.clone(), value))?;
+        let serialized_entry = serialize(&(key, value))?;
         self.data_stream.write_u64::<BigEndian>(serialized_entry.len() as u64)?;
-        self.data_stream.write(&serialized_entry)?;
+        self.data_stream.write_all(&serialized_entry)?;
         self.data_offset += 8 + serialized_entry.len() as u64;
         self.summary.size += 8 + serialized_entry.len() as u64;
         self.block_index += 1;
@@ -108,7 +115,7 @@ where
 
             let serialized_index_block = serialize(&self.index_block)?;
             self.index_stream.write_u64::<BigEndian>(serialized_index_block.len() as u64)?;
-            self.index_stream.write(&serialized_index_block)?;
+            self.index_stream.write_all(&serialized_index_block)?;
             self.index_offset += 8 + serialized_index_block.len() as u64;
             self.summary.size += 8 + serialized_index_block.len() as u64;
             self.block_index = 0;
@@ -124,7 +131,7 @@ where
 
             let serialized_index_block = serialize(&self.index_block)?;
             self.index_stream.write_u64::<BigEndian>(serialized_index_block.len() as u64)?;
-            self.index_stream.write(&serialized_index_block)?;
+            self.index_stream.write_all(&serialized_index_block)?;
         }
 
         let serialized_summary = serialize(&self.summary)?;
@@ -141,7 +148,7 @@ where
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct SSTable<T, U> {
     pub path: PathBuf,
     pub summary: SSTableSummary<T>,
@@ -182,7 +189,7 @@ where
     T: Hash + DeserializeOwned + Ord + Serialize,
     U: DeserializeOwned + Serialize,
 {
-    fn floor_offset(index: &Vec<(T, u64)>, key: &T) -> Option<usize> {
+    fn floor_offset(index: &[(T, u64)], key: &T) -> Option<usize> {
         let mut lo = 0isize;
         let mut hi = index.len() as isize - 1;
         while lo <= hi {
@@ -201,15 +208,15 @@ where
         }
     }
 
-    pub fn get(&self, key: &T) -> Result<Option<Option<U>>> {
+    pub fn get(&self, key: &T) -> Result<SSTableValue<U>> {
         if !self.filter.contains(key) {
-            return Ok(None);
+            return Ok(SSTableValue::NotFound);
         }
 
         let index = {
             match Self::floor_offset(&self.summary.index, key) {
                 Some(index) => index,
-                None => return Ok(None),
+                None => return Ok(SSTableValue::NotFound),
             }
         };
 
@@ -217,14 +224,14 @@ where
         index_file.seek(SeekFrom::Start(self.summary.index[index].1))?;
         let size = index_file.read_u64::<BigEndian>()?;
         let mut buffer = vec![0; size as usize];
-        index_file.read(buffer.as_mut_slice())?;
+        index_file.read_exact(buffer.as_mut_slice())?;
         let index_block: Vec<(T, u64)> = deserialize(&buffer)?;
 
 
         let index = {
             match index_block.binary_search_by_key(&key, |index_entry| &index_entry.0) {
                 Ok(index) => index,
-                Err(_) => return Ok(None),
+                Err(_) => return Ok(SSTableValue::NotFound),
             }
         };
 
@@ -232,10 +239,15 @@ where
         data_file.seek(SeekFrom::Start(index_block[index].1))?;
         let size = data_file.read_u64::<BigEndian>()?;
         let mut buffer = vec![0; size as usize];
-        data_file.read(buffer.as_mut_slice())?;
+        data_file.read_exact(buffer.as_mut_slice())?;
         deserialize(&buffer)
             .map_err(Error::SerdeError)
-            .map(|entry: Entry<T, Option<U>>| Some(entry.value))
+            .map(|entry: Entry<T, Option<U>>| {
+                match entry.value {
+                    Some(value) => SSTableValue::Value(value),
+                    None => SSTableValue::Tombstone,
+                }
+            })
     }
 
     pub fn data_iter(&self) -> Result<SSTableDataIter<T, U>> {
@@ -272,11 +284,35 @@ where
         };
 
         let mut buffer = vec![0; size as usize];
-        let result = self.data_file.read(buffer.as_mut_slice());
+        let result = self.data_file.read_exact(buffer.as_mut_slice());
         if let Err(error) = result {
             return Some(Err(Error::from(error)));
         }
 
         Some(deserialize(&buffer).map_err(Error::SerdeError))
+    }
+}
+
+impl<T, U> Serialize for SSTable<T, U> {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.path.serialize(serializer)
+    }
+}
+
+impl<'de, T, U> Deserialize<'de> for SSTable<T, U>
+where
+    T: DeserializeOwned,
+    U: DeserializeOwned,
+{
+    fn deserialize<D>(deserializer: D) -> result::Result<SSTable<T, U>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let ret = SSTable::new(PathBuf::deserialize(deserializer)?)
+            .map_err(de::Error::custom);
+        Ok(ret?)
     }
 }
