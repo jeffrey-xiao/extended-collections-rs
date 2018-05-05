@@ -264,8 +264,10 @@ where
                             None => true,
                         }
                     };
-                    let key_intersecting =
-                        sstable::is_intersecting(&sstable_key_range, &sstable.summary.key_range);
+                    let key_intersecting = sstable::is_intersecting(
+                        &sstable_key_range,
+                        &sstable.summary.key_range,
+                    );
                     is_older_range && !key_intersecting
                 });
 
@@ -522,6 +524,8 @@ where
 
     fn iter(&mut self) -> Result<Box<CompactionIter<T, U>>> {
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
+        // should never need to replace metadata as the compaction thread should not be running
+        // when yielding calling iter.
         if self.try_replace_metadata(&mut curr_metadata)? {
             self.metadata_file.seek(SeekFrom::Start(0))?;
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
