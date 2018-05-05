@@ -4,7 +4,7 @@ use std::ops::{Add, Index, IndexMut};
 use treap::implicit_tree;
 use treap::node::ImplicitNode;
 
-/// A list implemented by an implicit treap.
+/// A list implemented using an implicit treap.
 ///
 /// A treap is a tree that satisfies both the binary search tree property and a heap property. Each
 /// node has a key, a value, and a priority. The key of any node is greater than all keys in its

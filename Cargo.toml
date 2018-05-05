@@ -18,9 +18,13 @@ travis-ci = { repository = "jeffrey-xiao/extended-collections-rs", branch = "mas
 codecov = { repository = "jeffrey-xiao/extended-collections-rs", service = "github" }
 
 [dependencies]
+byteorder = "1"
 bincode = "1.0"
 crossbeam-epoch = "0.2"
 siphasher = "0.2"
-serde = "1.0"
+serde = { version = "1.0", features = ["rc"] }
 serde_derive = "1.0"
 rand = "0.4"
+
+[dev-dependencies]
+serde_test = "1.0"

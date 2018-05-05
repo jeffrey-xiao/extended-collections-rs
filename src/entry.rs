@@ -1,10 +1,7 @@
 use std::cmp::Ordering;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Entry<T, U>
-where
-    T: Ord,
-{
+pub struct Entry<T, U> {
     pub key: T,
     pub value: U,
 }

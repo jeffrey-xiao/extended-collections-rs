@@ -2,7 +2,6 @@ use bit_vec::BitVec;
 use rand::{Rng, XorShiftRng};
 use siphasher::sip::SipHasher;
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 
 /// A space-efficient probabilistic data structure to test for membership in a set.
 ///
@@ -28,21 +27,14 @@ use std::marker::PhantomData;
 /// assert_eq!(filter.bit_count(), 14);
 /// assert_eq!(filter.hasher_count(), 7);
 /// ```
-pub struct PartitionedBloomFilter<T>
-where
-    T: Hash,
-{
+pub struct PartitionedBloomFilter {
     bit_vec: BitVec,
     hashers: [SipHasher; 2],
     bit_count: usize,
     hasher_count: usize,
-    _marker: PhantomData<T>,
 }
 
-impl<T> PartitionedBloomFilter<T>
-where
-    T: Hash,
-{
+impl PartitionedBloomFilter {
     fn get_hashers() -> [SipHasher; 2] {
         let mut rng = XorShiftRng::new_unseeded();
         [
@@ -55,14 +47,14 @@ where
         (1.0 / fpp).log2().ceil() as usize
     }
 
-    /// Constructs a new, empty `PartitionedBloomFilter<T>` with an estimated max capacity of
+    /// Constructs a new, empty `PartitionedBloomFilter` with an estimated max capacity of
     /// `item_count` items and a maximum false positive probability of `fpp`.
     ///
     /// # Examples
     /// ```
     /// use extended_collections::bloom::PartitionedBloomFilter;
     ///
-    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
+    /// let filter = PartitionedBloomFilter::from_item_count(10, 0.01);
     /// ```
     pub fn from_item_count(item_count: usize, fpp: f64) -> Self {
         let hasher_count = Self::get_hasher_count(fpp);
@@ -72,18 +64,17 @@ where
             hashers: Self::get_hashers(),
             bit_count,
             hasher_count,
-            _marker: PhantomData,
         }
     }
 
-    /// Constructs a new, empty `PartitionedBloomFilter<T>` with `bit_count` bits per partition and
-    /// a maximum false positive probability of `fpp`.
+    /// Constructs a new, empty `PartitionedBloomFilter` with `bit_count` bits per partition and a
+    /// maximum false positive probability of `fpp`.
     ///
     /// # Examples
     /// ```
     /// use extended_collections::bloom::PartitionedBloomFilter;
     ///
-    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_bit_count(10, 0.01);
+    /// let filter = PartitionedBloomFilter::from_bit_count(10, 0.01);
     /// ```
     pub fn from_bit_count(bit_count: usize, fpp: f64) -> Self {
         let hasher_count = Self::get_hasher_count(fpp);
@@ -92,11 +83,13 @@ where
             hashers: Self::get_hashers(),
             bit_count,
             hasher_count,
-            _marker: PhantomData,
         }
     }
 
-    fn get_hashes(&self, item: &T) -> [u64; 2] {
+    fn get_hashes<T>(&self, item: &T) -> [u64; 2]
+    where
+        T: Hash,
+    {
         let mut ret = [0; 2];
         for (index, hash) in ret.iter_mut().enumerate() {
             let mut sip = self.hashers[index];
@@ -116,7 +109,10 @@ where
     ///
     /// filter.insert(&"foo");
     /// ```
-    pub fn insert(&mut self, item: &T) {
+    pub fn insert<T>(&mut self, item: &T)
+    where
+        T: Hash,
+    {
         let hashes = self.get_hashes(item);
         for index in 0..self.hasher_count {
             let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
@@ -139,7 +135,10 @@ where
     /// filter.insert(&"foo");
     /// assert!(filter.contains(&"foo"));
     /// ```
-    pub fn contains(&self, item: &T) -> bool {
+    pub fn contains<T>(&self, item: &T) -> bool
+    where
+        T: Hash,
+    {
         let hashes = self.get_hashes(item);
         (0..self.hasher_count).all(|index| {
             let mut offset = (index as u64).wrapping_mul(hashes[1]) % 0xFFFF_FFFF_FFFF_FFC5;
@@ -156,7 +155,7 @@ where
     /// ```
     /// use extended_collections::bloom::PartitionedBloomFilter;
     ///
-    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
+    /// let filter = PartitionedBloomFilter::from_item_count(10, 0.01);
     ///
     /// assert_eq!(filter.len(), 98);
     /// ```
@@ -170,7 +169,7 @@ where
     /// ```
     /// use extended_collections::bloom::PartitionedBloomFilter;
     ///
-    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
+    /// let filter = PartitionedBloomFilter::from_item_count(10, 0.01);
     ///
     /// assert!(!filter.is_empty());
     /// ```
@@ -184,7 +183,7 @@ where
     /// ```
     /// use extended_collections::bloom::PartitionedBloomFilter;
     ///
-    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
+    /// let filter = PartitionedBloomFilter::from_item_count(10, 0.01);
     ///
     /// assert_eq!(filter.bit_count(), 14);
     /// ```
@@ -198,7 +197,7 @@ where
     /// ```
     /// use extended_collections::bloom::PartitionedBloomFilter;
     ///
-    /// let filter: PartitionedBloomFilter<u32> = PartitionedBloomFilter::from_item_count(10, 0.01);
+    /// let filter = PartitionedBloomFilter::from_item_count(10, 0.01);
     ///
     /// assert_eq!(filter.hasher_count(), 7);
     /// ```

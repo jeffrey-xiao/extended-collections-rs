@@ -1,16 +1,17 @@
-use bptree::node::{InsertCases, InternalNode, LeafNode, Node, BLOCK_SIZE};
-use bptree::pager::{Pager, Result};
+use bp_tree::node::{InsertCases, InternalNode, LeafNode, Node, BLOCK_SIZE};
+use bp_tree::pager::{Pager, Result};
 use entry::Entry;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::ser::Serialize;
 use std::mem;
+use std::path::Path;
 
 // (page, node, index)
 type SearchHistory<T, U> = Vec<(usize, Node<T, U>, usize)>;
 // (page, node, history)
 type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 
-/// An ordered map implemented by an on-disk B+ tree.
+/// An ordered map implemented using an on-disk B+ tree.
 ///
 /// A B+ is an N-ary tree with a variable number of children per node. A B+ tree is a B-tree in
 /// which each internal node contains keys and pointers to other nodes, and each leaf node
@@ -18,12 +19,12 @@ type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 ///
 /// # Examples
 /// ```
-/// # use extended_collections::bptree;
-/// # fn foo() -> bptree::Result<()> {
+/// # use extended_collections::bp_tree::Result;
+/// # fn foo() -> Result<()> {
 /// # use std::fs;
-/// use extended_collections::bptree::BPMap;
+/// use extended_collections::bp_tree::BpMap;
 ///
-/// let mut map: BPMap<u32, u64> = BPMap::new("example.dat", 4, 8)?;
+/// let mut map: BpMap<u32, u64> = BpMap::new("bp_map.dat", 4, 8)?;
 /// map.insert(0, 1)?;
 /// map.insert(3, 4)?;
 ///
@@ -35,96 +36,107 @@ type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 ///
 /// assert_eq!(map.remove(&0)?, Some((0, 1)));
 /// assert_eq!(map.remove(&1)?, None);
-/// # fs::remove_file("example.dat").map_err(bptree::Error::IOError)?;
+/// # fs::remove_file("bp_map.dat")?;
 /// # Ok(())
 /// # }
-/// # foo();
+/// # foo().unwrap();
 /// ```
-pub struct BPMap<T, U>
-where
-    T: Ord + Clone + Serialize + DeserializeOwned,
-    U: Serialize + DeserializeOwned,
-{
+pub struct BpMap<T, U> {
     pager: Pager<T, U>,
 }
 
-impl<T, U> BPMap<T, U>
+impl<T, U> BpMap<T, U>
 where
     T: Ord + Clone + Serialize + DeserializeOwned,
     U: Serialize + DeserializeOwned,
 {
-    /// Constructs a new, empty `BPMap<T, U>` with maximum sizes for keys and values, and creates a
+    /// Constructs a new, empty `BpMap<T, U>` with maximum sizes for keys and values, and creates a
     /// file for data persistence.
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
     /// // keys have a maximum of 4 bytes and values have a maximum of 8 bytes
-    /// let map: BPMap<u32, u64> = BPMap::new("example_new.dat", 4, 8)?;
-    /// # fs::remove_file("example_new.dat").map_err(bptree::Error::IOError)?;
+    /// let map: BpMap<u32, u64> = BpMap::new("bp_map_example_new.dat", 4, 8)?;
+    /// # fs::remove_file("bp_map_example_new.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
-    pub fn new(
-        file_path: &str,
-        key_size: u64,
-        value_size: u64,
-    ) -> Result<BPMap<T, U>> {
+    pub fn new<P>(file_path: P, key_size: u64, value_size: u64) -> Result<BpMap<T, U>>
+    where
+        P: AsRef<Path>,
+    {
         let leaf_degree = LeafNode::<T, U>::get_degree(key_size, value_size);
         let internal_degree = InternalNode::<T, U>::get_degree(key_size);
-        Pager::new(file_path, key_size, value_size, leaf_degree, internal_degree)
-            .map(|pager| BPMap { pager })
+        Pager::new(
+            file_path,
+            key_size,
+            value_size,
+            leaf_degree,
+            internal_degree,
+        ).map(|pager| BpMap { pager })
     }
 
-    /// Constructs a new, empty `BPMap<T, U>` with maximum sizes for keys and values and specific
+    /// Constructs a new, empty `BpMap<T, U>` with maximum sizes for keys and values and specific
     /// sizes for leaf and internal nodes, and creates a file for data persistence.
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let map: BPMap<u32, u64> = BPMap::with_degrees("example_with_degrees.dat", 4, 8, 3, 3)?;
-    /// # fs::remove_file("example_with_degrees.dat").map_err(bptree::Error::IOError)?;
+    /// let map: BpMap<u32, u64> = BpMap::with_degrees("bp_map_example_with_degrees.dat", 4, 8, 3, 3)?;
+    /// # fs::remove_file("bp_map_example_with_degrees.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
-    pub fn with_degrees(
-        file_path: &str,
+    pub fn with_degrees<P>(
+        file_path: P,
         key_size: u64,
         value_size: u64,
         leaf_degree: usize,
         internal_degree: usize,
-    ) -> Result<BPMap<T, U>> {
+    ) -> Result<BpMap<T, U>>
+    where
+        P: AsRef<Path>,
+    {
         assert!(LeafNode::<T, U>::get_max_size(leaf_degree, key_size, value_size) <= BLOCK_SIZE);
         assert!(InternalNode::<T, U>::get_max_size(internal_degree, key_size) <= BLOCK_SIZE);
-        Pager::new(file_path, key_size, value_size, leaf_degree, internal_degree)
-            .map(|pager| BPMap { pager })
+        Pager::new(
+            file_path,
+            key_size,
+            value_size,
+            leaf_degree,
+            internal_degree,
+        ).map(|pager| BpMap { pager })
     }
 
-    /// Opens an existing `BPMap<T, U>` from a file.
+    /// Opens an existing `BpMap<T, U>` from a file.
     ///
     /// # Examples
-    /// ```no run
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
-    /// use extended_collections::bptree::BPMap;
+    /// ```no_run
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let map: BPMap<u32, u64> = BPMap::open("example_open.dat")?;
+    /// let map: BpMap<u32, u64> = BpMap::open("bp_map_example_open.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
-    pub fn open(file_path: &str) -> Result<BPMap<T, U>> {
-        Pager::open(file_path).map(|pager| BPMap { pager })
+    pub fn open<P>(file_path: P) -> Result<BpMap<T, U>>
+    where
+        P: AsRef<Path>,
+    {
+        Pager::open(file_path).map(|pager| BpMap { pager })
     }
 
     fn search_node(&mut self, key: &T) -> Result<SearchOutcome<T, U>> {
@@ -152,20 +164,20 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BPMap<u32, u64> = BPMap::new("example_insert.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_insert.dat", 4, 8)?;
     /// assert_eq!(map.insert(1, 1)?, None);
     /// assert_eq!(map.get(&1)?, Some(1));
     /// assert_eq!(map.insert(1, 2)?, Some((1, 1)));
     /// assert_eq!(map.get(&1)?, Some(2));
-    /// # fs::remove_file("example_insert.dat").map_err(bptree::Error::IOError)?;
+    /// # fs::remove_file("bp_map_example_insert.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn insert(&mut self, key: T, value: U) -> Result<Option<(T, U)>> {
         self.pager.validate_key(&key)?;
@@ -232,19 +244,19 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BPMap<u32, u64> = BPMap::new("example_remove.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_remove.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// assert_eq!(map.remove(&1)?, Some((1, 1)));
     /// assert_eq!(map.remove(&1)?, None);
-    /// # fs::remove_file("example_remove.dat").map_err(bptree::Error::IOError)?;
+    /// # fs::remove_file("bp_map_example_remove.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn remove(&mut self, key: &T) -> Result<Option<(T, U)>> {
         let (curr_page, curr_node, mut stack) = self.search_node(key)?;
@@ -411,19 +423,19 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BPMap<u32, u64> = BPMap::new("example_contains_key.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_contains_key.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// assert!(!map.contains_key(&0)?);
     /// assert!(map.contains_key(&1)?);
-    /// # fs::remove_file("example_contains_key.dat").map_err(bptree::Error::IOError)?;
+    /// # fs::remove_file("bp_map_example_contains_key.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn contains_key(&mut self, key: &T) -> Result<bool> {
         self.get(key).map(|value| value.is_some())
@@ -434,19 +446,19 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BPMap<u32, u64> = BPMap::new("example_get.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_get.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// assert_eq!(map.get(&0)?, None);
     /// assert_eq!(map.get(&1)?, Some(1));
-    /// # fs::remove_file("example_get.dat").map_err(bptree::Error::IOError)?;
+    /// # fs::remove_file("bp_map_example_get.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn get(&mut self, key: &T) -> Result<Option<U>> {
         let (_, curr_node, _) = self.search_node(key)?;
@@ -467,18 +479,18 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BPMap<u32, u64> = BPMap::new("example_len.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_len.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// assert_eq!(map.len(), 1);
-    /// # fs::remove_file("example_len.dat").map_err(bptree::Error::IOError)?;
+    /// # fs::remove_file("bp_map_example_len.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn len(&self) -> usize {
         self.pager.get_len()
@@ -488,17 +500,17 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let map: BPMap<u32, u64> = BPMap::new("example_is_empty.dat", 4, 8)?;
+    /// let map: BpMap<u32, u64> = BpMap::new("bp_map_example_is_empty.dat", 4, 8)?;
     /// assert!(map.is_empty());
-    /// # fs::remove_file("example_is_empty.dat").map_err(bptree::Error::IOError)?;
+    /// # fs::remove_file("bp_map_example_is_empty.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn is_empty(&self) -> bool {
         self.pager.get_len() == 0
@@ -508,20 +520,20 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BPMap<u32, u64> = BPMap::new("example_clear.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_clear.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// map.insert(2, 2)?;
-    /// map.clear();
+    /// map.clear()?;
     /// assert_eq!(map.is_empty(), true);
-    /// # fs::remove_file("example_clear.dat").map_err(bptree::Error::IOError)?;
+    /// # fs::remove_file("bp_map_example_clear.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn clear(&mut self) -> Result<()> {
         self.pager.clear()
@@ -531,19 +543,19 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BPMap<u32, u64> = BPMap::new("example_min.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_min.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// map.insert(3, 3)?;
     /// assert_eq!(map.min()?, Some(1));
-    /// # fs::remove_file("example_min.dat").map_err(bptree::Error::IOError)?;
+    /// # fs::remove_file("bp_map_example_min.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn min(&mut self) -> Result<Option<T>> {
         let mut curr_page = self.pager.get_root_page();
@@ -564,19 +576,19 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BPMap<u32, u64> = BPMap::new("example_max.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_max.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// map.insert(3, 3)?;
     /// assert_eq!(map.max()?, Some(3));
-    /// # fs::remove_file("example_max.dat").map_err(bptree::Error::IOError)?;
+    /// # fs::remove_file("bp_map_example_max.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
     pub fn max(&mut self) -> Result<Option<T>> {
         let mut curr_page = self.pager.get_root_page();
@@ -605,12 +617,12 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use extended_collections::bptree;
-    /// # fn foo() -> bptree::Result<()> {
+    /// # use extended_collections::bp_tree::Result;
+    /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::bptree::BPMap;
+    /// use extended_collections::bp_tree::BpMap;
     ///
-    /// let mut map: BPMap<u32, u64> = BPMap::new("example_iter_mut.dat", 4, 8)?;
+    /// let mut map: BpMap<u32, u64> = BpMap::new("bp_map_example_iter_mut.dat", 4, 8)?;
     /// map.insert(1, 1)?;
     /// map.insert(2, 2)?;
     ///
@@ -618,12 +630,12 @@ where
     /// assert_eq!(iterator.next(), Some((1, 1)));
     /// assert_eq!(iterator.next(), Some((2, 2)));
     /// assert_eq!(iterator.next(), None);
-    /// # fs::remove_file("example_iter_mut.dat").map_err(bptree::Error::IOError)?;
+    /// # fs::remove_file("bp_map_example_iter_mut.dat")?;
     /// # Ok(())
     /// # }
-    /// # foo();
+    /// # foo().unwrap();
     /// ```
-    pub fn iter_mut(&mut self) -> Result<BPMapIterMut<T, U>> {
+    pub fn iter_mut(&mut self) -> Result<BpMapIterMut<T, U>> {
         let mut curr_page = self.pager.get_root_page();
         let mut curr_node = self.pager.get_page(curr_page)?;
 
@@ -634,7 +646,7 @@ where
 
         match curr_node {
             Node::Leaf(curr_leaf_node) => {
-                Ok(BPMapIterMut {
+                Ok(BpMapIterMut {
                     pager: &mut self.pager,
                     curr_node: curr_leaf_node,
                     curr_index: 0,
@@ -645,33 +657,33 @@ where
     }
 }
 
-impl<'a, T, U> IntoIterator for &'a mut BPMap<T, U>
+impl<'a, T, U> IntoIterator for &'a mut BpMap<T, U>
 where
     T: 'a + Ord + Clone + Serialize + DeserializeOwned,
     U: 'a + Serialize + DeserializeOwned,
 {
     type Item = Result<(T, U)>;
-    type IntoIter = BPMapIterMut<'a, T, U>;
+    type IntoIter = BpMapIterMut<'a, T, U>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut().unwrap()
     }
 }
 
-/// A mutable iterator for `BPMap<T, U>`.
+/// A mutable iterator for `BpMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in ascending order and yields owned entries.
-pub struct BPMapIterMut<'a, T, U>
+pub struct BpMapIterMut<'a, T, U>
 where
-    T: 'a + Ord + Clone + Serialize + DeserializeOwned,
-    U: 'a + Serialize + DeserializeOwned,
+    T: 'a,
+    U: 'a,
 {
     pager: &'a mut Pager<T, U>,
     curr_node: LeafNode<T, U>,
     curr_index: usize,
 }
 
-impl<'a, T, U> Iterator for BPMapIterMut<'a, T, U>
+impl<'a, T, U> Iterator for BpMapIterMut<'a, T, U>
 where
     T: 'a + Ord + Clone + Serialize + DeserializeOwned,
     U: 'a + Serialize + DeserializeOwned,
@@ -711,7 +723,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{BPMap, Result};
+    use super::{BpMap, Result};
     use std::fs;
     use std::panic;
 
@@ -736,7 +748,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let map: BPMap<u32, u64> = BPMap::new(file_name, 4, 8)?;
+                let map: BpMap<u32, u64> = BpMap::new(file_name, 4, 8)?;
                 assert_eq!(map.len(), 0);
                 Ok(())
             },
@@ -750,7 +762,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let map: BPMap<u32, u64> = BPMap::new(file_name, 4, 8)?;
+                let map: BpMap<u32, u64> = BpMap::new(file_name, 4, 8)?;
                 assert!(map.is_empty());
                 Ok(())
             },
@@ -764,7 +776,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let mut map: BPMap<u32, u64> = BPMap::new(file_name, 4, 8)?;
+                let mut map: BpMap<u32, u64> = BpMap::new(file_name, 4, 8)?;
                 assert_eq!(map.min()?, None);
                 assert_eq!(map.max()?, None);
                 Ok(())
@@ -779,7 +791,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let mut map: BPMap<u32, u64> = BPMap::with_degrees(file_name, 4, 8, 3, 3)?;
+                let mut map: BpMap<u32, u64> = BpMap::with_degrees(file_name, 4, 8, 3, 3)?;
                 map.insert(1, 1)?;
                 map.insert(2, 2)?;
                 map.insert(3, 3)?;
@@ -807,7 +819,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let mut map: BPMap<u32, u64> = BPMap::with_degrees(file_name, 4, 8, 3, 3)?;
+                let mut map: BpMap<u32, u64> = BpMap::with_degrees(file_name, 4, 8, 3, 3)?;
                 map.insert(1, 1)?;
                 assert_eq!(map.get(&1)?, Some(1));
                 Ok(())
@@ -822,7 +834,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let mut map: BPMap<u32, u64> = BPMap::with_degrees(file_name, 4, 8, 3, 3)?;
+                let mut map: BpMap<u32, u64> = BpMap::with_degrees(file_name, 4, 8, 3, 3)?;
                 assert_eq!(map.insert(1, 1)?, None);
                 assert!(map.contains_key(&1)?);
                 assert_eq!(map.get(&1)?, Some(1));
@@ -839,7 +851,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let mut map: BPMap<u32, Box<[u32]>> = BPMap::new(file_name, 4, 12)?;
+                let mut map: BpMap<u32, Box<[u32]>> = BpMap::new(file_name, 4, 12)?;
                 map.insert(0, Box::new([0, 1]))?;
                 Ok(())
             },
@@ -853,7 +865,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let mut map: BPMap<u32, Box<[u32]>> = BPMap::new(file_name, 4, 16)?;
+                let mut map: BpMap<u32, Box<[u32]>> = BpMap::new(file_name, 4, 16)?;
                 map.insert(0, Box::new([0, 1]))?;
                 map.insert(1, Box::new([0]))?;
                 assert_eq!(*(map.get(&0)?.unwrap()), [0, 1]);
@@ -870,7 +882,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let mut map: BPMap<u32, u64> = BPMap::with_degrees(file_name, 4, 8, 3, 3)?;
+                let mut map: BpMap<u32, u64> = BpMap::with_degrees(file_name, 4, 8, 3, 3)?;
                 assert_eq!(map.insert(1, 1)?, None);
                 assert_eq!(map.insert(1, 3)?, Some((1, 1)));
                 assert_eq!(map.get(&1)?, Some(3));
@@ -886,7 +898,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let mut map: BPMap<u32, u64> = BPMap::with_degrees(file_name, 4, 8, 3, 3)?;
+                let mut map: BpMap<u32, u64> = BpMap::with_degrees(file_name, 4, 8, 3, 3)?;
                 map.insert(1, 1)?;
                 assert_eq!(map.remove(&1)?, Some((1, 1)));
                 assert!(!map.contains_key(&1)?);
@@ -902,7 +914,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let mut map: BPMap<u32, u64> = BPMap::with_degrees(file_name, 4, 8, 3, 3)?;
+                let mut map: BpMap<u32, u64> = BpMap::with_degrees(file_name, 4, 8, 3, 3)?;
                 map.insert(1, 1)?;
                 map.insert(3, 3)?;
                 map.insert(5, 5)?;
@@ -921,7 +933,7 @@ mod tests {
         let file_name = &format!("{}.dat", test_name);
         run_test(
             || {
-                let mut map: BPMap<u32, u64> = BPMap::with_degrees(file_name, 4, 8, 3, 3)?;
+                let mut map: BpMap<u32, u64> = BpMap::with_degrees(file_name, 4, 8, 3, 3)?;
                 map.insert(1, 2)?;
                 map.insert(5, 6)?;
                 map.insert(3, 4)?;
@@ -931,7 +943,9 @@ mod tests {
                 map.insert(9, 10)?;
 
                 assert_eq!(
-                    map.iter_mut()?.map(|value| value.unwrap()).collect::<Vec<(u32, u64)>>(),
+                    map.iter_mut()?
+                        .map(|value| value.unwrap())
+                        .collect::<Vec<(u32, u64)>>(),
                     vec![(1, 2), (3, 4), (5, 6), (7, 8), (9, 10), (11, 12)],
                 );
                 Ok(())

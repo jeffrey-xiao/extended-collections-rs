@@ -1,7 +1,6 @@
 use radix::tree::Tree;
 use std::mem;
 
-#[derive(Debug)]
 pub struct Node<T> {
     pub key: Vec<u8>,
     pub value: Option<T>,

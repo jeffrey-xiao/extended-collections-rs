@@ -56,7 +56,12 @@ pub fn insert<T>(tree: &mut Tree<T>, index: usize, new_node: ImplicitNode<T>) {
 pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
     assert!(1 <= index && index <= len(tree));
     let new_tree = {
-        let node = tree.as_mut().unwrap();
+        let node = {
+            match tree.as_mut() {
+                Some(node) => node,
+                _ => unreachable!(),
+            }
+        };
         let key = node.get_implicit_key();
         match index.cmp(&key) {
             Ordering::Less => {
@@ -80,7 +85,11 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
             },
         }
     };
-    mem::replace(tree, new_tree).unwrap().value
+
+    match mem::replace(tree, new_tree) {
+        Some(node) => node.value,
+        _ => unreachable!(),
+    }
 }
 
 pub fn get<T>(tree: &Tree<T>, index: usize) -> Option<&T> {

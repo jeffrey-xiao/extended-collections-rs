@@ -1,7 +1,7 @@
 use skiplist::map::{SkipMap, SkipMapIntoIter, SkipMapIter};
 use std::ops::{Add, Sub};
 
-/// An ordered set implemented by a skiplist.
+/// An ordered set implemented using a skiplist.
 ///
 /// A skiplist is a probabilistic data structure that allows for binary search tree operations by
 /// maintaining a linked hierarchy of subsequences. The first subsequence is essentially a sorted
@@ -26,10 +26,7 @@ use std::ops::{Add, Sub};
 /// assert_eq!(set.remove(&0), Some(0));
 /// assert_eq!(set.remove(&1), None);
 /// ```
-pub struct SkipSet<T>
-where
-    T: Ord,
-{
+pub struct SkipSet<T> {
     map: SkipMap<T, ()>,
 }
 
@@ -361,10 +358,7 @@ where
 /// An owning iterator for `SkipSet<T>`
 ///
 /// This iterator traverses the elements of a set in ascending order and yields owned keys.
-pub struct SkipSetIntoIter<T>
-where
-    T: Ord,
-{
+pub struct SkipSetIntoIter<T> {
     map_iter: SkipMapIntoIter<T, ()>,
 }
 
@@ -385,7 +379,7 @@ where
 /// references.
 pub struct SkipSetIter<'a, T>
 where
-    T: 'a + Ord,
+    T: 'a,
 {
     map_iter: SkipMapIter<'a, T, ()>,
 }

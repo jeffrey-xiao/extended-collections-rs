@@ -7,10 +7,7 @@ use std::ops::{Add, Index, IndexMut, Sub};
 use std::ptr;
 
 #[repr(C)]
-struct Node<T, U>
-where
-    T: Ord,
-{
+struct Node<T, U> {
     links_len: usize,
     entry: Entry<T, U>,
     links: [*mut Node<T, U>; 0],
@@ -18,10 +15,7 @@ where
 
 const MAX_HEIGHT: usize = 32;
 
-impl<T, U> Node<T, U>
-where
-    T: Ord,
-{
+impl<T, U> Node<T, U> {
     pub fn new(key: T, value: U, links_len: usize) -> *mut Self {
         let ptr = unsafe { Self::allocate(links_len) };
         unsafe {
@@ -68,7 +62,7 @@ where
     }
 }
 
-/// An ordered map implemented by a skiplist.
+/// An ordered map implemented using a skiplist.
 ///
 /// A skiplist is a probabilistic data structure that allows for binary search tree operations by
 /// maintaining a linked hierarchy of subsequences. The first subsequence is essentially a sorted
@@ -96,10 +90,7 @@ where
 /// assert_eq!(map.remove(&0), Some((0, 2)));
 /// assert_eq!(map.remove(&1), None);
 /// ```
-pub struct SkipMap<T, U>
-where
-    T: Ord,
-{
+pub struct SkipMap<T, U> {
     head: *mut Node<T, U>,
     rng: XorShiftRng,
     len: usize,
@@ -871,10 +862,7 @@ where
     }
 }
 
-impl<T, U> Drop for SkipMap<T, U>
-where
-    T: Ord,
-{
+impl<T, U> Drop for SkipMap<T, U> {
     fn drop(&mut self) {
         unsafe {
             Node::deallocate(mem::replace(&mut self.head, *(*self.head).get_pointer(0)));
@@ -932,10 +920,7 @@ where
 /// An owning iterator for `SkipMap<T, U>`.
 ///
 /// This iterator traverses the elements of a map in ascending order and yields owned entries.
-pub struct SkipMapIntoIter<T, U>
-where
-    T: Ord,
-{
+pub struct SkipMapIntoIter<T, U> {
     current: *mut Node<T, U>,
 }
 
@@ -961,10 +946,7 @@ where
     }
 }
 
-impl<T, U> Drop for SkipMapIntoIter<T, U>
-where
-    T: Ord,
-{
+impl<T, U> Drop for SkipMapIntoIter<T, U> {
     fn drop(&mut self) {
         unsafe {
             while !self.current.is_null() {
@@ -984,7 +966,7 @@ where
 /// references.
 pub struct SkipMapIter<'a, T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     current: &'a *mut Node<T, U>,
@@ -1015,7 +997,7 @@ where
 /// This iterator traverses the elements of a map in ascending order and yields mutable references.
 pub struct SkipMapIterMut<'a, T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     current: &'a mut *mut Node<T, U>,

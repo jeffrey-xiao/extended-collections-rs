@@ -5,7 +5,7 @@ use std::ops::{Add, Index, IndexMut, Sub};
 use treap::node::Node;
 use treap::tree;
 
-/// An ordered map implemented by a treap.
+/// An ordered map implemented using a treap.
 ///
 /// A treap is a tree that satisfies both the binary search tree property and a heap property. Each
 /// node has a key, a value, and a priority. The key of any node is greater than all keys in its
@@ -32,10 +32,7 @@ use treap::tree;
 /// assert_eq!(map.remove(&0), Some((0, 2)));
 /// assert_eq!(map.remove(&1), None);
 /// ```
-pub struct TreapMap<T, U>
-where
-    T: Ord,
-{
+pub struct TreapMap<T, U> {
     tree: tree::Tree<T, U>,
     rng: XorShiftRng,
 }
@@ -489,10 +486,7 @@ where
 /// An owning iterator for `TreapMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields owned entries.
-pub struct TreapMapIntoIter<T, U>
-where
-    T: Ord,
-{
+pub struct TreapMapIntoIter<T, U> {
     current: tree::Tree<T, U>,
     stack: Vec<Node<T, U>>,
 }
@@ -525,7 +519,7 @@ where
 /// This iterator traverses the elements of the map in-order and yields immutable references.
 pub struct TreapMapIter<'a, T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     current: &'a tree::Tree<T, U>,
@@ -564,7 +558,7 @@ type BorrowedTreeMut<'a, T, U> = Option<&'a mut Node<T, U>>;
 /// This iterator traverses the elements of the map in-order and yields mutable references.
 pub struct TreapMapIterMut<'a, T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     current: Option<&'a mut Node<T, U>>,

@@ -26,23 +26,17 @@ use std::hash::Hash;
 /// assert_eq!(filter.len(), 100);
 /// assert_eq!(filter.filter_count(), 1);
 /// ```
-pub struct ScalableBloomFilter<T>
-where
-    T: Hash,
-{
-    filters: Vec<BloomFilter<T>>,
+pub struct ScalableBloomFilter {
+    filters: Vec<BloomFilter>,
     approximate_bits_used: usize,
     initial_fpp: f64,
     growth_ratio: f64,
     tightening_ratio: f64,
 }
 
-impl<T> ScalableBloomFilter<T>
-where
-    T: Hash,
-{
-    /// Constructs a new, empty `ScalableBloomFilter<T>` with initially `initial_bit_count` bits
-    /// and an initial maximum false positive probability of `fpp`. Every time a new bloom filter is
+impl ScalableBloomFilter {
+    /// Constructs a new, empty `ScalableBloomFilter` with initially `initial_bit_count` bits and
+    /// an initial maximum false positive probability of `fpp`. Every time a new bloom filter is
     /// added, the size will be `growth_ratio` multiplied by the previous size, and the false
     /// positive probability will be `tightening_ratio` multipled by the previous false positive
     /// probability.
@@ -51,7 +45,7 @@ where
     /// ```
     /// use extended_collections::bloom::ScalableBloomFilter;
     ///
-    /// let filter: ScalableBloomFilter<u32> = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
+    /// let filter = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
     /// ```
     pub fn new(
         initial_bit_count: usize,
@@ -104,7 +98,10 @@ where
     ///
     /// filter.insert(&"foo");
     /// ```
-    pub fn insert(&mut self, item: &T) {
+    pub fn insert<T>(&mut self, item: &T)
+    where
+        T: Hash,
+    {
         if !self.filters
             .iter()
             .any(|ref mut filter| filter.contains(item))
@@ -132,7 +129,10 @@ where
     /// filter.insert(&"foo");
     /// assert!(filter.contains(&"foo"));
     /// ```
-    pub fn contains(&self, item: &T) -> bool {
+    pub fn contains<T>(&self, item: &T) -> bool
+    where
+        T: Hash,
+    {
         self.filters
             .iter()
             .any(|ref mut filter| filter.contains(item))
@@ -144,7 +144,7 @@ where
     /// ```
     /// use extended_collections::bloom::ScalableBloomFilter;
     ///
-    /// let filter: ScalableBloomFilter<u32> = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
+    /// let filter = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
     ///
     /// assert_eq!(filter.len(), 100);
     /// ```
@@ -158,7 +158,7 @@ where
     /// ```
     /// use extended_collections::bloom::ScalableBloomFilter;
     ///
-    /// let filter: ScalableBloomFilter<u32> = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
+    /// let filter = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
     ///
     /// assert!(!filter.is_empty());
     /// ```
@@ -172,7 +172,7 @@ where
     /// ```
     /// use extended_collections::bloom::ScalableBloomFilter;
     ///
-    /// let filter: ScalableBloomFilter<u32> = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
+    /// let filter = ScalableBloomFilter::new(100, 0.01, 2.0, 0.5);
     ///
     /// assert_eq!(filter.filter_count(), 1);
     /// ```

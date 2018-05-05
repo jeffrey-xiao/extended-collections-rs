@@ -457,7 +457,7 @@ impl<'a> Iterator for BitArrayVecIter<'a> {
     type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Vec<u8>> {
-        self.range.next().map(|i| self.bit_array_vec.get(i))
+        self.range.next().map(|index| self.bit_array_vec.get(index))
     }
 }
 
@@ -482,7 +482,7 @@ impl Iterator for BitArrayVecIntoIter {
     type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Vec<u8>> {
-        self.range.next().map(|i| self.bit_array_vec.get(i))
+        self.range.next().map(|index| self.bit_array_vec.get(index))
     }
 }
 

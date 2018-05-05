@@ -2,10 +2,7 @@ use entry::Entry;
 use treap::{implicit_tree, tree};
 
 /// A struct representing an internal node of a treap.
-pub struct Node<T, U>
-where
-    T: Ord,
-{
+pub struct Node<T, U> {
     pub entry: Entry<T, U>,
     pub priority: u32,
     pub len: usize,

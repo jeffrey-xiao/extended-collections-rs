@@ -1,7 +1,7 @@
 use std::ops::{Add, Sub};
 use treap::map::{TreapMap, TreapMapIntoIter, TreapMapIter};
 
-/// An ordered set implemented by a treap.
+/// An ordered set implemented using a treap.
 ///
 /// A treap is a tree that satisfies both the binary search tree property and a heap property. Each
 /// node has a key and a priority. The key of any node is greater than all keys in its
@@ -25,10 +25,7 @@ use treap::map::{TreapMap, TreapMapIntoIter, TreapMapIter};
 /// assert_eq!(set.remove(&0), Some(0));
 /// assert_eq!(set.remove(&1), None);
 /// ```
-pub struct TreapSet<T>
-where
-    T: Ord,
-{
+pub struct TreapSet<T> {
     map: TreapMap<T, ()>,
 }
 
@@ -384,10 +381,7 @@ where
 /// An owning iterator for `TreapSet<T>`.
 ///
 /// This iterator traverses the elements of the set in-order and yields owned keys.
-pub struct TreapSetIntoIter<T>
-where
-    T: Ord,
-{
+pub struct TreapSetIntoIter<T> {
     map_iter: TreapMapIntoIter<T, ()>,
 }
 
@@ -407,7 +401,7 @@ where
 /// This iterator traverses the elements of the set in-order and yields immutable references.
 pub struct TreapSetIter<'a, T>
 where
-    T: 'a + Ord,
+    T: 'a,
 {
     map_iter: TreapMapIter<'a, T, ()>,
 }
