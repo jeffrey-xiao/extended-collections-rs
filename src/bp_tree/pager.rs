@@ -11,6 +11,7 @@ use std::mem;
 use std::path::Path;
 use std::result;
 
+/// Convenience Error enum for `bp_tree`.
 #[derive(Debug)]
 pub enum Error {
     IOError(io::Error),
@@ -54,6 +55,7 @@ impl fmt::Display for Error {
     }
 }
 
+/// Convenience Result type for `bp_tree`.
 pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Serialize, Deserialize)]
