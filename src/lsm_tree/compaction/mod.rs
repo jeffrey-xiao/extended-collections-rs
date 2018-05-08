@@ -1,5 +1,7 @@
+pub mod leveled;
 pub mod size_tiered;
 
+pub use self::leveled::LeveledStrategy;
 pub use self::size_tiered::SizeTieredStrategy;
 
 use lsm_tree::{Result, SSTable, SSTableValue};
