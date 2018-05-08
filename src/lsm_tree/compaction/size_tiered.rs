@@ -244,30 +244,30 @@ where
 
                 let sstable_max_logical_time_range = old_sstables
                     .iter()
-                    .fold(None, |max_logical_time, sstable| {
-                        cmp::max(
-                            max_logical_time,
-                            match sstable.summary.logical_time_range {
-                                Some((_, r)) => Some(r),
-                                None => None,
-                            },
-                        )
-                    });
+                    .map(|sstable| sstable.summary.logical_time_range.1)
+                    .max();
                 let sstable_key_range = old_sstables.iter().fold(None, |range, sstable| {
                     let sstable_range = sstable.summary.key_range.clone();
-                    sstable::merge_ranges(range, sstable_range)
+                    match range {
+                        Some(range) => Some(sstable::merge_ranges(range, sstable_range)),
+                        None => Some(sstable_range),
+                    }
                 });
                 let purge_tombstone = metadata.sstables.iter().all(|sstable| {
-                    let is_older_range = {
-                        match sstable.summary.logical_time_range {
-                            Some((l, _)) => sstable_max_logical_time_range < Some(l),
-                            None => true,
+                    let curr_logical_time_range = Some(sstable.summary.logical_time_range.0);
+
+                    let is_older_range = sstable_max_logical_time_range < curr_logical_time_range;
+                    let key_intersecting = {
+                        match &sstable_key_range {
+                            Some(sstable_key_range) => {
+                                sstable::is_intersecting(
+                                    &sstable_key_range,
+                                    &sstable.summary.key_range,
+                                )
+                            },
+                            None => false,
                         }
                     };
-                    let key_intersecting = sstable::is_intersecting(
-                        &sstable_key_range,
-                        &sstable.summary.key_range,
-                    );
                     is_older_range && !key_intersecting
                 });
 
@@ -314,10 +314,6 @@ where
                         }
                     } && (!purge_tombstone || value.data.is_some());
 
-                    if purge_tombstone && value.data.is_none() {
-                        println!("Purged");
-                    }
-
                     if should_append {
                         new_sstable_builder.append(key.clone(), value)?;
                     }
@@ -325,8 +321,10 @@ where
                     last_key_opt = Some(key);
                 }
 
-                let new_sstable = Arc::new(SSTable::new(new_sstable_builder.flush()?)?);
-                metadata.sstables.push(new_sstable);
+                if new_sstable_builder.key_range.is_some() {
+                    let new_sstable = Arc::new(SSTable::new(new_sstable_builder.flush()?)?);
+                    metadata.sstables.push(new_sstable);
+                }
 
                 println!("Locking in compaction");
                 *next_metadata.lock().unwrap() = Some(metadata);
@@ -342,7 +340,10 @@ where
         }));
     }
 
-    fn try_replace_metadata(&self, curr_metadata: &mut MutexGuard<SizeTieredMetadata<T, U>>) -> Result<bool> {
+    fn try_replace_metadata(
+        &self,
+        curr_metadata: &mut MutexGuard<SizeTieredMetadata<T, U>>,
+    ) -> Result<bool> {
         let mut next_metadata = self.next_metadata.lock().unwrap();
 
         if let Some(next_metadata) = next_metadata.take() {
@@ -354,12 +355,7 @@ where
             curr_metadata.sstables.extend(
                 old_sstables
                     .iter()
-                    .filter(|sstable| {
-                        match logical_time_opt {
-                            Some(logical_time) => sstable.summary.logical_time > logical_time,
-                            None => true,
-                        }
-                    })
+                    .filter(|sstable| Some(sstable.summary.logical_time) > logical_time_opt)
                     .map(|sstable| Arc::clone(sstable)),
             );
             let new_sstable_paths: HashSet<&PathBuf> = HashSet::from_iter(
@@ -448,7 +444,6 @@ where
         }
 
         let mut ret = None;
-
         for sstable in &curr_metadata.sstables {
             let res = sstable.get(key)?;
             if res.is_some() && (ret.is_none() || res < ret) {

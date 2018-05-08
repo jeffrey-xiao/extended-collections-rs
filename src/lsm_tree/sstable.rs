@@ -14,35 +14,23 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::result;
 
-pub fn merge_ranges<T>(range_1: Option<(T, T)>, range_2: Option<(T, T)>) -> Option<(T, T)>
+pub fn merge_ranges<T>(range_1: (T, T), range_2: (T, T)) -> (T, T)
 where
     T: Ord,
 {
-    match (range_1, range_2) {
-        (Some(range_1), Some(range_2)) => {
-            Some((
-                cmp::min(range_1.0, range_2.0),
-                cmp::max(range_1.1, range_2.1),
-            ))
-        },
-        (None, range) => range,
-        (range, None) => range,
-    }
+    (
+        cmp::min(range_1.0, range_2.0),
+        cmp::max(range_1.1, range_2.1),
+    )
 }
 
-pub fn is_intersecting<T>(range_1: &Option<(T, T)>, range_2: &Option<(T, T)>) -> bool
+pub fn is_intersecting<T>(range_1: &(T, T), range_2: &(T, T)) -> bool
 where
     T: Ord,
 {
-    match (range_1, range_2) {
-        (&Some(ref range_1), &Some(ref range_2)) => {
-            let l = cmp::max(&range_1.0, &range_2.0);
-            let r = cmp::min(&range_1.1, &range_2.1);
-            l <= r
-        },
-        (&None, _) => false,
-        (_, &None) => false,
-    }
+    let l = cmp::max(&range_1.0, &range_2.0);
+    let r = cmp::min(&range_1.1, &range_2.1);
+    l <= r
 }
 
 #[derive(Deserialize, Serialize)]
@@ -76,15 +64,23 @@ pub struct SSTableSummary<T> {
     pub entry_count: usize,
     pub tombstone_count: usize,
     pub size: u64,
-    pub key_range: Option<(T, T)>,
-    pub logical_time_range: Option<(u64, u64)>,
+    pub key_range: (T, T),
+    pub logical_time_range: (u64, u64),
     pub index: Vec<(T, u64)>,
     pub logical_time: u64,
 }
 
 pub struct SSTableBuilder<T, U> {
     pub sstable_path: PathBuf,
-    pub summary: SSTableSummary<T>,
+
+    pub entry_count: usize,
+    pub tombstone_count: usize,
+    pub size: u64,
+    pub key_range: Option<(T, T)>,
+    pub logical_time_range: Option<(u64, u64)>,
+    pub index: Vec<(T, u64)>,
+    pub logical_time: u64,
+
     block_index: usize,
     block_size: usize,
     index_block: Vec<(T, u64)>,
@@ -121,15 +117,15 @@ where
 
         Ok(SSTableBuilder {
             sstable_path,
-            summary: SSTableSummary {
-                entry_count: 0,
-                tombstone_count: 0,
-                size: 0,
-                key_range: None,
-                logical_time_range: None,
-                index: Vec::new(),
-                logical_time,
-            },
+
+            entry_count: 0,
+            tombstone_count: 0,
+            size: 0,
+            key_range: None,
+            logical_time_range: None,
+            index: Vec::new(),
+            logical_time,
+
             block_index: 0,
             block_size: (entry_count_hint as f64).sqrt().ceil() as usize,
             index_block: Vec::new(),
@@ -144,17 +140,17 @@ where
 
     pub fn append(&mut self, key: T, value: SSTableValue<U>) -> Result<()> {
         let logical_time = value.logical_time;
-        self.summary.entry_count += 1;
+        self.entry_count += 1;
         if value.data.is_none() {
-            self.summary.tombstone_count += 1;
+            self.tombstone_count += 1;
         }
-        match self.summary.key_range.take() {
-            Some((start, _)) => self.summary.key_range = Some((start, key.clone())),
-            None => self.summary.key_range = Some((key.clone(), key.clone())),
+        match self.key_range.take() {
+            Some((start, _)) => self.key_range = Some((start, key.clone())),
+            None => self.key_range = Some((key.clone(), key.clone())),
         }
-        match self.summary.logical_time_range.take() {
-            Some((start, _)) => self.summary.logical_time_range = Some((start, logical_time)),
-            None => self.summary.logical_time_range = Some((logical_time, logical_time)),
+        match self.logical_time_range.take() {
+            Some((start, _)) => self.logical_time_range = Some((start, logical_time)),
+            None => self.logical_time_range = Some((logical_time, logical_time)),
         }
 
         self.filter.insert(&key);
@@ -164,17 +160,17 @@ where
         self.data_stream.write_u64::<BigEndian>(serialized_entry.len() as u64)?;
         self.data_stream.write_all(&serialized_entry)?;
         self.data_offset += 8 + serialized_entry.len() as u64;
-        self.summary.size += 8 + serialized_entry.len() as u64;
+        self.size += 8 + serialized_entry.len() as u64;
         self.block_index += 1;
 
         if self.block_index == self.block_size {
-            self.summary.index.push((self.index_block[0].0.clone(), self.index_offset));
+            self.index.push((self.index_block[0].0.clone(), self.index_offset));
 
             let serialized_index_block = serialize(&self.index_block)?;
             self.index_stream.write_u64::<BigEndian>(serialized_index_block.len() as u64)?;
             self.index_stream.write_all(&serialized_index_block)?;
             self.index_offset += 8 + serialized_index_block.len() as u64;
-            self.summary.size += 8 + serialized_index_block.len() as u64;
+            self.size += 8 + serialized_index_block.len() as u64;
             self.block_index = 0;
             self.index_block.clear();
         }
@@ -184,14 +180,29 @@ where
 
     pub fn flush(&mut self) -> Result<PathBuf> {
         if !self.index_block.is_empty() {
-            self.summary.index.push((self.index_block[0].0.clone(), self.index_offset));
+            self.index.push((self.index_block[0].0.clone(), self.index_offset));
 
             let serialized_index_block = serialize(&self.index_block)?;
             self.index_stream.write_u64::<BigEndian>(serialized_index_block.len() as u64)?;
             self.index_stream.write_all(&serialized_index_block)?;
         }
 
-        let serialized_summary = serialize(&self.summary)?;
+        let (key_range, logical_time_range) = {
+            match (self.key_range.clone(), self.logical_time_range) {
+                (Some(key_range), Some(logical_time_range)) => (key_range, logical_time_range),
+                _ => panic!("Expected non-empty SSTable"),
+            }
+        };
+
+        let serialized_summary = serialize(&SSTableSummary{
+            entry_count: self.entry_count,
+            tombstone_count: self.tombstone_count,
+            size: self.size,
+            key_range,
+            logical_time_range,
+            index: self.index.clone(),
+            logical_time: self.logical_time,
+        })?;
         let mut summary_file = fs::File::create(self.sstable_path.join("summary.dat"))?;
         summary_file.write_all(&serialized_summary)?;
 
@@ -266,6 +277,10 @@ where
     }
 
     pub fn get(&self, key: &T) -> Result<Option<SSTableValue<U>>> {
+        if *key < self.summary.key_range.0 || *key > self.summary.key_range.1 {
+            return Ok(None);
+        }
+
         if !self.filter.contains(key) {
             return Ok(None);
         }
