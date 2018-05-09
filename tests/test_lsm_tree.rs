@@ -29,7 +29,7 @@ fn int_test_lsm_map_size_tiered_strategy() {
     run_test(
         || {
             let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
-            let mut sts = SizeTieredStrategy::new(test_name, 4, 4000, 0.5, 1.5, 1000)?;
+            let mut sts = SizeTieredStrategy::new(test_name, 1000, 4, 4000, 0.5, 1.5)?;
             let mut map = LsmMap::new(sts);
             let mut expected = Vec::new();
 

@@ -23,11 +23,11 @@ use std::thread;
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(bound(deserialize = "T: DeserializeOwned, U: DeserializeOwned"))]
 struct SizeTieredMetadata<T, U> {
-    min_sstable_count: usize,
+    max_in_memory_size: u64,
+    max_sstable_count: usize,
     min_sstable_size: u64,
     bucket_low: f64,
     bucket_high: f64,
-    max_in_memory_size: u64,
     sstables: Vec<Arc<SSTable<T, U>>>,
 }
 
@@ -37,18 +37,18 @@ where
     U: DeserializeOwned + Serialize,
 {
     pub fn new(
-        min_sstable_count: usize,
+        max_in_memory_size: u64,
+        max_sstable_count: usize,
         min_sstable_size: u64,
         bucket_low: f64,
         bucket_high: f64,
-        max_in_memory_size: u64,
     ) -> Self {
         SizeTieredMetadata {
-            min_sstable_count,
+            max_in_memory_size,
+            max_sstable_count,
             min_sstable_size,
             bucket_low,
             bucket_high,
-            max_in_memory_size,
             sstables: Vec::new(),
         }
     }
@@ -58,7 +58,8 @@ where
 /// when they become too full.
 ///
 /// # Configuration Parameters
-///  - `min_sstable_count`: The minimum number of SSTables in a bucket for a compaction to trigger.
+///  - `max_sstable_count`: The minimum number of SSTables in a bucket before a compaction is
+///  triggered.
 ///  - `min_sstable_size`: The size threshold for the first bucket. All SSTables with size
 ///  smaller than `min_sstable_size` will be bucketed into the first bucket.
 ///  - `bucket_low`: SSTables in a bucket other than the first must have size greater than or equal
@@ -97,7 +98,7 @@ where
     /// # use std::fs;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts: SizeTieredStrategy<u32, u32> = SizeTieredStrategy::new("size_tiered_metadata_new", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts: SizeTieredStrategy<u32, u32> = SizeTieredStrategy::new("size_tiered_metadata_new", 10000, 4, 50000, 0.5, 1.5)?;
     /// # fs::remove_dir_all("size_tiered_metadata_new")?;
     /// # Ok(())
     /// # }
@@ -105,11 +106,11 @@ where
     /// ```
     pub fn new<P>(
         db_path: P,
-        min_sstable_count: usize,
+        max_in_memory_size: u64,
+        max_sstable_count: usize,
         min_sstable_size: u64,
         bucket_low: f64,
         bucket_high: f64,
-        max_in_memory_size: u64,
     ) -> Result<Self>
     where
         P: AsRef<Path>,
@@ -134,11 +135,11 @@ where
             metadata_lock_count: Rc::new(RefCell::new(0)),
             metadata_file,
             curr_metadata: Arc::new(Mutex::new(SizeTieredMetadata::new(
-                min_sstable_count,
+                max_in_memory_size,
+                max_sstable_count,
                 min_sstable_size,
                 bucket_low,
                 bucket_high,
-                max_in_memory_size,
             ))),
             next_metadata: Arc::new(Mutex::new(None)),
         };
@@ -211,7 +212,7 @@ where
             curr += 1;
             if in_min_bucket || in_bucket {
                 range_size += curr_size;
-            } else if curr - start > metadata.min_sstable_count {
+            } else if curr - start > metadata.max_sstable_count {
                 return Some((start, curr));
             } else {
                 range_size = 0;
@@ -219,7 +220,7 @@ where
             }
         }
 
-        if curr - start > metadata.min_sstable_count {
+        if curr - start > metadata.max_sstable_count {
             Some((start, curr))
         } else {
             None
@@ -271,17 +272,9 @@ where
                     is_older_range && !key_intersecting
                 });
 
-                let sstable_logical_time = {
-                    match old_sstables.iter().map(|sstable| sstable.summary.logical_time).max() {
-                        Some(logical_time) => logical_time,
-                        _ => unreachable!(),
-                    }
-                };
-
                 let mut new_sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
                     db_path,
                     old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
-                    sstable_logical_time,
                 )?;
 
                 let mut old_sstable_data_iters = Vec::with_capacity(old_sstables.len());
@@ -335,6 +328,7 @@ where
             })();
 
             if compaction_result.is_err() {
+                println!("Compaction thread errored: {:?}", compaction_result);
                 is_compacting.store(false, Ordering::Release);
             }
         }));
@@ -349,13 +343,13 @@ where
         if let Some(next_metadata) = next_metadata.take() {
             let logical_time_opt = next_metadata.sstables
                 .iter()
-                .map(|sstable| sstable.summary.logical_time)
+                .map(|sstable| sstable.summary.logical_time_range.1)
                 .max();
             let old_sstables = mem::replace(&mut curr_metadata.sstables, next_metadata.sstables);
             curr_metadata.sstables.extend(
                 old_sstables
                     .iter()
-                    .filter(|sstable| Some(sstable.summary.logical_time) > logical_time_opt)
+                    .filter(|sstable| Some(sstable.summary.logical_time_range.1) > logical_time_opt)
                     .map(|sstable| Arc::clone(sstable)),
             );
             let new_sstable_paths: HashSet<&PathBuf> = HashSet::from_iter(

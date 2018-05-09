@@ -1,11 +1,13 @@
 use bincode::{deserialize, serialize};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use entry::Entry;
 use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
 use lsm_tree::{sstable, Result, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashSet};
+use std::cmp;
+use std::collections::{BinaryHeap, BTreeMap, HashSet};
 use std::fs;
 use std::hash::Hash;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -23,8 +25,10 @@ struct LeveledMetadata<T, U>
 where
     T: Ord,
 {
-    max_sstable_size: u64,
     max_in_memory_size: u64,
+    max_sstable_count: usize,
+    max_sstable_size: u64,
+    max_initial_level_count: usize,
     growth_factor: u64,
     sstables: Vec<Arc<SSTable<T, U>>>,
     levels: Vec<BTreeMap<T, Arc<SSTable<T, U>>>>,
@@ -36,13 +40,17 @@ where
     U: DeserializeOwned + Serialize,
 {
     pub fn new(
-        max_sstable_size: u64,
         max_in_memory_size: u64,
+        max_sstable_count: usize,
+        max_sstable_size: u64,
+        max_initial_level_count: usize,
         growth_factor: u64,
     ) -> Self {
         LeveledMetadata {
-            max_sstable_size,
             max_in_memory_size,
+            max_sstable_count,
+            max_sstable_size,
+            max_initial_level_count,
             growth_factor,
             sstables: Vec::new(),
             levels: Vec::new(),
@@ -73,8 +81,10 @@ where
 {
     pub fn new<P>(
         db_path: P,
-        max_sstable_size: u64,
         max_in_memory_size: u64,
+        max_sstable_count: usize,
+        max_sstable_size: u64,
+        max_initial_level_count: usize,
         growth_factor: u64,
     ) -> Result<Self>
     where
@@ -101,8 +111,10 @@ where
             metadata_lock_count: Rc::new(RefCell::new(0)),
             metadata_file,
             curr_metadata: Arc::new(Mutex::new(LeveledMetadata::new(
-                max_sstable_size,
                 max_in_memory_size,
+                max_sstable_count,
+                max_sstable_size,
+                max_initial_level_count,
                 growth_factor,
             ))),
             next_metadata: Arc::new(Mutex::new(None)),
@@ -154,14 +166,14 @@ where
         if let Some(next_metadata) = next_metadata.take() {
             let logical_time_opt = next_metadata.sstables
                 .iter()
-                .map(|sstable| sstable.summary.logical_time)
+                .map(|sstable| sstable.summary.logical_time_range.1)
                 .max();
             let old_sstables = mem::replace(&mut curr_metadata.sstables, next_metadata.sstables);
             let old_levels = mem::replace(&mut curr_metadata.levels, next_metadata.levels);
             curr_metadata.sstables.extend(
                 old_sstables
                     .iter()
-                    .filter(|sstable| Some(sstable.summary.logical_time) > logical_time_opt)
+                    .filter(|sstable| Some(sstable.summary.logical_time_range.0) > logical_time_opt)
                     .map(|sstable| Arc::clone(sstable)),
             );
 
@@ -199,6 +211,90 @@ where
         } else {
             Ok(false)
         }
+    }
+
+    fn spawn_compaction_thread(
+        &mut self,
+        mut metadata: LeveledMetadata<T, U>,
+    ) {
+        let db_path = self.db_path.clone();
+        let next_metadata = self.next_metadata.clone();
+        let is_compacting = self.is_compacting.clone();
+        self.is_compacting.store(true, Ordering::Release);
+        self.compaction_thread_join_handle = Some(thread::spawn(move || {
+            let compaction_result = (|| -> Result<()> {
+                println!("Started compacting.");
+
+                if metadata.levels.is_empty() {
+                    metadata.levels.push(BTreeMap::new());
+                }
+
+                // compacting L0
+                let mut entry_hint = 0;
+                let mut sstable_data_iters = Vec::with_capacity(metadata.sstables.len() + 1);
+                for sstable in metadata.sstables.drain(..) {
+                    sstable_data_iters.push(sstable.data_iter()?);
+                    entry_hint += sstable.summary.entry_count;
+                }
+                entry_hint += metadata.levels[0]
+                    .iter()
+                    .map(|entry| entry.1.summary.entry_count)
+                    .sum::<usize>();
+                let mut level_sstable_iter = mem::replace(&mut metadata.levels[0], BTreeMap::new())
+                    .into_iter()
+                    .map(|entry| entry.1.data_iter());
+                if let Some(level_sstable_data_iter) = level_sstable_iter.next() {
+                    sstable_data_iters.push(level_sstable_data_iter?);
+                }
+
+                let mut new_sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
+                    db_path,
+                    entry_hint,
+                )?;
+
+                let mut entries = BinaryHeap::new();
+                let mut last_key_opt = None;
+
+                for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
+                    if let Some(entry) = sstable_data_iter.next() {
+                        let entry = entry?;
+                        entries.push(cmp::Reverse((entry.key, entry.value, index)));
+                    }
+                }
+
+                while let Some(cmp::Reverse((key, value, index))) = entries.pop() {
+                    if let Some(entry) = sstable_data_iters[index].next() {
+                        let Entry { key, value } = entry?;
+                        entries.push(cmp::Reverse((key, value, index)));
+                    }
+
+                    let should_append = {
+                        match last_key_opt {
+                            Some(ref last_key) => *last_key != key,
+                            None => true,
+                        }
+                    };
+
+                    if should_append {
+                        new_sstable_builder.append(key.clone(), value)?;
+                    }
+
+                    last_key_opt = Some(key);
+                }
+
+                println!("Locking in compaction");
+                *next_metadata.lock().unwrap() = Some(metadata);
+
+                is_compacting.store(false, Ordering::Release);
+                println!("Finished compacting");
+                Ok(())
+            })();
+
+            if compaction_result.is_err() {
+                println!("Compaction thread errored: {:?}", compaction_result);
+                is_compacting.store(false, Ordering::Release);
+            }
+        }))
     }
 }
 
@@ -240,8 +336,9 @@ where
 
         metadata_snapshot.sstables.sort_by_key(|sstable| sstable.summary.size);
 
-        // TODO(compaction_thread))
-        unimplemented!();
+        if metadata_snapshot.sstables.len() > metadata_snapshot.max_sstable_count {
+            self.spawn_compaction_thread(metadata_snapshot);
+        }
 
         Ok(())
     }

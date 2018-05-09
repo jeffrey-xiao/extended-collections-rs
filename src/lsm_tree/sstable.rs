@@ -67,7 +67,6 @@ pub struct SSTableSummary<T> {
     pub key_range: (T, T),
     pub logical_time_range: (u64, u64),
     pub index: Vec<(T, u64)>,
-    pub logical_time: u64,
 }
 
 pub struct SSTableBuilder<T, U> {
@@ -79,7 +78,6 @@ pub struct SSTableBuilder<T, U> {
     pub key_range: Option<(T, T)>,
     pub logical_time_range: Option<(u64, u64)>,
     pub index: Vec<(T, u64)>,
-    pub logical_time: u64,
 
     block_index: usize,
     block_size: usize,
@@ -101,7 +99,7 @@ where
         thread_rng().gen_ascii_chars().take(32).collect()
     }
 
-    pub fn new<P>(db_path: P, entry_count_hint: usize, logical_time: u64) -> Result<Self>
+    pub fn new<P>(db_path: P, entry_count_hint: usize) -> Result<Self>
     where
         P: AsRef<Path>,
     {
@@ -124,7 +122,6 @@ where
             key_range: None,
             logical_time_range: None,
             index: Vec::new(),
-            logical_time,
 
             block_index: 0,
             block_size: (entry_count_hint as f64).sqrt().ceil() as usize,
@@ -149,7 +146,12 @@ where
             None => self.key_range = Some((key.clone(), key.clone())),
         }
         match self.logical_time_range.take() {
-            Some((start, _)) => self.logical_time_range = Some((start, logical_time)),
+            Some((start, end)) => {
+                self.logical_time_range = Some((
+                    cmp::min(start, logical_time),
+                    cmp::max(end, logical_time),
+                ))
+            },
             None => self.logical_time_range = Some((logical_time, logical_time)),
         }
 
@@ -201,7 +203,6 @@ where
             key_range,
             logical_time_range,
             index: self.index.clone(),
-            logical_time: self.logical_time,
         })?;
         let mut summary_file = fs::File::create(self.sstable_path.join("summary.dat"))?;
         summary_file.write_all(&serialized_summary)?;

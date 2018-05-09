@@ -25,7 +25,7 @@ use std::mem;
 /// use extended_collections::lsm_tree::LsmMap;
 /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
 ///
-/// let sts = SizeTieredStrategy::new("lsm_map", 4, 50000, 0.5, 1.5, 10000)?;
+/// let sts = SizeTieredStrategy::new("lsm_map", 10000, 4, 50000, 0.5, 1.5)?;
 /// let mut map = LsmMap::new(sts);
 ///
 /// map.insert(0, 1)?;
@@ -69,7 +69,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_new", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_new", 10000, 4, 50000, 0.5, 1.5)?;
     /// let map: LsmMap<u32, u32, _> = LsmMap::new(sts);
     /// # fs::remove_dir_all("lsm_map_new")?;
     /// # Ok(())
@@ -86,11 +86,9 @@ where
 
     fn compact(&mut self) -> Result<()> {
         self.in_memory_usage = 0;
-        let logical_time = self.compaction_strategy.get_and_increment_logical_time()?;
         let mut sstable_builder = SSTableBuilder::new(
             self.compaction_strategy.get_db_path(),
             self.in_memory_tree.len(),
-            logical_time,
         )?;
         for entry in mem::replace(&mut self.in_memory_tree, BTreeMap::new()) {
             sstable_builder.append(entry.0, entry.1)?;
@@ -111,7 +109,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_insert", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_insert", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -159,7 +157,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_remove", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_remove", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -205,7 +203,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_contains_key", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_contains_key", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -231,7 +229,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_get", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_get", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -266,7 +264,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_len_hint", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_len_hint", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -292,7 +290,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_len", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_len", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -317,7 +315,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_is_empty", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_is_empty", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     /// assert!(map.is_empty()?);
     ///
@@ -343,7 +341,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_clear", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_clear", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -370,7 +368,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_min", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_min", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -408,7 +406,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_max", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_max", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -442,7 +440,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_flush", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_flush", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -472,7 +470,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_iter", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("lsm_map_iter", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
