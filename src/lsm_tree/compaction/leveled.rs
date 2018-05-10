@@ -283,9 +283,10 @@ where
                         Some(ref last_key) => *last_key != key,
                         None => true,
                     } && (metadata.levels.len() > 1 || value.data.is_some());
+                    last_key_opt = Some(key.clone());
 
                     if should_append {
-                        sstable_builder.append(key.clone(), value)?;
+                        sstable_builder.append(key, value)?;
                     }
 
                     if sstable_builder.size > metadata.max_sstable_size {
@@ -299,8 +300,6 @@ where
                             entry_hint,
                         )?;
                     }
-
-                    last_key_opt = Some(key);
                 }
 
                 if sstable_builder.key_range.is_some() {
@@ -345,15 +344,16 @@ where
                         entry_hint,
                     )?;
                     let mut sstable_data_iter = old_sstable.data_iter()?.flat_map(|x| x);
-                    let mut level_sstable_data_iters = metadata.levels[index]
+                    let mut level_sstable_data_iters: Vec<_> = metadata.levels[index]
                         .iter()
-                        .map(|level_entry| level_entry.1.data_iter());
-                    let mut level_sstable_data_iter = level_sstable_data_iters
-                        .next()
-                        .expect("Unreachable code")?
-                        .flat_map(|x| x);
+                        .flat_map(|level_entry| level_entry.1.data_iter())
+                        .map(|data_iter| data_iter.flat_map(|x| x))
+                        .collect();
+                    let mut iter_index = 0;
+
                     let mut sstable_entry = sstable_data_iter.next();
-                    let mut level_sstable_entry = level_sstable_data_iter.next();
+                    let mut level_sstable_entry = level_sstable_data_iters[iter_index].next();
+                    let mut last_key_opt = None;
 
                     loop {
                         let ordering = match (&sstable_entry, &level_sstable_entry) {
@@ -363,29 +363,38 @@ where
                             (&None, &None) => break,
                         };
 
-                        match ordering {
+                        let entry = match ordering {
                             cmp::Ordering::Less | cmp::Ordering::Equal => {
-                                let entry = mem::replace(
+                                mem::replace(
                                     &mut sstable_entry,
                                     sstable_data_iter.next(),
-                                ).expect("Unreachable code");
-                                sstable_builder.append(entry.key, entry.value)?;
+                                ).expect("Unreachable code")
                             },
                             cmp::Ordering::Greater => {
-                                // let new_entry = {
-                                //     match level_sstable_data_iter.next() {
-                                //         Some(entry) => entry,
-                                //         None => {
-                                //             if let Some(data_iter) = level_sstable_data_iters.next() {
-                                //                 level_sstable_data_iter = data_iter;
-                                //                 level_sstable_data_iter.next().expect("")
-                                //             } else {
-
-                                //             }
-                                //         }
-                                //     }
-                                // };
+                                let new_entry = loop {
+                                    if iter_index == level_sstable_data_iters.len() {
+                                        break None;
+                                    }
+                                    match level_sstable_data_iters[iter_index].next() {
+                                        None => iter_index += 1,
+                                        entry_opt => break entry_opt,
+                                    }
+                                };
+                                mem::replace(
+                                    &mut sstable_entry,
+                                    new_entry,
+                                ).expect("Unreachable code")
                             },
+                        };
+
+                        let should_append = match last_key_opt {
+                            Some(ref last_key) => *last_key != entry.key,
+                            None => true,
+                        } && (index + 1 == metadata.levels.len() || entry.value.data.is_some());
+                        last_key_opt = Some(entry.key.clone());
+
+                        if should_append {
+                            sstable_builder.append(entry.key, entry.value)?;
                         }
                     }
                 }
