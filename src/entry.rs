@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Entry<T, U> {
     pub key: T,
     pub value: U,

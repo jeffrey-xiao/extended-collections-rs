@@ -239,7 +239,7 @@ where
         self.compaction_thread_join_handle = Some(thread::spawn(move || {
             let compaction_result = (|| -> Result<()> {
                 println!("Started compacting.");
-                let old_sstables: Vec<Arc<SSTable<T, U>>> = metadata.sstables
+                let old_sstables: Vec<_> = metadata.sstables
                     .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
                     .collect();
 
@@ -258,30 +258,27 @@ where
                     let curr_logical_time_range = Some(sstable.summary.logical_time_range.0);
 
                     let is_older_range = sstable_max_logical_time_range < curr_logical_time_range;
-                    let key_intersecting = {
-                        match &sstable_key_range {
-                            Some(sstable_key_range) => {
-                                sstable::is_intersecting(
-                                    &sstable_key_range,
-                                    &sstable.summary.key_range,
-                                )
-                            },
-                            None => false,
-                        }
+                    let key_intersecting = match &sstable_key_range {
+                        Some(sstable_key_range) => {
+                            sstable::is_intersecting(
+                                &sstable_key_range,
+                                &sstable.summary.key_range,
+                            )
+                        },
+                        None => false,
                     };
                     is_older_range && !key_intersecting
                 });
 
-                let mut new_sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
+                let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
                     db_path,
                     old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
                 )?;
 
-                let mut old_sstable_data_iters = Vec::with_capacity(old_sstables.len());
-                for sstable in &old_sstables {
-                    old_sstable_data_iters.push(sstable.data_iter()?);
-                }
-
+                let mut old_sstable_data_iters: Vec<_> = old_sstables
+                    .iter()
+                    .flat_map(|sstable| sstable.data_iter())
+                    .collect();
                 drop(old_sstables);
 
                 let mut entries = BinaryHeap::new();
@@ -300,23 +297,20 @@ where
                         entries.push(cmp::Reverse((key, value, index)));
                     }
 
-                    let should_append = {
-                        match last_key_opt {
-                            Some(ref last_key) => *last_key != key,
-                            None => true,
-                        }
+                    let should_append = match last_key_opt {
+                        Some(ref last_key) => *last_key != key,
+                        None => true,
                     } && (!purge_tombstone || value.data.is_some());
 
                     if should_append {
-                        new_sstable_builder.append(key.clone(), value)?;
+                        sstable_builder.append(key.clone(), value)?;
                     }
 
                     last_key_opt = Some(key);
                 }
 
-                if new_sstable_builder.key_range.is_some() {
-                    let new_sstable = Arc::new(SSTable::new(new_sstable_builder.flush()?)?);
-                    metadata.sstables.push(new_sstable);
+                if sstable_builder.key_range.is_some() {
+                    metadata.sstables.push(Arc::new(SSTable::new(sstable_builder.flush()?)?));
                 }
 
                 println!("Locking in compaction");
@@ -570,11 +564,9 @@ where
             }
 
             if let Some(data) = value.data {
-                let should_return = {
-                    match self.last_key_opt {
-                        Some(ref last_key) => *last_key != key,
-                        None => true,
-                    }
+                let should_return = match self.last_key_opt {
+                    Some(ref last_key) => *last_key != key,
+                    None => true,
                 };
 
                 self.last_key_opt = Some(key.clone());

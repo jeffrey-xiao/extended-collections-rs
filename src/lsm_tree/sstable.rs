@@ -189,11 +189,9 @@ where
             self.index_stream.write_all(&serialized_index_block)?;
         }
 
-        let (key_range, logical_time_range) = {
-            match (self.key_range.clone(), self.logical_time_range) {
-                (Some(key_range), Some(logical_time_range)) => (key_range, logical_time_range),
-                _ => panic!("Expected non-empty SSTable"),
-            }
+        let (key_range, logical_time_range) = match (self.key_range.clone(), self.logical_time_range) {
+            (Some(key_range), Some(logical_time_range)) => (key_range, logical_time_range),
+            _ => panic!("Expected non-empty SSTable"),
         };
 
         let serialized_summary = serialize(&SSTableSummary{
@@ -286,11 +284,9 @@ where
             return Ok(None);
         }
 
-        let index = {
-            match Self::floor_offset(&self.summary.index, key) {
-                Some(index) => index,
-                None => return Ok(None),
-            }
+        let index = match Self::floor_offset(&self.summary.index, key) {
+            Some(index) => index,
+            None => return Ok(None),
         };
 
         let mut index_file = fs::File::open(self.path.join("index.dat"))?;
@@ -300,11 +296,9 @@ where
         index_file.read_exact(buffer.as_mut_slice())?;
         let index_block: Vec<(T, u64)> = deserialize(&buffer)?;
 
-        let index = {
-            match index_block.binary_search_by_key(&key, |index_entry| &index_entry.0) {
-                Ok(index) => index,
-                Err(_) => return Ok(None),
-            }
+        let index = match index_block.binary_search_by_key(&key, |index_entry| &index_entry.0) {
+            Ok(index) => index,
+            Err(_) => return Ok(None),
         };
 
         let mut data_file = fs::File::open(self.path.join("data.dat"))?;
@@ -338,16 +332,14 @@ where
     type Item = Result<Entry<T, SSTableValue<U>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let size = {
-            match self.data_file.read_u64::<BigEndian>() {
-                Ok(size) => size,
-                Err(error) => {
-                    match error.kind() {
-                        ErrorKind::UnexpectedEof => return None,
-                        _ => return Some(Err(Error::from(error))),
-                    }
-                },
-            }
+        let size = match self.data_file.read_u64::<BigEndian>() {
+            Ok(size) => size,
+            Err(error) => {
+                match error.kind() {
+                    ErrorKind::UnexpectedEof => return None,
+                    _ => return Some(Err(Error::from(error))),
+                }
+            },
         };
 
         let mut buffer = vec![0; size as usize];

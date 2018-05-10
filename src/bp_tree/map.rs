@@ -313,6 +313,10 @@ where
                                         _ => unreachable!(),
                                     }
                                 };
+                                // let new_key = sibling_leaf_node.entries[0]
+                                //     .as_ref()
+                                //     .map(|entry| entry.key.clone())
+                                //     .expect("Unreachable code");
                                 parent_internal_node.keys[curr_index] = Some(new_key);
                                 curr_leaf_node.insert(removed_entry);
                             } else {
@@ -366,19 +370,17 @@ where
 
                     if sibling_internal_node.len + 1 == (self.pager.get_internal_degree() + 1) / 2 {
                         if sibling_index == curr_index + 1 {
-                            let parent_key = match parent_internal_node.keys[curr_index] {
-                                Some(ref key) => key.clone(),
-                                None => unreachable!(),
-                            };
+                            let parent_key = parent_internal_node.keys[curr_index]
+                                .clone()
+                                .expect("Unreachable code");
                             curr_internal_node.merge(parent_key, &mut sibling_internal_node);
                             delete_entry = Some((curr_index, parent_page, parent_internal_node));
                             self.pager.deallocate_node(sibling_page)?;
                             self.pager.write_node(curr_page, &Node::Internal(curr_internal_node))?;
                         } else {
-                            let parent_key = match parent_internal_node.keys[sibling_index] {
-                                Some(ref key) => key.clone(),
-                                None => unreachable!(),
-                            };
+                            let parent_key = parent_internal_node.keys[sibling_index]
+                                .clone()
+                                .expect("Unreachable code");
                             sibling_internal_node.merge(parent_key, &mut curr_internal_node);
                             delete_entry = Some((sibling_index, parent_page, parent_internal_node));
                             self.pager.deallocate_node(curr_page)?;
@@ -386,10 +388,10 @@ where
                         }
                     } else if sibling_index == curr_index + 1 {
                         let (mut removed_key, removed_pointer) = sibling_internal_node.remove_at(0, false);
-                        let removed_key = match mem::replace(&mut parent_internal_node.keys[curr_index], Some(removed_key)) {
-                            Some(key) => key,
-                            _ => unreachable!(),
-                        };
+                        let removed_key = mem::replace(
+                            &mut parent_internal_node.keys[curr_index],
+                            Some(removed_key),
+                        ).expect("Unreachable code");
                         curr_internal_node.insert(removed_key, removed_pointer, true);
                         self.pager.write_node(parent_page, &Node::Internal(parent_internal_node))?;
                         self.pager.write_node(sibling_page, &Node::Internal(sibling_internal_node))?;
@@ -397,10 +399,10 @@ where
                     } else {
                         let remove_index = sibling_internal_node.len - 1;
                         let (mut removed_key, removed_pointer) = sibling_internal_node.remove_at(remove_index, true);
-                        let removed_key = match mem::replace(&mut parent_internal_node.keys[sibling_index], Some(removed_key)) {
-                            Some(key) => key,
-                            _ => unreachable!(),
-                        };
+                        let removed_key = mem::replace(
+                            &mut parent_internal_node.keys[sibling_index],
+                            Some(removed_key),
+                        ).expect("Unreachable code");
                         curr_internal_node.insert(removed_key, removed_pointer, false);
                         self.pager.write_node(parent_page, &Node::Internal(parent_internal_node))?;
                         self.pager.write_node(sibling_page, &Node::Internal(sibling_internal_node))?;
@@ -469,6 +471,9 @@ where
                         Some(entry) => Some(entry.value),
                         _ => unreachable!(),
                     }
+
+                    // mem::replace(&mut curr_leaf_node.entries[index], None)
+                    //     .map(|entry| entry.value)
                 }))
             },
             _ => unreachable!(),
@@ -711,13 +716,10 @@ where
             }
         }
 
-        match self.curr_node.entries[self.curr_index].take() {
-            Some(entry) => {
-                self.curr_index += 1;
-                Some(Ok((entry.key, entry.value)))
-            },
-            _ => unreachable!(),
-        }
+        self.curr_index += 1;
+        self.curr_node.entries[self.curr_index - 1]
+            .take()
+            .map(|entry| Ok((entry.key, entry.value)))
     }
 }
 

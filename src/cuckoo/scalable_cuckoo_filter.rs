@@ -108,10 +108,7 @@ impl ScalableCuckooFilter {
         let mut new_filter_opt = None;
         {
             let exponent = self.filters.len() as i32;
-            let filter = match self.filters.last_mut() {
-                Some(filter) => filter,
-                _ => unreachable!(),
-            };
+            let filter = self.filters.last_mut().expect("Unreachable code");
 
             if filter.is_nearly_full() {
                 let mut new_filter = CuckooFilter::from_entries_per_index(
@@ -157,11 +154,7 @@ impl ScalableCuckooFilter {
             .iter()
             .any(|ref mut filter| filter.contains(item))
         {
-            let filter = match self.filters.last_mut() {
-                Some(filter) => filter,
-                _ => unreachable!(),
-            };
-
+            let filter = self.filters.last_mut().expect("Unreachable code");
             filter.insert(item);
         }
         self.try_grow();
@@ -266,11 +259,7 @@ impl ScalableCuckooFilter {
     /// assert_eq!(filter.entries_per_index(), 4);
     /// ```
     pub fn entries_per_index(&self) -> usize {
-        let filter = match self.filters.first() {
-            Some(filter) => filter,
-            _ => unreachable!(),
-        };
-
+        let filter = self.filters.first().expect("Unreachable code");
         filter.entries_per_index()
     }
 
@@ -302,10 +291,10 @@ impl ScalableCuckooFilter {
     /// assert!(!filter.contains(&"foo"));
     /// ```
     pub fn clear(&mut self) {
-        let default_entries_per_index = match self.filters.first() {
-            Some(filter) => filter.entries_per_index(),
-            _ => unreachable!(),
-        };
+        let default_entries_per_index = self.filters
+            .first()
+            .expect("Unreachable code")
+            .entries_per_index();
 
         self.filters = vec![CuckooFilter::from_entries_per_index(
             self.initial_item_count,

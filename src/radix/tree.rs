@@ -5,10 +5,7 @@ use std::mem;
 pub type Tree<T> = Option<Box<Node<T>>>;
 
 pub fn insert<T>(tree: &mut Tree<T>, mut key: &[u8], value: T) -> Option<T> {
-    let node = match *tree {
-        Some(ref mut node) => node,
-        _ => unreachable!(),
-    };
+    let node = tree.as_mut().expect("Unreachable code");
     let split_index = node.key
         .iter()
         .zip(key.iter())
@@ -25,29 +22,27 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: &[u8], value: T) -> Option<T> {
             node.insert_child(child);
             None
         },
-        None => {
-            match node.key.len().cmp(&key.len()) {
-                Ordering::Less => {
-                    key = key.split_at(node.key.len()).1;
-                    let byte = key[0];
-                    if node.contains(byte) {
-                        insert(node.get_mut(byte), key, value)
-                    } else {
-                        node.insert_child(Node::new(key.to_vec(), Some(value)));
-                        None
-                    }
-                },
-                Ordering::Greater => {
-                    let mut split_key = node.key.split_off(key.len());
-                    mem::swap(&mut split_key, &mut node.key);
-                    let mut split = mem::replace(&mut **node, Node::new(split_key, None));
-                    node.next = split.next.take();
-                    node.value = Some(value);
-                    node.insert_child(split);
+        None => match node.key.len().cmp(&key.len()) {
+            Ordering::Less => {
+                key = key.split_at(node.key.len()).1;
+                let byte = key[0];
+                if node.contains(byte) {
+                    insert(node.get_mut(byte), key, value)
+                } else {
+                    node.insert_child(Node::new(key.to_vec(), Some(value)));
                     None
-                },
-                Ordering::Equal => mem::replace(&mut node.value, Some(value)).map(|value| value),
-            }
+                }
+            },
+            Ordering::Greater => {
+                let mut split_key = node.key.split_off(key.len());
+                mem::swap(&mut split_key, &mut node.key);
+                let mut split = mem::replace(&mut **node, Node::new(split_key, None));
+                node.next = split.next.take();
+                node.value = Some(value);
+                node.insert_child(split);
+                None
+            },
+            Ordering::Equal => mem::replace(&mut node.value, Some(value)).map(|value| value),
         },
     }
 }
@@ -120,9 +115,11 @@ pub fn get<'a, T>(tree: &'a Tree<T>, key: &[u8], mut index: usize) -> Option<&'a
 }
 
 pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &[u8], mut index: usize) -> Option<&'a mut T> {
-    let node = match *tree {
-        Some(ref mut node) => node,
-        None => return None,
+    let node = {
+        match *tree {
+            Some(ref mut node) => node,
+            None => return None,
+        }
     };
     let split_index = node.key
         .iter()
@@ -165,9 +162,11 @@ pub fn get_longest_prefix<T>(
     mut curr_key: Vec<u8>,
     keys: &mut Vec<Vec<u8>>,
 ) {
-    let node = match *tree {
-        Some(ref node) => node,
-        None => return,
+    let node = {
+        match *tree {
+            Some(ref node) => node,
+            None => return,
+        }
     };
     curr_key.extend(node.key.iter());
     let split_index = node.key
