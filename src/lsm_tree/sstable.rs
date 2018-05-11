@@ -14,6 +14,8 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::result;
 
+use std::fmt::{Debug, self};
+
 pub fn merge_ranges<T>(range_1: (T, T), range_2: (T, T)) -> (T, T)
 where
     T: Ord,
@@ -59,7 +61,7 @@ impl<U> PartialOrd for SSTableValue<U> {
 
 impl<U> Eq for SSTableValue<U> {}
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SSTableSummary<T> {
     pub entry_count: usize,
     pub tombstone_count: usize,
@@ -372,5 +374,18 @@ where
     {
         let ret = SSTable::new(PathBuf::deserialize(deserializer)?).map_err(de::Error::custom);
         Ok(ret?)
+    }
+}
+
+impl<T, U> Debug for SSTable<T, U>
+where
+    T: Debug,
+    U: Debug,
+{
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "entry count: {:?}\n", self.summary.entry_count)?;
+        write!(f, "tombstone count: {:?}\n", self.summary.tombstone_count)?;
+        write!(f, "key range: {:?}\n", self.summary.key_range)
     }
 }
