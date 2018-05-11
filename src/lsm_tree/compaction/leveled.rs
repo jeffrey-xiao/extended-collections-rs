@@ -80,7 +80,7 @@ where
         write!(f, "\nsstables:\n{:#?}\n", self.sstables)?;
         for (index, level) in self.levels.iter().enumerate() {
             write!(f, "level {}:\n", index)?;
-            for (_, sstable) in level {
+            for sstable in level.values() {
                 write!(f, "{:?}\n", sstable)?;
             }
         }
@@ -260,7 +260,7 @@ where
                 sstable.data_iter()
             })
             .collect();
-        for (_, sstable) in &metadata_snapshot.levels[0] {
+        for sstable in metadata_snapshot.levels[0].values() {
             entry_count_hint = cmp::max(entry_count_hint, sstable.summary.entry_count);
         }
         let mut level_sstable_iter = mem::replace(&mut metadata_snapshot.levels[0], BTreeMap::new())
@@ -301,7 +301,7 @@ where
             }
 
             let should_append = match last_key_opt {
-                Some(ref last_key) => *last_key != key,
+                Some(last_key) => last_key != key,
                 None => true,
             } && (metadata_snapshot.levels.len() > 1 || value.data.is_some());
             last_key_opt = Some(key.clone());
@@ -391,10 +391,10 @@ where
 
                 loop {
                     let ordering = match (&sstable_entry, &level_sstable_entry) {
-                        (&Some(ref sstable_entry), &Some(ref level_sstable_entry)) => sstable_entry.cmp(&level_sstable_entry),
-                        (&Some(_), &None) => cmp::Ordering::Less,
-                        (&None, &Some(_)) => cmp::Ordering::Greater,
-                        (&None, &None) => break,
+                        (Some(ref sstable_entry), Some(ref level_sstable_entry)) => sstable_entry.cmp(&level_sstable_entry),
+                        (Some(_), None) => cmp::Ordering::Less,
+                        (None, Some(_)) => cmp::Ordering::Greater,
+                        (None, None) => break,
                     };
 
                     let entry = match ordering {
@@ -422,7 +422,7 @@ where
                     };
 
                     let should_append = match last_key_opt {
-                        Some(ref last_key) => *last_key != entry.key,
+                        Some(last_key) => last_key != entry.key,
                         None => true,
                     } && (index + 1 == metadata_snapshot.levels.len() || entry.value.data.is_some());
                     last_key_opt = Some(entry.key.clone());

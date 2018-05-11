@@ -37,12 +37,12 @@ where
     }
 
     pub fn update(&mut self) {
-        let Node { ref mut len, ref left, ref right, .. } = *self;
+        let Node { ref mut len, ref left, ref right, .. } = self;
         *len = 1;
-        if let Some(ref left_node) = *left {
+        if let Some(ref left_node) = left {
             *len += left_node.len();
         }
-        if let Some(ref right_node) = *right {
+        if let Some(ref right_node) = right {
             *len += right_node.len();
         }
     }
@@ -63,12 +63,12 @@ impl<T> ImplicitNode<T> {
     }
 
     pub fn update(&mut self) {
-        let ImplicitNode { ref mut len, ref left, ref right, .. } = *self;
+        let ImplicitNode { ref mut len, ref left, ref right, .. } = self;
         *len = 1;
-        if let Some(ref left_node) = *left {
+        if let Some(ref left_node) = left {
             *len += left_node.len();
         }
-        if let Some(ref right_node) = *right {
+        if let Some(ref right_node) = right {
             *len += right_node.len();
         }
     }

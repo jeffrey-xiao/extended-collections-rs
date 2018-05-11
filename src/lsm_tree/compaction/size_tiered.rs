@@ -113,13 +113,13 @@ where
             let curr_logical_time_range = Some(sstable.summary.logical_time_range.0);
             let is_older_range = sstable_max_logical_time_range < curr_logical_time_range;
             let key_intersecting = match &sstable_key_range {
-                &Some(ref sstable_key_range) => {
+                Some(ref sstable_key_range) => {
                     sstable::is_intersecting(
                         &sstable_key_range,
                         &sstable.summary.key_range,
                     )
                 },
-                &None => false,
+                None => false,
             };
             is_older_range && !key_intersecting
         });
@@ -153,7 +153,7 @@ where
             }
 
             let should_append = match last_key_opt {
-                Some(ref last_key) => *last_key != key,
+                Some(last_key) => last_key != key,
                 None => true,
             } && (!purge_tombstone || value.data.is_some());
 

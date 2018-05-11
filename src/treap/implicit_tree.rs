@@ -70,7 +70,7 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
                 return ret;
             },
             Ordering::Equal => {
-                let &mut ImplicitNode {
+                let ImplicitNode {
                     ref mut left,
                     ref mut right,
                     ..
@@ -107,7 +107,7 @@ pub fn get_mut<T>(tree: &mut Tree<T>, index: usize) -> Option<&mut T> {
 }
 
 pub fn len<T>(tree: &Tree<T>) -> usize {
-    if let Some(ref node) = *tree {
+    if let Some(ref node) = tree {
         node.len()
     } else {
         0

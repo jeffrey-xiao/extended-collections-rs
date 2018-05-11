@@ -101,7 +101,7 @@ impl ScalableBloomFilter {
     {
         if !self.filters
             .iter()
-            .any(|ref mut filter| filter.contains(item))
+            .any(|filter| filter.contains(item))
         {
             let filter = self.filters.last_mut().expect("Unreachable code");
             filter.insert(item);
@@ -128,7 +128,7 @@ impl ScalableBloomFilter {
     {
         self.filters
             .iter()
-            .any(|ref mut filter| filter.contains(item))
+            .any(|filter| filter.contains(item))
     }
 
     /// Returns the number of bits in the scalable bloom filter.

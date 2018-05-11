@@ -51,7 +51,7 @@ pub fn remove<T>(tree: &mut Tree<T>, key: &[u8], mut index: usize) -> Option<(Ve
     let mut next_tree = None;
     let ret;
     {
-        let node = match *tree {
+        let node = match tree {
             Some(ref mut node) => node,
             None => return None,
         };
@@ -91,7 +91,7 @@ pub fn remove<T>(tree: &mut Tree<T>, key: &[u8], mut index: usize) -> Option<(Ve
 }
 
 pub fn get<'a, T>(tree: &'a Tree<T>, key: &[u8], mut index: usize) -> Option<&'a T> {
-    let node = match *tree {
+    let node = match tree {
         Some(ref node) => node,
         None => return None,
     };
@@ -115,11 +115,9 @@ pub fn get<'a, T>(tree: &'a Tree<T>, key: &[u8], mut index: usize) -> Option<&'a
 }
 
 pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &[u8], mut index: usize) -> Option<&'a mut T> {
-    let node = {
-        match *tree {
-            Some(ref mut node) => node,
-            None => return None,
-        }
+    let node = match tree {
+        Some(ref mut node) => node,
+        None => return None,
     };
     let split_index = node.key
         .iter()
@@ -141,7 +139,7 @@ pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &[u8], mut index: usize) -> Op
 }
 
 fn push_all_children<T>(tree: &Tree<T>, mut curr_key: Vec<u8>, keys: &mut Vec<Vec<u8>>) {
-    if let Some(ref node) = *tree {
+    if let Some(ref node) = tree {
         let len = curr_key.len();
 
         curr_key.extend(node.key.iter());
@@ -162,11 +160,9 @@ pub fn get_longest_prefix<T>(
     mut curr_key: Vec<u8>,
     keys: &mut Vec<Vec<u8>>,
 ) {
-    let node = {
-        match *tree {
-            Some(ref node) => node,
-            None => return,
-        }
+    let node = match tree {
+        Some(ref node) => node,
+        None => return,
     };
     curr_key.extend(node.key.iter());
     let split_index = node.key
@@ -185,7 +181,7 @@ pub fn get_longest_prefix<T>(
                 Ordering::Less => {
                     index += node.key.len();
                     let next_child = node.get(key[index]);
-                    match *next_child {
+                    match next_child {
                         Some(_) => get_longest_prefix(next_child, key, index, curr_key, keys),
                         None => {
                             if node.value.is_some() {
@@ -206,7 +202,7 @@ pub fn get_longest_prefix<T>(
 }
 
 pub fn min<T>(tree: &Tree<T>, mut curr_key: Vec<u8>) -> Option<Vec<u8>> {
-    let node = match *tree {
+    let node = match tree {
         Some(ref node) => node,
         None => return None,
     };
@@ -221,7 +217,7 @@ pub fn min<T>(tree: &Tree<T>, mut curr_key: Vec<u8>) -> Option<Vec<u8>> {
 }
 
 pub fn max<T>(tree: &Tree<T>, mut curr_key: Vec<u8>) -> Option<Vec<u8>> {
-    let node = match *tree {
+    let node = match tree {
         Some(ref node) => node,
         None => return None,
     };

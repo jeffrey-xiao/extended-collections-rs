@@ -152,7 +152,7 @@ impl ScalableCuckooFilter {
     {
         if !self.filters
             .iter()
-            .any(|ref mut filter| filter.contains(item))
+            .any(|filter| filter.contains(item))
         {
             let filter = self.filters.last_mut().expect("Unreachable code");
             filter.insert(item);
@@ -178,7 +178,7 @@ impl ScalableCuckooFilter {
     {
         self.filters
             .iter()
-            .any(|ref mut filter| filter.contains(item))
+            .any(|filter| filter.contains(item))
     }
 
     /// Removes an element from the scalable cuckoo filter.

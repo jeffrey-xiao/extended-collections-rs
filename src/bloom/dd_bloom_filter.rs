@@ -690,7 +690,7 @@ impl RLBSBloomFilter {
     pub fn clear(&mut self) {
         self.bit_vecs
             .iter_mut()
-            .for_each(|ref mut bit_vec| bit_vec.set_all(false));
+            .for_each(|bit_vec| bit_vec.set_all(false));
     }
 
     /// Returns the number of set bits in the bloom filter.
