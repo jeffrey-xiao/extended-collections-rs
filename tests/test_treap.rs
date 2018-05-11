@@ -6,12 +6,14 @@ use extended_collections::treap::TreapList;
 use extended_collections::treap::TreapMap;
 use std::vec::Vec;
 
+const NUM_OF_OPERATIONS: usize = 100_000;
+
 #[test]
 fn int_test_treapmap() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut map = TreapMap::new();
     let mut expected = Vec::new();
-    for _ in 0..100_000 {
+    for _ in 0..NUM_OF_OPERATIONS {
         let key = rng.gen::<u32>();
         let val = rng.gen::<u32>();
 
@@ -66,7 +68,7 @@ fn int_test_treaplist() {
     let mut list = TreapList::new();
     let mut expected = Vec::new();
 
-    for i in 0..100_000 {
+    for i in 0..NUM_OF_OPERATIONS {
         let index = rng.gen_range(0, i + 1);
         let val = rng.gen::<u32>();
 
@@ -80,7 +82,7 @@ fn int_test_treaplist() {
         expected.iter().collect::<Vec<&u32>>(),
     );
 
-    for i in (0..100_000).rev() {
+    for i in (0..NUM_OF_OPERATIONS).rev() {
         let index = rng.gen_range(0, i + 1);
         let val = rng.gen::<u32>();
 

@@ -6,12 +6,14 @@ use extended_collections::radix::RadixMap;
 use std::iter;
 use std::vec::Vec;
 
+const NUM_OF_OPERATIONS: usize = 100_000;
+
 #[test]
 fn int_test_radixmap() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut map = RadixMap::new();
     let mut expected = Vec::new();
-    for _ in 0..100_000 {
+    for _ in 0..NUM_OF_OPERATIONS {
         // generate a random length from [10, 99)
         let len = rng.gen_range(10, 99);
         let key = iter::repeat(())

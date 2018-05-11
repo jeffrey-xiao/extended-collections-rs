@@ -9,12 +9,14 @@ use extended_collections::treap::TreapMap;
 use std::collections::BTreeMap;
 use test::Bencher;
 
+const NUM_OF_OPERATIONS: usize = 100;
+
 #[bench]
 fn bench_treapmap_insert(b: &mut Bencher) {
     b.iter(|| {
         let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
         let mut map = TreapMap::new();
-        for _ in 0..100 {
+        for _ in 0..NUM_OF_OPERATIONS {
             let key = rng.next_u32();
             let val = rng.next_u32();
 
@@ -29,7 +31,7 @@ fn bench_treapmap_get(b: &mut Bencher) {
     let mut map = TreapMap::new();
     let mut values = Vec::new();
 
-    for _ in 0..100 {
+    for _ in 0..NUM_OF_OPERATIONS {
         let key = rng.next_u32();
         let val = rng.next_u32();
 
@@ -49,7 +51,7 @@ fn bench_skipmap_insert(b: &mut Bencher) {
     b.iter(|| {
         let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
         let mut map = SkipMap::new();
-        for _ in 0..100 {
+        for _ in 0..NUM_OF_OPERATIONS {
             let key = rng.next_u32();
             let val = rng.next_u32();
 
@@ -64,7 +66,7 @@ fn bench_skipmap_get(b: &mut Bencher) {
     let mut map = SkipMap::new();
     let mut values = Vec::new();
 
-    for _ in 0..100 {
+    for _ in 0..NUM_OF_OPERATIONS {
         let key = rng.next_u32();
         let val = rng.next_u32();
 
@@ -84,7 +86,7 @@ fn bench_btreemap_insert(b: &mut Bencher) {
     b.iter(|| {
         let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
         let mut map = BTreeMap::new();
-        for _ in 0..100 {
+        for _ in 0..NUM_OF_OPERATIONS {
             let key = rng.next_u32();
             let val = rng.next_u32();
 
@@ -98,7 +100,7 @@ fn bench_btreemap_get(b: &mut Bencher) {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut map = BTreeMap::new();
     let mut values = Vec::new();
-    for _ in 0..100 {
+    for _ in 0..NUM_OF_OPERATIONS {
         let key = rng.next_u32();
         let val = rng.next_u32();
 

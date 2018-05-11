@@ -25,7 +25,7 @@ where
 
 #[test]
 fn int_test_lsm_map_size_tiered_strategy() {
-    let test_name = "int_test_lsm_map";
+    let test_name = "int_test_lsm_map_size_tiered_strategy";
     run_test(
         || {
             let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
@@ -102,3 +102,36 @@ fn int_test_lsm_map_size_tiered_strategy() {
         test_name,
     );
 }
+
+// #[test]
+// fn int_test_lsm_map_leveled_strategy() {
+//     let test_name = "int_test_lsm_map_leveled_strategy";
+//     run_test(
+//         || {
+//             let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
+//             let mut ls = LeveledStrategy::new(test_name, 1000, 4, 4000, 10, 10)?;
+//             let mut map = LsmMap::new(ls);
+//             let mut expected = Vec::new();
+
+//             for _ in 0..10_000 {
+//                 let key = rng.gen::<u32>();
+//                 let val = rng.gen::<u64>();
+
+//                 map.insert(key, val)?;
+//                 expected.push((key, val));
+//             }
+
+//             expected.reverse();
+//             expected.sort_by(|l, r| l.0.cmp(&r.0));
+//             expected.dedup_by_key(|pair| pair.0);
+
+//             for entry in &expected {
+//                 assert!(map.contains_key(&entry.0)?);
+//                 assert_eq!(map.get(&entry.0)?, Some(entry.1));
+//             }
+
+//             Ok(())
+//         },
+//         test_name,
+//     );
+// }

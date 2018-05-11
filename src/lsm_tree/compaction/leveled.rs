@@ -7,7 +7,7 @@ use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::cell::RefCell;
 use std::cmp;
-use std::collections::{BinaryHeap, BTreeMap, HashSet};
+use std::collections::{BinaryHeap, Bound, BTreeMap, HashSet};
 use std::fs;
 use std::hash::Hash;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -213,200 +213,232 @@ where
         }
     }
 
+    fn compact<P>(
+        db_path: P,
+        is_compacting: &Arc<AtomicBool>,
+        mut metadata_snapshot: LeveledMetadata<T, U>,
+        next_metadata: &Arc<Mutex<Option<LeveledMetadata<T, U>>>>,
+    ) -> Result<()>
+    where
+        P: AsRef<Path>,
+    {
+        println!("Started compacting.");
+
+        if metadata_snapshot.levels.is_empty() {
+            metadata_snapshot.levels.push(BTreeMap::new());
+        }
+
+        // compacting L0
+        let mut entry_hint = 0;
+        let mut sstable_data_iters: Vec<_> = metadata_snapshot.sstables
+            .drain(..)
+            .flat_map(|sstable| {
+                entry_hint += sstable.summary.entry_count;
+                sstable.data_iter()
+            })
+            .collect();
+        entry_hint += metadata_snapshot.levels[0]
+            .iter()
+            .map(|entry| entry.1.summary.entry_count)
+            .sum::<usize>();
+        let mut level_sstable_iter = mem::replace(&mut metadata_snapshot.levels[0], BTreeMap::new())
+            .into_iter()
+            .map(|entry| entry.1.data_iter());
+
+        if let Some(level_sstable_data_iter) = level_sstable_iter.next() {
+            sstable_data_iters.push(level_sstable_data_iter?);
+        }
+
+        let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
+            db_path.as_ref(),
+            entry_hint,
+        )?;
+
+        let mut entries = BinaryHeap::new();
+        let mut last_key_opt = None;
+
+        for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
+            if let Some(entry) = sstable_data_iter.next() {
+                let entry = entry?;
+                entries.push(cmp::Reverse((entry.key, entry.value, index)));
+            }
+        }
+
+        while let Some(cmp::Reverse((key, value, index))) = entries.pop() {
+            if let Some(entry) = sstable_data_iters[index].next() {
+                let Entry { key, value } = entry?;
+                entries.push(cmp::Reverse((key, value, index)));
+            } else if index == sstable_data_iters.len() - 1 {
+                if let Some(data_iter) = level_sstable_iter.next() {
+                    sstable_data_iters[index] = data_iter?;
+                    if let Some(entry) = sstable_data_iters[index].next() {
+                        let Entry { key, value } = entry?;
+                        entries.push(cmp::Reverse((key, value, index)));
+                    }
+                }
+            }
+
+            let should_append = match last_key_opt {
+                Some(ref last_key) => *last_key != key,
+                None => true,
+            } && (metadata_snapshot.levels.len() > 1 || value.data.is_some());
+            last_key_opt = Some(key.clone());
+
+            if should_append {
+                sstable_builder.append(key, value)?;
+            }
+
+            if sstable_builder.size > metadata_snapshot.max_sstable_size {
+                let curr_sstable: SSTable<T, U> = SSTable::new(sstable_builder.flush()?)?;
+                metadata_snapshot.levels[0].insert(
+                    curr_sstable.summary.key_range.1.clone(),
+                    Arc::new(curr_sstable),
+                );
+                sstable_builder = SSTableBuilder::new(
+                    db_path.as_ref(),
+                    entry_hint,
+                )?;
+            }
+        }
+
+        if sstable_builder.key_range.is_some() {
+            metadata_snapshot.sstables.push(Arc::new(SSTable::new(sstable_builder.flush()?)?));
+        }
+
+        // compacting L1 and onwards
+        for index in 0.. {
+            if index == metadata_snapshot.levels.len() {
+                break;
+            }
+
+            let max_len = metadata_snapshot.max_initial_level_count * metadata_snapshot.growth_factor.pow(index as u32) as usize;
+            if metadata_snapshot.levels[index].len() <= max_len {
+                continue;
+            }
+            let old_sstable = {
+                let old_sstable = metadata_snapshot.levels[index]
+                    .iter()
+                    .max_by(|x, y| {
+                        (x.1.summary.tombstone_count * y.1.summary.entry_count)
+                            .cmp(&(y.1.summary.tombstone_count * x.1.summary.entry_count))
+                    })
+                    .map(|level_entry| level_entry.1.summary.key_range.1.clone())
+                    .expect("Unreachable code");
+                metadata_snapshot.levels[index]
+                    .remove(&old_sstable)
+                    .expect("Unreachable code")
+            };
+            metadata_snapshot.levels[index].remove(&old_sstable.summary.key_range.1);
+            if index + 1 == metadata_snapshot.levels.len() {
+                metadata_snapshot.levels.push(BTreeMap::new());
+                metadata_snapshot.levels[index + 1].insert(
+                    old_sstable.summary.key_range.1.clone(),
+                    old_sstable,
+                );
+                continue;
+            }
+
+            let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
+                db_path.as_ref(),
+                entry_hint,
+            )?;
+            let mut sstable_data_iter = old_sstable.data_iter()?.flat_map(|x| x);
+            let mut level_sstable_data_iters: Vec<_> = metadata_snapshot.levels[index]
+                .iter()
+                .flat_map(|level_entry| level_entry.1.data_iter())
+                .map(|data_iter| data_iter.flat_map(|x| x))
+                .collect();
+            let mut iter_index = 0;
+
+            let mut sstable_entry = sstable_data_iter.next();
+            let mut level_sstable_entry = level_sstable_data_iters[iter_index].next();
+            let mut last_key_opt = None;
+
+            loop {
+                let ordering = match (&sstable_entry, &level_sstable_entry) {
+                    (&Some(ref sstable_entry), &Some(ref level_sstable_entry)) => sstable_entry.cmp(&level_sstable_entry),
+                    (&Some(_), &None) => cmp::Ordering::Less,
+                    (&None, &Some(_)) => cmp::Ordering::Greater,
+                    (&None, &None) => break,
+                };
+
+                let entry = match ordering {
+                    cmp::Ordering::Less | cmp::Ordering::Equal => {
+                        mem::replace(
+                            &mut sstable_entry,
+                            sstable_data_iter.next(),
+                        ).expect("Unreachable code")
+                    },
+                    cmp::Ordering::Greater => {
+                        let new_entry = loop {
+                            if iter_index == level_sstable_data_iters.len() {
+                                break None;
+                            }
+                            match level_sstable_data_iters[iter_index].next() {
+                                None => iter_index += 1,
+                                entry_opt => break entry_opt,
+                            }
+                        };
+                        mem::replace(
+                            &mut sstable_entry,
+                            new_entry,
+                        ).expect("Unreachable code")
+                    },
+                };
+
+                let should_append = match last_key_opt {
+                    Some(ref last_key) => *last_key != entry.key,
+                    None => true,
+                } && (index + 1 == metadata_snapshot.levels.len() || entry.value.data.is_some());
+                last_key_opt = Some(entry.key.clone());
+
+                if should_append {
+                    sstable_builder.append(entry.key, entry.value)?;
+                }
+
+                if sstable_builder.size > metadata_snapshot.max_sstable_size {
+                    let curr_sstable: SSTable<T, U> = SSTable::new(sstable_builder.flush()?)?;
+                    if index + 1 == metadata_snapshot.levels.len() {
+                        metadata_snapshot.levels.push(BTreeMap::new());
+                    }
+                    metadata_snapshot.levels[index + 1].insert(
+                        curr_sstable.summary.key_range.1.clone(),
+                        Arc::new(curr_sstable),
+                    );
+                    sstable_builder = SSTableBuilder::new(
+                        db_path.as_ref(),
+                        entry_hint,
+                    )?;
+                }
+            }
+
+            if sstable_builder.key_range.is_some() {
+                metadata_snapshot.sstables.push(Arc::new(SSTable::new(sstable_builder.flush()?)?));
+            }
+        }
+
+        *next_metadata.lock().unwrap() = Some(metadata_snapshot);
+
+        is_compacting.store(false, Ordering::Release);
+        println!("Finished compacting");
+        Ok(())
+    }
+
     fn spawn_compaction_thread(
         &mut self,
-        mut metadata: LeveledMetadata<T, U>,
+        metadata_snapshot: LeveledMetadata<T, U>,
     ) {
         let db_path = self.db_path.clone();
         let next_metadata = self.next_metadata.clone();
         let is_compacting = self.is_compacting.clone();
         self.is_compacting.store(true, Ordering::Release);
         self.compaction_thread_join_handle = Some(thread::spawn(move || {
-            let compaction_result = (|| -> Result<()> {
-                println!("Started compacting.");
-
-                if metadata.levels.is_empty() {
-                    metadata.levels.push(BTreeMap::new());
-                }
-
-                // compacting L0
-                let mut entry_hint = 0;
-                let mut sstable_data_iters: Vec<_> = metadata.sstables
-                    .drain(..)
-                    .flat_map(|sstable| {
-                        entry_hint += sstable.summary.entry_count;
-                        sstable.data_iter()
-                    })
-                    .collect();
-                entry_hint += metadata.levels[0]
-                    .iter()
-                    .map(|entry| entry.1.summary.entry_count)
-                    .sum::<usize>();
-                let mut level_sstable_iter = mem::replace(&mut metadata.levels[0], BTreeMap::new())
-                    .into_iter()
-                    .map(|entry| entry.1.data_iter());
-
-                if let Some(level_sstable_data_iter) = level_sstable_iter.next() {
-                    sstable_data_iters.push(level_sstable_data_iter?);
-                }
-
-                let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
-                    db_path.as_path(),
-                    entry_hint,
-                )?;
-
-                let mut entries = BinaryHeap::new();
-                let mut last_key_opt = None;
-
-                for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
-                    if let Some(entry) = sstable_data_iter.next() {
-                        let entry = entry?;
-                        entries.push(cmp::Reverse((entry.key, entry.value, index)));
-                    }
-                }
-
-                while let Some(cmp::Reverse((key, value, index))) = entries.pop() {
-                    if let Some(entry) = sstable_data_iters[index].next() {
-                        let Entry { key, value } = entry?;
-                        entries.push(cmp::Reverse((key, value, index)));
-                    } else if index == sstable_data_iters.len() - 1 {
-                        if let Some(data_iter) = level_sstable_iter.next() {
-                            sstable_data_iters[index] = data_iter?;
-                            if let Some(entry) = sstable_data_iters[index].next() {
-                                let Entry { key, value } = entry?;
-                                entries.push(cmp::Reverse((key, value, index)));
-                            }
-                        }
-                    }
-
-                    let should_append = match last_key_opt {
-                        Some(ref last_key) => *last_key != key,
-                        None => true,
-                    } && (metadata.levels.len() > 1 || value.data.is_some());
-                    last_key_opt = Some(key.clone());
-
-                    if should_append {
-                        sstable_builder.append(key, value)?;
-                    }
-
-                    if sstable_builder.size > metadata.max_sstable_size {
-                        let curr_sstable: SSTable<T, U> = SSTable::new(sstable_builder.flush()?)?;
-                        metadata.levels[0].insert(
-                            curr_sstable.summary.key_range.1.clone(),
-                            Arc::new(curr_sstable),
-                        );
-                        sstable_builder = SSTableBuilder::new(
-                            db_path.as_path(),
-                            entry_hint,
-                        )?;
-                    }
-                }
-
-                if sstable_builder.key_range.is_some() {
-                    metadata.sstables.push(Arc::new(SSTable::new(sstable_builder.flush()?)?));
-                }
-
-                // compacting L1 and onwards
-                for index in 0.. {
-                    if index == metadata.levels.len() {
-                        break;
-                    }
-
-                    let max_len = metadata.max_initial_level_count * metadata.growth_factor.pow(index as u32) as usize;
-                    if metadata.levels[index].len() <= max_len {
-                        continue;
-                    }
-                    let old_sstable = {
-                        let old_sstable = metadata.levels[index]
-                            .iter()
-                            .max_by(|x, y| {
-                                (x.1.summary.tombstone_count * y.1.summary.entry_count)
-                                    .cmp(&(y.1.summary.tombstone_count * x.1.summary.entry_count))
-                            })
-                            .map(|level_entry| level_entry.1.summary.key_range.1.clone())
-                            .expect("Unreachable code");
-                        metadata.levels[index]
-                            .remove(&old_sstable)
-                            .expect("Unreachable code")
-                    };
-                    metadata.levels[index].remove(&old_sstable.summary.key_range.1);
-                    if index + 1 == metadata.levels.len() {
-                        metadata.levels.push(BTreeMap::new());
-                        metadata.levels[index + 1].insert(
-                            old_sstable.summary.key_range.1.clone(),
-                            old_sstable,
-                        );
-                        continue;
-                    }
-
-                    let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
-                        db_path.as_path(),
-                        entry_hint,
-                    )?;
-                    let mut sstable_data_iter = old_sstable.data_iter()?.flat_map(|x| x);
-                    let mut level_sstable_data_iters: Vec<_> = metadata.levels[index]
-                        .iter()
-                        .flat_map(|level_entry| level_entry.1.data_iter())
-                        .map(|data_iter| data_iter.flat_map(|x| x))
-                        .collect();
-                    let mut iter_index = 0;
-
-                    let mut sstable_entry = sstable_data_iter.next();
-                    let mut level_sstable_entry = level_sstable_data_iters[iter_index].next();
-                    let mut last_key_opt = None;
-
-                    loop {
-                        let ordering = match (&sstable_entry, &level_sstable_entry) {
-                            (&Some(ref sstable_entry), &Some(ref level_sstable_entry)) => sstable_entry.cmp(&level_sstable_entry),
-                            (&Some(ref sstable_entry), &None) => cmp::Ordering::Less,
-                            (&None, &Some(ref level_sstable_entry)) => cmp::Ordering::Greater,
-                            (&None, &None) => break,
-                        };
-
-                        let entry = match ordering {
-                            cmp::Ordering::Less | cmp::Ordering::Equal => {
-                                mem::replace(
-                                    &mut sstable_entry,
-                                    sstable_data_iter.next(),
-                                ).expect("Unreachable code")
-                            },
-                            cmp::Ordering::Greater => {
-                                let new_entry = loop {
-                                    if iter_index == level_sstable_data_iters.len() {
-                                        break None;
-                                    }
-                                    match level_sstable_data_iters[iter_index].next() {
-                                        None => iter_index += 1,
-                                        entry_opt => break entry_opt,
-                                    }
-                                };
-                                mem::replace(
-                                    &mut sstable_entry,
-                                    new_entry,
-                                ).expect("Unreachable code")
-                            },
-                        };
-
-                        let should_append = match last_key_opt {
-                            Some(ref last_key) => *last_key != entry.key,
-                            None => true,
-                        } && (index + 1 == metadata.levels.len() || entry.value.data.is_some());
-                        last_key_opt = Some(entry.key.clone());
-
-                        if should_append {
-                            sstable_builder.append(entry.key, entry.value)?;
-                        }
-                    }
-                }
-
-
-                println!("Locking in compaction");
-                *next_metadata.lock().unwrap() = Some(metadata);
-
-                is_compacting.store(false, Ordering::Release);
-                println!("Finished compacting");
-                Ok(())
-            })();
+            let compaction_result = LeveledStrategy::compact(
+                db_path,
+                &is_compacting,
+                metadata_snapshot,
+                &next_metadata,
+            );
 
             if compaction_result.is_err() {
                 println!("Compaction thread errored: {:?}", compaction_result);
@@ -498,7 +530,7 @@ where
 
         for level in &curr_metadata.levels {
             let sstable_opt = level
-                .range(key..)
+                .range((Bound::Included(key), Bound::Unbounded))
                 .next()
                 .map(|entry| entry.1);
             if let Some(sstable) = sstable_opt {
