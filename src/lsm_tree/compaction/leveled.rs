@@ -207,33 +207,24 @@ where
                     .map(|sstable| Arc::clone(sstable)),
             );
 
-            // removing paths from L0
-            let new_sstable_paths: HashSet<&PathBuf> = HashSet::from_iter(
-                curr_metadata.sstables
-                    .iter()
-                    .map(|sstable| &sstable.path),
-            );
+            let path_iter = curr_metadata.sstables
+                .iter()
+                .map(|sstable| &sstable.path);
+            let level_path_iter = curr_metadata.levels
+                .iter()
+                .flat_map(|level| level.iter().map(|level_entry| &level_entry.1.path));
+            let new_sstable_paths: HashSet<_> = path_iter.chain(level_path_iter).collect();
 
-            for old_sstable in old_sstables {
-                if !new_sstable_paths.contains(&old_sstable.path) {
-                    fs::remove_dir_all(old_sstable.path.as_path())?;
-                }
-            }
+            let old_path_iter = old_sstables
+                .iter()
+                .map(|sstable| &sstable.path);
+            let old_level_path_iter = old_levels
+                .iter()
+                .flat_map(|level| level.iter().map(|level_entry| &level_entry.1.path));
 
-            // removing sstables from L1 onwards
-            for (index, level) in curr_metadata.levels.iter().enumerate() {
-                let new_sstable_paths: HashSet<&PathBuf> = HashSet::from_iter(
-                    level
-                        .iter()
-                        .map(|pair| &pair.1.path),
-                );
-
-                if let Some(old_sstable_map) = old_levels.get(index) {
-                    for old_sstable in old_sstable_map.iter().map(|entry| entry.1) {
-                        if !new_sstable_paths.contains(&old_sstable.path) {
-                            fs::remove_dir_all(old_sstable.path.as_path())?;
-                        }
-                    }
+            for path in old_path_iter.chain(old_level_path_iter) {
+                if !new_sstable_paths.contains(path) {
+                    fs::remove_dir_all(path)?;
                 }
             }
 
@@ -340,101 +331,120 @@ where
                 break;
             }
 
-            let max_len = metadata_snapshot.max_initial_level_count * metadata_snapshot.growth_factor.pow(index as u32) as usize;
-            if metadata_snapshot.levels[index].len() <= max_len {
-                continue;
-            }
-            let old_sstable = {
-                let old_sstable = metadata_snapshot.levels[index]
-                    .iter()
-                    .max_by(|x, y| {
-                        (x.1.summary.tombstone_count * y.1.summary.entry_count)
-                            .cmp(&(y.1.summary.tombstone_count * x.1.summary.entry_count))
-                    })
-                    .map(|level_entry| level_entry.1.summary.key_range.1.clone())
-                    .expect("Unreachable code");
-                println!("old sstable {:?}", old_sstable);
-                metadata_snapshot.levels[index]
-                    .remove(&old_sstable)
-                    .expect("Unreachable code")
+            let mut should_merge = |metadata_snapshot: &LeveledMetadata<T, U>, index: usize| {
+                let curr_len = metadata_snapshot.levels[index].len();
+                let exponent = metadata_snapshot.growth_factor.pow(index as u32) as usize;
+                let max_len = metadata_snapshot.max_initial_level_count * exponent;
+                curr_len > max_len as usize + 1
             };
-            metadata_snapshot.levels[index].remove(&old_sstable.summary.key_range.1);
-            if index + 1 == metadata_snapshot.levels.len() {
-                metadata_snapshot.insert_sstable(index + 1, old_sstable);
-                continue;
-            }
 
-            let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
-                db_path.as_ref(),
-                entry_count_hint,
-            )?;
-            let mut sstable_data_iter = old_sstable.data_iter()?.flat_map(|x| x);
-            let mut level_sstable_data_iters: Vec<_> = metadata_snapshot.levels[index]
-                .iter()
-                .flat_map(|level_entry| level_entry.1.data_iter())
-                .map(|data_iter| data_iter.flat_map(|x| x))
-                .collect();
-            let mut iter_index = 0;
-
-            let mut sstable_entry = sstable_data_iter.next();
-            let mut level_sstable_entry = level_sstable_data_iters[iter_index].next();
-            let mut last_key_opt = None;
-
-            loop {
-                let ordering = match (&sstable_entry, &level_sstable_entry) {
-                    (&Some(ref sstable_entry), &Some(ref level_sstable_entry)) => sstable_entry.cmp(&level_sstable_entry),
-                    (&Some(_), &None) => cmp::Ordering::Less,
-                    (&None, &Some(_)) => cmp::Ordering::Greater,
-                    (&None, &None) => break,
+            while should_merge(&metadata_snapshot, index) {
+                println!("INDEX {} {}", index, metadata_snapshot.levels[index].len());
+                let old_sstable = {
+                    let old_sstable = metadata_snapshot.levels[index]
+                        .iter()
+                        .max_by(|x, y| {
+                            (x.1.summary.tombstone_count * y.1.summary.entry_count)
+                                .cmp(&(y.1.summary.tombstone_count * x.1.summary.entry_count))
+                        })
+                        .map(|level_entry| level_entry.1.summary.key_range.1.clone())
+                        .expect("Unreachable code");
+                    println!("old sstable {:?}", old_sstable);
+                    metadata_snapshot.levels[index]
+                        .remove(&old_sstable)
+                        .expect("Unreachable code")
                 };
+                metadata_snapshot.levels[index].remove(&old_sstable.summary.key_range.1);
 
-                let entry = match ordering {
-                    cmp::Ordering::Less | cmp::Ordering::Equal => {
-                        mem::replace(
-                            &mut sstable_entry,
-                            sstable_data_iter.next(),
-                        ).expect("Unreachable code")
-                    },
-                    cmp::Ordering::Greater => {
-                        let new_entry = loop {
-                            if iter_index == level_sstable_data_iters.len() {
-                                break None;
-                            }
-                            match level_sstable_data_iters[iter_index].next() {
-                                None => iter_index += 1,
-                                entry_opt => break entry_opt,
-                            }
-                        };
-                        mem::replace(
-                            &mut level_sstable_entry,
-                            new_entry,
-                        ).expect("Unreachable code")
-                    },
-                };
+                let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
+                    db_path.as_ref(),
+                    entry_count_hint,
+                )?;
 
-                let should_append = match last_key_opt {
-                    Some(ref last_key) => *last_key != entry.key,
-                    None => true,
-                } && (index + 1 == metadata_snapshot.levels.len() || entry.value.data.is_some());
-                last_key_opt = Some(entry.key.clone());
-
-                if should_append {
-                    sstable_builder.append(entry.key, entry.value)?;
+                if index + 1 == metadata_snapshot.levels.len() {
+                    metadata_snapshot.insert_sstable(index + 1, old_sstable);
+                    continue;
                 }
 
-                if sstable_builder.size > metadata_snapshot.max_sstable_size {
+                let mut sstable_data_iter = old_sstable.data_iter()?.flat_map(|x| x);
+                let mut level_sstable_data_iters: Vec<_> = metadata_snapshot.levels[index + 1]
+                    .iter()
+                    .filter(|level_entry| {
+                        sstable::is_intersecting(
+                            &old_sstable.summary.key_range,
+                            &level_entry.1.summary.key_range,
+                        )
+                    })
+                    .flat_map(|level_entry| level_entry.1.data_iter())
+                    .map(|data_iter| data_iter.flat_map(|x| x))
+                    .collect();
+
+                if level_sstable_data_iters.is_empty() {
+                    metadata_snapshot.insert_sstable(index + 1, old_sstable);
+                    continue;
+                }
+
+                let mut iter_index = 0;
+                let mut sstable_entry = sstable_data_iter.next();
+                let mut level_sstable_entry = level_sstable_data_iters[iter_index].next();
+                let mut last_key_opt = None;
+
+                loop {
+                    let ordering = match (&sstable_entry, &level_sstable_entry) {
+                        (&Some(ref sstable_entry), &Some(ref level_sstable_entry)) => sstable_entry.cmp(&level_sstable_entry),
+                        (&Some(_), &None) => cmp::Ordering::Less,
+                        (&None, &Some(_)) => cmp::Ordering::Greater,
+                        (&None, &None) => break,
+                    };
+
+                    let entry = match ordering {
+                        cmp::Ordering::Less | cmp::Ordering::Equal => {
+                            mem::replace(
+                                &mut sstable_entry,
+                                sstable_data_iter.next(),
+                            ).expect("Unreachable code")
+                        },
+                        cmp::Ordering::Greater => {
+                            let new_entry = loop {
+                                if iter_index == level_sstable_data_iters.len() {
+                                    break None;
+                                }
+                                match level_sstable_data_iters[iter_index].next() {
+                                    None => iter_index += 1,
+                                    entry_opt => break entry_opt,
+                                }
+                            };
+                            mem::replace(
+                                &mut level_sstable_entry,
+                                new_entry,
+                            ).expect("Unreachable code")
+                        },
+                    };
+
+                    let should_append = match last_key_opt {
+                        Some(ref last_key) => *last_key != entry.key,
+                        None => true,
+                    } && (index + 1 == metadata_snapshot.levels.len() || entry.value.data.is_some());
+                    last_key_opt = Some(entry.key.clone());
+
+                    if should_append {
+                        sstable_builder.append(entry.key, entry.value)?;
+                    }
+
+                    if sstable_builder.size > metadata_snapshot.max_sstable_size {
+                        let new_sstable = Arc::new(SSTable::new(sstable_builder.flush()?)?);
+                        metadata_snapshot.insert_sstable(index + 1, new_sstable);
+                        sstable_builder = SSTableBuilder::new(
+                            db_path.as_ref(),
+                            entry_count_hint,
+                        )?;
+                    }
+                }
+
+                if sstable_builder.key_range.is_some() {
                     let new_sstable = Arc::new(SSTable::new(sstable_builder.flush()?)?);
                     metadata_snapshot.insert_sstable(index + 1, new_sstable);
-                    sstable_builder = SSTableBuilder::new(
-                        db_path.as_ref(),
-                        entry_count_hint,
-                    )?;
                 }
-            }
-
-            if sstable_builder.key_range.is_some() {
-                let new_sstable = Arc::new(SSTable::new(sstable_builder.flush()?)?);
-                metadata_snapshot.insert_sstable(index + 1, new_sstable);
             }
         }
 
