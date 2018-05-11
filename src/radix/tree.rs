@@ -22,27 +22,29 @@ pub fn insert<T>(tree: &mut Tree<T>, mut key: &[u8], value: T) -> Option<T> {
             node.insert_child(child);
             None
         },
-        None => match node.key.len().cmp(&key.len()) {
-            Ordering::Less => {
-                key = key.split_at(node.key.len()).1;
-                let byte = key[0];
-                if node.contains(byte) {
-                    insert(node.get_mut(byte), key, value)
-                } else {
-                    node.insert_child(Node::new(key.to_vec(), Some(value)));
+        None => {
+            match node.key.len().cmp(&key.len()) {
+                Ordering::Less => {
+                    key = key.split_at(node.key.len()).1;
+                    let byte = key[0];
+                    if node.contains(byte) {
+                        insert(node.get_mut(byte), key, value)
+                    } else {
+                        node.insert_child(Node::new(key.to_vec(), Some(value)));
+                        None
+                    }
+                },
+                Ordering::Greater => {
+                    let mut split_key = node.key.split_off(key.len());
+                    mem::swap(&mut split_key, &mut node.key);
+                    let mut split = mem::replace(&mut **node, Node::new(split_key, None));
+                    node.next = split.next.take();
+                    node.value = Some(value);
+                    node.insert_child(split);
                     None
-                }
-            },
-            Ordering::Greater => {
-                let mut split_key = node.key.split_off(key.len());
-                mem::swap(&mut split_key, &mut node.key);
-                let mut split = mem::replace(&mut **node, Node::new(split_key, None));
-                node.next = split.next.take();
-                node.value = Some(value);
-                node.insert_child(split);
-                None
-            },
-            Ordering::Equal => mem::replace(&mut node.value, Some(value)).map(|value| value),
+                },
+                Ordering::Equal => mem::replace(&mut node.value, Some(value)).map(|value| value),
+            }
         },
     }
 }

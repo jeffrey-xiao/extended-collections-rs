@@ -7,19 +7,19 @@ use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::cell::RefCell;
 use std::cmp;
-use std::collections::{BinaryHeap, Bound, BTreeMap, HashSet};
+use std::collections::{BTreeMap, BinaryHeap, Bound, HashSet};
 use std::fs;
 use std::hash::Hash;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::iter::{FromIterator, self};
+use std::iter::{self, FromIterator};
 use std::mem;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex, MutexGuard};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 
-use std::fmt::{Debug, self};
+use std::fmt::{self, Debug};
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(bound(deserialize = "T: DeserializeOwned, U: DeserializeOwned"))]
@@ -194,7 +194,8 @@ where
         let mut next_metadata = self.next_metadata.lock().unwrap();
 
         if let Some(next_metadata) = next_metadata.take() {
-            let logical_time_opt = next_metadata.sstables
+            let logical_time_opt = next_metadata
+                .sstables
                 .iter()
                 .map(|sstable| sstable.summary.logical_time_range.1)
                 .max();
@@ -207,17 +208,14 @@ where
                     .map(|sstable| Arc::clone(sstable)),
             );
 
-            let path_iter = curr_metadata.sstables
-                .iter()
-                .map(|sstable| &sstable.path);
-            let level_path_iter = curr_metadata.levels
+            let path_iter = curr_metadata.sstables.iter().map(|sstable| &sstable.path);
+            let level_path_iter = curr_metadata
+                .levels
                 .iter()
                 .flat_map(|level| level.iter().map(|level_entry| &level_entry.1.path));
             let new_sstable_paths: HashSet<_> = path_iter.chain(level_path_iter).collect();
 
-            let old_path_iter = old_sstables
-                .iter()
-                .map(|sstable| &sstable.path);
+            let old_path_iter = old_sstables.iter().map(|sstable| &sstable.path);
             let old_level_path_iter = old_levels
                 .iter()
                 .flat_map(|level| level.iter().map(|level_entry| &level_entry.1.path));
@@ -253,7 +251,8 @@ where
 
         // compacting L0
         let mut entry_count_hint = 0;
-        let mut sstable_data_iters: Vec<_> = metadata_snapshot.sstables
+        let mut sstable_data_iters: Vec<_> = metadata_snapshot
+            .sstables
             .drain(..)
             .flat_map(|sstable| {
                 entry_count_hint += sstable.summary.entry_count;
@@ -271,10 +270,7 @@ where
             sstable_data_iters.push(level_sstable_data_iter?);
         }
 
-        let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
-            db_path.as_ref(),
-            entry_count_hint,
-        )?;
+        let mut sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
 
         let mut entries = BinaryHeap::new();
         let mut last_key_opt = None;
@@ -313,10 +309,7 @@ where
             if sstable_builder.size > metadata_snapshot.max_sstable_size {
                 let new_sstable = Arc::new(SSTable::new(sstable_builder.flush()?)?);
                 metadata_snapshot.insert_sstable(0, new_sstable);
-                sstable_builder = SSTableBuilder::new(
-                    db_path.as_ref(),
-                    entry_count_hint,
-                )?;
+                sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
             }
         }
 
@@ -356,10 +349,7 @@ where
                 };
                 metadata_snapshot.levels[index].remove(&old_sstable.summary.key_range.1);
 
-                let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
-                    db_path.as_ref(),
-                    entry_count_hint,
-                )?;
+                let mut sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
 
                 if index + 1 == metadata_snapshot.levels.len() {
                     metadata_snapshot.insert_sstable(index + 1, old_sstable);
@@ -399,10 +389,8 @@ where
 
                     let entry = match ordering {
                         cmp::Ordering::Less | cmp::Ordering::Equal => {
-                            mem::replace(
-                                &mut sstable_entry,
-                                sstable_data_iter.next(),
-                            ).expect("Unreachable code")
+                            mem::replace(&mut sstable_entry, sstable_data_iter.next())
+                                .expect("Unreachable code")
                         },
                         cmp::Ordering::Greater => {
                             let new_entry = loop {
@@ -414,10 +402,8 @@ where
                                     entry_opt => break entry_opt,
                                 }
                             };
-                            mem::replace(
-                                &mut level_sstable_entry,
-                                new_entry,
-                            ).expect("Unreachable code")
+                            mem::replace(&mut level_sstable_entry, new_entry)
+                                .expect("Unreachable code")
                         },
                     };
 
@@ -434,10 +420,7 @@ where
                     if sstable_builder.size > metadata_snapshot.max_sstable_size {
                         let new_sstable = Arc::new(SSTable::new(sstable_builder.flush()?)?);
                         metadata_snapshot.insert_sstable(index + 1, new_sstable);
-                        sstable_builder = SSTableBuilder::new(
-                            db_path.as_ref(),
-                            entry_count_hint,
-                        )?;
+                        sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
                     }
                 }
 
@@ -456,10 +439,7 @@ where
         Ok(())
     }
 
-    fn spawn_compaction_thread(
-        &mut self,
-        metadata_snapshot: LeveledMetadata<T, U>,
-    ) {
+    fn spawn_compaction_thread(&mut self, metadata_snapshot: LeveledMetadata<T, U>) {
         let db_path = self.db_path.clone();
         let next_metadata = self.next_metadata.clone();
         let is_compacting = self.is_compacting.clone();

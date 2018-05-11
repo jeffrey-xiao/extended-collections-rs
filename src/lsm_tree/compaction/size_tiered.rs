@@ -124,7 +124,7 @@ where
             is_older_range && !key_intersecting
         });
 
-        let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
+        let mut sstable_builder = SSTableBuilder::new(
             db_path.as_ref(),
             old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
         )?;
@@ -365,7 +365,8 @@ where
         let mut next_metadata = self.next_metadata.lock().unwrap();
 
         if let Some(next_metadata) = next_metadata.take() {
-            let logical_time_opt = next_metadata.sstables
+            let logical_time_opt = next_metadata
+                .sstables
                 .iter()
                 .map(|sstable| sstable.summary.logical_time_range.1)
                 .max();
@@ -478,7 +479,8 @@ where
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
         }
 
-        let len_hint = curr_metadata.sstables
+        let len_hint = curr_metadata
+            .sstables
             .iter()
             .map(|sstable| sstable.summary.entry_count - sstable.summary.tombstone_count)
             .sum();

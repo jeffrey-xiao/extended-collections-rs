@@ -99,10 +99,7 @@ impl ScalableBloomFilter {
     where
         T: Hash,
     {
-        if !self.filters
-            .iter()
-            .any(|filter| filter.contains(item))
-        {
+        if !self.filters.iter().any(|filter| filter.contains(item)) {
             let filter = self.filters.last_mut().expect("Unreachable code");
             filter.insert(item);
             self.approximate_bits_used += filter.hasher_count();
@@ -126,9 +123,7 @@ impl ScalableBloomFilter {
     where
         T: Hash,
     {
-        self.filters
-            .iter()
-            .any(|filter| filter.contains(item))
+        self.filters.iter().any(|filter| filter.contains(item))
     }
 
     /// Returns the number of bits in the scalable bloom filter.
@@ -236,7 +231,10 @@ impl ScalableBloomFilter {
     /// assert!(filter.estimate_fpp() < 0.01);
     /// ```
     pub fn estimate_fpp(&self) -> f64 {
-        1.0 - self.filters.iter().map(|filter| 1.0 - filter.estimate_fpp()).product::<f64>()
+        1.0 - self.filters
+            .iter()
+            .map(|filter| 1.0 - filter.estimate_fpp())
+            .product::<f64>()
     }
 }
 

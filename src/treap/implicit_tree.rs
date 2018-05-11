@@ -81,7 +81,9 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
         }
     };
 
-    mem::replace(tree, new_tree).expect("Unreachable code").value
+    mem::replace(tree, new_tree)
+        .expect("Unreachable code")
+        .value
 }
 
 pub fn get<T>(tree: &Tree<T>, index: usize) -> Option<&T> {

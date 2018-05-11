@@ -14,7 +14,7 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::result;
 
-use std::fmt::{Debug, self};
+use std::fmt::{self, Debug};
 
 pub fn merge_ranges<T>(range_1: (T, T), range_2: (T, T)) -> (T, T)
 where
@@ -196,7 +196,7 @@ where
             _ => panic!("Expected non-empty SSTable"),
         };
 
-        let serialized_summary = serialize(&SSTableSummary{
+        let serialized_summary = serialize(&SSTableSummary {
             entry_count: self.entry_count,
             tombstone_count: self.tombstone_count,
             size: self.size,

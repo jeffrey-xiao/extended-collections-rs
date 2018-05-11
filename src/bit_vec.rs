@@ -653,7 +653,9 @@ impl<'a> Iterator for BitVecIter<'a> {
     type Item = bool;
 
     fn next(&mut self) -> Option<bool> {
-        self.range.next().map(|index| self.bit_vec.get(index).unwrap())
+        self.range
+            .next()
+            .map(|index| self.bit_vec.get(index).unwrap())
     }
 }
 
@@ -678,7 +680,9 @@ impl Iterator for BitVecIntoIter {
     type Item = bool;
 
     fn next(&mut self) -> Option<bool> {
-        self.range.next().map(|index| self.bit_vec.get(index).unwrap())
+        self.range
+            .next()
+            .map(|index| self.bit_vec.get(index).unwrap())
     }
 }
 

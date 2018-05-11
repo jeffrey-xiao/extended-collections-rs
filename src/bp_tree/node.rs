@@ -269,7 +269,10 @@ where
                 next_leaf: self.next_leaf,
             });
             self.len = (self.len + 2) / 2;
-            Some(InsertCases::Split { split_key, split_node })
+            Some(InsertCases::Split {
+                split_key,
+                split_node,
+            })
         }
     }
 
@@ -614,7 +617,10 @@ mod tests {
 
         let (split_key, split_node) = {
             match res {
-                InsertCases::Split { split_key, split_node } => (split_key, split_node),
+                InsertCases::Split {
+                    split_key,
+                    split_node,
+                } => (split_key, split_node),
                 _ => panic!("Expected split insert case."),
             }
         };

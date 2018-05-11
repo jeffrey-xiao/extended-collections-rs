@@ -150,10 +150,7 @@ impl ScalableCuckooFilter {
     where
         T: Hash,
     {
-        if !self.filters
-            .iter()
-            .any(|filter| filter.contains(item))
-        {
+        if !self.filters.iter().any(|filter| filter.contains(item)) {
             let filter = self.filters.last_mut().expect("Unreachable code");
             filter.insert(item);
         }
@@ -176,9 +173,7 @@ impl ScalableCuckooFilter {
     where
         T: Hash,
     {
-        self.filters
-            .iter()
-            .any(|filter| filter.contains(item))
+        self.filters.iter().any(|filter| filter.contains(item))
     }
 
     /// Removes an element from the scalable cuckoo filter.
@@ -315,7 +310,10 @@ impl ScalableCuckooFilter {
     /// filter.insert(&"foo");
     /// assert!((filter.estimate_fpp() - 0.01) < 1e-6);
     pub fn estimate_fpp(&self) -> f64 {
-        1.0 - self.filters.iter().map(|filter| 1.0 - filter.estimate_fpp()).product::<f64>()
+        1.0 - self.filters
+            .iter()
+            .map(|filter| 1.0 - filter.estimate_fpp())
+            .product::<f64>()
     }
 }
 
