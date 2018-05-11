@@ -33,7 +33,7 @@ struct SizeTieredMetadata<T, U> {
 
 impl<T, U> SizeTieredMetadata<T, U>
 where
-    T: Hash + DeserializeOwned + Serialize,
+    T: Clone + DeserializeOwned + Hash + Ord + Serialize,
     U: DeserializeOwned + Serialize,
 {
     pub fn new(
@@ -52,6 +52,124 @@ where
             sstables: Vec::new(),
         }
     }
+
+    pub fn push_sstable(&mut self, sstable: Arc<SSTable<T, U>>) {
+        self.sstables.push(sstable);
+    }
+
+    pub fn get_compaction_range(&mut self) -> Option<(usize, usize)> {
+        self.sstables.sort_by_key(|sstable| sstable.summary.size);
+
+        let mut start = 0;
+        let mut curr = 0;
+        let mut range_size = 0;
+        while curr < self.sstables.len() {
+            let start_size = self.sstables[start].summary.size;
+            let curr_size = self.sstables[curr].summary.size;
+            let curr_avg = (range_size + curr_size) as f64 / (curr - start + 1) as f64;
+
+            let in_min_bucket = curr_size <= self.min_sstable_size;
+            let in_bucket = curr_avg * self.bucket_low <= start_size as f64
+                && curr_size as f64 <= curr_avg * self.bucket_high;
+
+            curr += 1;
+            if in_min_bucket || in_bucket {
+                range_size += curr_size;
+            } else if curr - start > self.max_sstable_count {
+                return Some((start, curr));
+            } else {
+                range_size = 0;
+                start = curr;
+            }
+        }
+
+        if curr - start > self.max_sstable_count {
+            Some((start, curr))
+        } else {
+            None
+        }
+    }
+
+    fn compact<P>(&mut self, db_path: P, range: (usize, usize)) -> Result<()>
+    where
+        P: AsRef<Path>,
+    {
+        let old_sstables: Vec<_> = self.sstables
+            .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
+            .collect();
+
+        let sstable_max_logical_time_range = old_sstables
+            .iter()
+            .map(|sstable| sstable.summary.logical_time_range.1)
+            .max();
+        let sstable_key_range = old_sstables.iter().fold(None, |range, sstable| {
+            let sstable_range = sstable.summary.key_range.clone();
+            match range {
+                Some(range) => Some(sstable::merge_ranges(range, sstable_range)),
+                None => Some(sstable_range),
+            }
+        });
+        let purge_tombstone = self.sstables.iter().all(|sstable| {
+            let curr_logical_time_range = Some(sstable.summary.logical_time_range.0);
+            let is_older_range = sstable_max_logical_time_range < curr_logical_time_range;
+            let key_intersecting = match &sstable_key_range {
+                &Some(ref sstable_key_range) => {
+                    sstable::is_intersecting(
+                        &sstable_key_range,
+                        &sstable.summary.key_range,
+                    )
+                },
+                &None => false,
+            };
+            is_older_range && !key_intersecting
+        });
+
+        let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
+            db_path.as_ref(),
+            old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
+        )?;
+
+        let mut old_sstable_data_iters: Vec<_> = old_sstables
+            .iter()
+            .flat_map(|sstable| sstable.data_iter())
+            .collect();
+
+        drop(old_sstables);
+
+        let mut entries = BinaryHeap::new();
+        let mut last_key_opt = None;
+
+        for (index, sstable_data_iter) in old_sstable_data_iters.iter_mut().enumerate() {
+            if let Some(entry) = sstable_data_iter.next() {
+                let entry = entry?;
+                entries.push(cmp::Reverse((entry.key, entry.value, index)));
+            }
+        }
+
+        while let Some(cmp::Reverse((key, value, index))) = entries.pop() {
+            if let Some(entry) = old_sstable_data_iters[index].next() {
+                let Entry { key, value } = entry?;
+                entries.push(cmp::Reverse((key, value, index)));
+            }
+
+            let should_append = match last_key_opt {
+                Some(ref last_key) => *last_key != key,
+                None => true,
+            } && (!purge_tombstone || value.data.is_some());
+
+            if should_append {
+                sstable_builder.append(key.clone(), value)?;
+            }
+
+            last_key_opt = Some(key);
+        }
+
+        if sstable_builder.key_range.is_some() {
+            self.push_sstable(Arc::new(SSTable::new(sstable_builder.flush()?)?));
+        }
+
+        Ok(())
+    }
 }
 
 /// A compaction strategy based on bucketing SSTables by their sizes and then compacting buckets
@@ -68,11 +186,7 @@ where
 ///  to `bucket_high * bucket_average` where `bucket_average` is the average of the bucket.
 ///  - `max_in_memory_size`: The maximum size of the in-memory tree before it must be flushed onto
 ///  disk as a SSTable.
-pub struct SizeTieredStrategy<T, U>
-where
-    T: DeserializeOwned,
-    U: DeserializeOwned,
-{
+pub struct SizeTieredStrategy<T, U> {
     db_path: PathBuf,
     compaction_thread_join_handle: Option<thread::JoinHandle<()>>,
     is_compacting: Arc<AtomicBool>,
@@ -196,125 +310,22 @@ where
         })
     }
 
-    fn get_compaction_range(&self, metadata: &SizeTieredMetadata<T, U>) -> Option<(usize, usize)> {
-        let mut start = 0;
-        let mut curr = 0;
-        let mut range_size = 0;
-        while curr < metadata.sstables.len() {
-            let start_size = metadata.sstables[start].summary.size;
-            let curr_size = metadata.sstables[curr].summary.size;
-            let curr_avg = (range_size + curr_size) as f64 / (curr - start + 1) as f64;
-
-            let in_min_bucket = curr_size <= metadata.min_sstable_size;
-            let in_bucket = curr_avg * metadata.bucket_low <= start_size as f64
-                && curr_size as f64 <= curr_avg * metadata.bucket_high;
-
-            curr += 1;
-            if in_min_bucket || in_bucket {
-                range_size += curr_size;
-            } else if curr - start > metadata.max_sstable_count {
-                return Some((start, curr));
-            } else {
-                range_size = 0;
-                start = curr;
-            }
-        }
-
-        if curr - start > metadata.max_sstable_count {
-            Some((start, curr))
-        } else {
-            None
-        }
-    }
-
     fn compact<P>(
         db_path: P,
         is_compacting: &Arc<AtomicBool>,
         mut metadata_snapshot: SizeTieredMetadata<T, U>,
         next_metadata: &Arc<Mutex<Option<SizeTieredMetadata<T, U>>>>,
-        range: &(usize, usize),
+        range: (usize, usize),
     ) -> Result<()>
     where
         P: AsRef<Path>,
     {
         println!("Started compacting.");
-        let old_sstables: Vec<_> = metadata_snapshot.sstables
-            .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
-            .collect();
 
-        let sstable_max_logical_time_range = old_sstables
-            .iter()
-            .map(|sstable| sstable.summary.logical_time_range.1)
-            .max();
-        let sstable_key_range = old_sstables.iter().fold(None, |range, sstable| {
-            let sstable_range = sstable.summary.key_range.clone();
-            match range {
-                Some(range) => Some(sstable::merge_ranges(range, sstable_range)),
-                None => Some(sstable_range),
-            }
-        });
-        let purge_tombstone = metadata_snapshot.sstables.iter().all(|sstable| {
-            let curr_logical_time_range = Some(sstable.summary.logical_time_range.0);
-
-            let is_older_range = sstable_max_logical_time_range < curr_logical_time_range;
-            let key_intersecting = match &sstable_key_range {
-                &Some(ref sstable_key_range) => {
-                    sstable::is_intersecting(
-                        &sstable_key_range,
-                        &sstable.summary.key_range,
-                    )
-                },
-                &None => false,
-            };
-            is_older_range && !key_intersecting
-        });
-
-        let mut sstable_builder: SSTableBuilder<T, U> = SSTableBuilder::new(
-            db_path,
-            old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
-        )?;
-
-        let mut old_sstable_data_iters: Vec<_> = old_sstables
-            .iter()
-            .flat_map(|sstable| sstable.data_iter())
-            .collect();
-        drop(old_sstables);
-
-        let mut entries = BinaryHeap::new();
-        let mut last_key_opt = None;
-
-        for (index, sstable_data_iter) in old_sstable_data_iters.iter_mut().enumerate() {
-            if let Some(entry) = sstable_data_iter.next() {
-                let entry = entry?;
-                entries.push(cmp::Reverse((entry.key, entry.value, index)));
-            }
-        }
-
-        while let Some(cmp::Reverse((key, value, index))) = entries.pop() {
-            if let Some(entry) = old_sstable_data_iters[index].next() {
-                let Entry { key, value } = entry?;
-                entries.push(cmp::Reverse((key, value, index)));
-            }
-
-            let should_append = match last_key_opt {
-                Some(ref last_key) => *last_key != key,
-                None => true,
-            } && (!purge_tombstone || value.data.is_some());
-
-            if should_append {
-                sstable_builder.append(key.clone(), value)?;
-            }
-
-            last_key_opt = Some(key);
-        }
-
-        if sstable_builder.key_range.is_some() {
-            metadata_snapshot.sstables.push(Arc::new(SSTable::new(sstable_builder.flush()?)?));
-        }
-
+        metadata_snapshot.compact(db_path, range)?;
         *next_metadata.lock().unwrap() = Some(metadata_snapshot);
-
         is_compacting.store(false, Ordering::Release);
+
         println!("Finished compacting");
         Ok(())
     }
@@ -334,12 +345,15 @@ where
                 &is_compacting,
                 metadata_snapshot,
                 &next_metadata,
-                &range,
+                range,
             );
 
-            if compaction_result.is_err() {
-                println!("Compaction thread errored: {:?}", compaction_result);
-                is_compacting.store(false, Ordering::Release);
+            match compaction_result {
+                Ok(_) => println!("Compaction terminated successfully."),
+                Err(error) => {
+                    is_compacting.store(false, Ordering::Release);
+                    println!("Compaction terminated with error: {:?}", error)
+                },
             }
         }));
     }
@@ -406,7 +420,7 @@ where
         let mut metadata_snapshot = {
             let mut curr_metadata = self.curr_metadata.lock().unwrap();
             self.try_replace_metadata(&mut curr_metadata)?;
-            curr_metadata.sstables.push(Arc::new(sstable));
+            curr_metadata.push_sstable(Arc::new(sstable));
             self.metadata_file.seek(SeekFrom::Start(0))?;
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
             curr_metadata.clone()
@@ -416,8 +430,7 @@ where
             return Ok(());
         }
 
-        metadata_snapshot.sstables.sort_by_key(|sstable| sstable.summary.size);
-        if let Some(range) = self.get_compaction_range(&metadata_snapshot) {
+        if let Some(range) = metadata_snapshot.get_compaction_range() {
             self.spawn_compaction_thread(metadata_snapshot, range);
         }
 

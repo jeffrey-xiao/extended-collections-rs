@@ -462,9 +462,12 @@ where
                 &next_metadata,
             );
 
-            if compaction_result.is_err() {
-                println!("Compaction thread errored: {:?}", compaction_result);
-                is_compacting.store(false, Ordering::Release);
+            match compaction_result {
+                Ok(_) => println!("Compaction terminated successfully."),
+                Err(error) => {
+                    is_compacting.store(false, Ordering::Release);
+                    println!("Compaction terminated with error: {:?}", error)
+                },
             }
         }))
     }
@@ -493,7 +496,7 @@ where
 
     fn try_compact(&mut self, sstable: SSTable<T, U>) -> Result<()> {
         // taking snapshot of current metadata
-        let mut metadata_snapshot = {
+        let metadata_snapshot = {
             let mut curr_metadata = self.curr_metadata.lock().unwrap();
             self.try_replace_metadata(&mut curr_metadata)?;
             curr_metadata.push_sstable(Arc::new(sstable));
@@ -505,8 +508,6 @@ where
         if self.is_compacting.load(Ordering::Acquire) || *self.metadata_lock_count.borrow() != 0 {
             return Ok(());
         }
-
-        metadata_snapshot.sstables.sort_by_key(|sstable| sstable.summary.size);
 
         if metadata_snapshot.sstables.len() > metadata_snapshot.max_sstable_count {
             self.spawn_compaction_thread(metadata_snapshot);

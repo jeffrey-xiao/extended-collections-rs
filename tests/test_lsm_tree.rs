@@ -130,6 +130,8 @@ fn int_test_lsm_map_leveled_strategy() {
                 assert_eq!(map.get(&entry.0)?, Some(entry.1));
             }
 
+            map.flush()?;
+
             Ok(())
         },
         test_name,

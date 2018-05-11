@@ -84,7 +84,7 @@ where
         }
     }
 
-    fn compact(&mut self) -> Result<()> {
+    fn try_compact(&mut self) -> Result<()> {
         self.in_memory_usage = 0;
         let mut sstable_builder = SSTableBuilder::new(
             self.compaction_strategy.get_db_path(),
@@ -139,7 +139,7 @@ where
         self.in_memory_tree.insert(key, value);
 
         if self.in_memory_usage > self.compaction_strategy.get_max_in_memory_size() {
-            self.compact()
+            self.try_compact()
         } else {
             Ok(())
         }
@@ -187,7 +187,7 @@ where
         self.in_memory_tree.insert(key, value);
 
         if self.in_memory_usage > self.compaction_strategy.get_max_in_memory_size() {
-            self.compact()
+            self.try_compact()
         } else {
             Ok(())
         }
@@ -453,7 +453,7 @@ where
     /// ```
     pub fn flush(&mut self) -> Result<()> {
         if !self.in_memory_tree.is_empty() {
-            self.compact()?;
+            self.try_compact()?;
         }
         self.compaction_strategy.flush()
     }
