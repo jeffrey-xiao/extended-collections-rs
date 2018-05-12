@@ -129,29 +129,17 @@ where
             old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
         )?;
 
-        let mut old_sstable_data_iters: Vec<_> = old_sstables
+        let old_sstable_data_iters = old_sstables
             .iter()
-            .flat_map(|sstable| sstable.data_iter())
+            .map(|sstable| sstable.data_iter())
             .collect();
 
         drop(old_sstables);
 
-        let mut entries = BinaryHeap::new();
+        let compaction_iter = SizeTieredIter::new(None, old_sstable_data_iters)?;
         let mut last_key_opt = None;
-
-        for (index, sstable_data_iter) in old_sstable_data_iters.iter_mut().enumerate() {
-            if let Some(entry) = sstable_data_iter.next() {
-                let entry = entry?;
-                entries.push(cmp::Reverse((entry.key, entry.value, index)));
-            }
-        }
-
-        while let Some(cmp::Reverse((key, value, index))) = entries.pop() {
-            if let Some(entry) = old_sstable_data_iters[index].next() {
-                let Entry { key, value } = entry?;
-                entries.push(cmp::Reverse((key, value, index)));
-            }
-
+        for entry in compaction_iter {
+            let (key, value) = entry?;
             let should_append = match last_key_opt {
                 Some(last_key) => last_key != key,
                 None => true,
@@ -547,35 +535,60 @@ where
 
         *self.metadata_lock_count.borrow_mut() += 1;
 
-        let mut sstable_data_iters = Vec::with_capacity(curr_metadata.sstables.len());
+        let sstable_data_iters = curr_metadata
+            .sstables
+            .iter()
+            .map(|sstable| sstable.data_iter())
+            .collect();
+        let metadata_lock_count = Rc::clone(&self.metadata_lock_count);
+        let compaction_iter = SizeTieredIter::new(Some(metadata_lock_count), sstable_data_iters)?
+            .filter_map(|entry_result| {
+                match entry_result {
+                    Ok(entry) => {
+                        let (key, value) = entry;
+                        value.data.map(|value| Ok((key, value)))
+                    },
+                    Err(error) => Some(Err(error)),
+                }
+            });
 
-        for sstable in &curr_metadata.sstables {
-            sstable_data_iters.push(sstable.data_iter()?);
-        }
-        let mut entries = BinaryHeap::new();
-
-        for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
-            if let Some(entry) = sstable_data_iter.next() {
-                let Entry { key, value } = entry?;
-                entries.push(cmp::Reverse((key, value, index)));
-            }
-        }
-
-        Ok(Box::new(SizeTieredIter {
-            sstable_lock_count: Rc::clone(&self.metadata_lock_count),
-            sstable_data_iters,
-            entries,
-            last_key_opt: None,
-        }))
+        Ok(Box::new(compaction_iter))
     }
 }
 
 type EntryIndex<T, U> = cmp::Reverse<(T, SSTableValue<U>, usize)>;
 struct SizeTieredIter<T, U> {
-    sstable_lock_count: Rc<RefCell<u64>>,
+    metadata_lock_count: Option<Rc<RefCell<u64>>>,
     sstable_data_iters: Vec<SSTableDataIter<T, U>>,
     entries: BinaryHeap<EntryIndex<T, U>>,
     last_key_opt: Option<T>,
+}
+
+impl<T, U> SizeTieredIter<T, U>
+where
+    T: Hash + DeserializeOwned + Ord + Serialize,
+    U: DeserializeOwned + Serialize,
+{
+    pub fn new(
+        metadata_lock_count: Option<Rc<RefCell<u64>>>,
+        mut sstable_data_iters: Vec<SSTableDataIter<T, U>>,
+    ) -> Result<Self> {
+        let mut entries = BinaryHeap::new();
+
+        for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
+            let Entry { key, value } = sstable_data_iter
+                .next()
+                .expect("Expected non-empty SSTable.")?;
+            entries.push(cmp::Reverse((key, value, index)));
+        }
+
+        Ok(SizeTieredIter {
+            metadata_lock_count,
+            sstable_data_iters,
+            entries,
+            last_key_opt: None,
+        })
+    }
 }
 
 impl<T, U> Iterator for SizeTieredIter<T, U>
@@ -583,7 +596,7 @@ where
     T: Clone + DeserializeOwned + Ord,
     U: DeserializeOwned,
 {
-    type Item = Result<(T, U)>;
+    type Item = Result<(T, SSTableValue<U>)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(cmp::Reverse((key, value, index))) = self.entries.pop() {
@@ -594,19 +607,15 @@ where
                 }
             }
 
-            if let Some(data) = value.data {
-                let should_return = match self.last_key_opt {
-                    Some(ref last_key) => *last_key != key,
-                    None => true,
-                };
+            let should_return = match self.last_key_opt {
+                Some(ref last_key) => *last_key != key,
+                None => true,
+            };
 
-                self.last_key_opt = Some(key.clone());
+            self.last_key_opt = Some(key.clone());
 
-                if should_return {
-                    return Some(Ok((key, data)));
-                }
-            } else {
-                self.last_key_opt = Some(key.clone());
+            if should_return {
+                return Some(Ok((key, value)));
             }
         }
         None
@@ -615,6 +624,8 @@ where
 
 impl<T, U> Drop for SizeTieredIter<T, U> {
     fn drop(&mut self) {
-        *self.sstable_lock_count.borrow_mut() -= 1;
+        if let Some(ref metadata_lock_count) = self.metadata_lock_count {
+            *metadata_lock_count.borrow_mut() -= 1;
+        }
     }
 }

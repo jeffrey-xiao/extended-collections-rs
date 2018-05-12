@@ -313,16 +313,18 @@ where
             .map(|entry: Entry<T, SSTableValue<U>>| Some(entry.value))
     }
 
-    pub fn data_iter(&self) -> Result<SSTableDataIter<T, U>> {
-        Ok(SSTableDataIter {
-            data_file: fs::File::open(self.path.join("data.dat"))?,
+    pub fn data_iter(&self) -> SSTableDataIter<T, U> {
+        SSTableDataIter {
+            data_path: self.path.join("data.dat"),
+            data_file: None,
             _marker: PhantomData,
-        })
+        }
     }
 }
 
 pub struct SSTableDataIter<T, U> {
-    data_file: fs::File,
+    data_path: PathBuf,
+    data_file: Option<fs::File>,
     _marker: PhantomData<(T, U)>,
 }
 
@@ -334,7 +336,16 @@ where
     type Item = Result<Entry<T, SSTableValue<U>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let size = match self.data_file.read_u64::<BigEndian>() {
+        if let None = self.data_file {
+            match fs::File::open(self.data_path.as_path()) {
+                Ok(data_file) => self.data_file = Some(data_file),
+                Err(error) => return Some(Err(Error::from(error))),
+            }
+        }
+
+        let data_file = self.data_file.as_mut().expect("Expected opened file");
+
+        let size = match data_file.read_u64::<BigEndian>() {
             Ok(size) => size,
             Err(error) => {
                 match error.kind() {
@@ -345,7 +356,7 @@ where
         };
 
         let mut buffer = vec![0; size as usize];
-        let result = self.data_file.read_exact(buffer.as_mut_slice());
+        let result = data_file.read_exact(buffer.as_mut_slice());
         if let Err(error) = result {
             return Some(Err(Error::from(error)));
         }
@@ -382,7 +393,6 @@ where
     T: Debug,
     U: Debug,
 {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "entry count: {:?}\n", self.summary.entry_count)?;
         write!(f, "tombstone count: {:?}\n", self.summary.tombstone_count)?;

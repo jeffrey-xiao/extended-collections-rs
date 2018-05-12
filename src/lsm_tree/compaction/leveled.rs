@@ -254,7 +254,7 @@ where
         let mut sstable_data_iters: Vec<_> = metadata_snapshot
             .sstables
             .drain(..)
-            .flat_map(|sstable| {
+            .map(|sstable| {
                 entry_count_hint += sstable.summary.entry_count;
                 sstable.data_iter()
             })
@@ -267,7 +267,7 @@ where
             .map(|entry| entry.1.data_iter());
 
         if let Some(level_sstable_data_iter) = level_sstable_iter.next() {
-            sstable_data_iters.push(level_sstable_data_iter?);
+            sstable_data_iters.push(level_sstable_data_iter);
         }
 
         let mut sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
@@ -288,7 +288,7 @@ where
                 entries.push(cmp::Reverse((key, value, index)));
             } else if index == sstable_data_iters.len() - 1 {
                 if let Some(data_iter) = level_sstable_iter.next() {
-                    sstable_data_iters[index] = data_iter?;
+                    sstable_data_iters[index] = data_iter;
                     let Entry { key, value } = sstable_data_iters[index]
                         .next()
                         .expect("Unreachable code")?;
@@ -356,7 +356,7 @@ where
                     continue;
                 }
 
-                let mut sstable_data_iter = old_sstable.data_iter()?.flat_map(|x| x);
+                let mut sstable_data_iter = old_sstable.data_iter().flat_map(|x| x);
                 let mut level_sstable_data_iters: Vec<_> = metadata_snapshot.levels[index + 1]
                     .iter()
                     .filter(|level_entry| {
@@ -365,8 +365,7 @@ where
                             &level_entry.1.summary.key_range,
                         )
                     })
-                    .flat_map(|level_entry| level_entry.1.data_iter())
-                    .map(|data_iter| data_iter.flat_map(|x| x))
+                    .map(|level_entry| level_entry.1.data_iter().flat_map(|x| x))
                     .collect();
 
                 if level_sstable_data_iters.is_empty() {
