@@ -65,7 +65,7 @@ impl ScalableBloomFilter {
     fn try_grow(&mut self) {
         let mut new_filter = None;
         {
-            let filter = self.filters.last().expect("Unreachable code");
+            let filter = self.filters.last().expect("Expected non-empty filters.");
 
             if self.approximate_bits_used * 2 >= filter.len() {
                 self.approximate_bits_used = filter.count_ones();
@@ -100,7 +100,7 @@ impl ScalableBloomFilter {
         T: Hash,
     {
         if !self.filters.iter().any(|filter| filter.contains(item)) {
-            let filter = self.filters.last_mut().expect("Unreachable code");
+            let filter = self.filters.last_mut().expect("Expected non-empty filters.");
             filter.insert(item);
             self.approximate_bits_used += filter.hasher_count();
         }
@@ -182,7 +182,7 @@ impl ScalableBloomFilter {
     /// assert!(!filter.contains(&"foo"));
     /// ```
     pub fn clear(&mut self) {
-        let initial_bit_count = self.filters.first().expect("Unreachable code").len();
+        let initial_bit_count = self.filters.first().expect("Expected non-empty filters.").len();
         self.filters = vec![BloomFilter::from_fpp(initial_bit_count, self.initial_fpp)];
         self.approximate_bits_used = 0;
     }

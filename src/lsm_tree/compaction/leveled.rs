@@ -291,7 +291,7 @@ where
                     sstable_data_iters[index] = data_iter;
                     let Entry { key, value } = sstable_data_iters[index]
                         .next()
-                        .expect("Unreachable code")?;
+                        .expect("Expected non-empty SSTable.")?;
                     entries.push(cmp::Reverse((key, value, index)));
                 }
             }
@@ -341,11 +341,11 @@ where
                                 .cmp(&(y.1.summary.tombstone_count * x.1.summary.entry_count))
                         })
                         .map(|level_entry| level_entry.1.summary.key_range.1.clone())
-                        .expect("Unreachable code");
+                        .expect("Expected non-empty level to remove from.");
                     println!("old sstable {:?}", old_sstable);
                     metadata_snapshot.levels[index]
                         .remove(&old_sstable)
-                        .expect("Unreachable code")
+                        .expect("Expected SSTable to remove to exist.")
                 };
                 metadata_snapshot.levels[index].remove(&old_sstable.summary.key_range.1);
 
@@ -389,7 +389,7 @@ where
                     let entry = match ordering {
                         cmp::Ordering::Less | cmp::Ordering::Equal => {
                             mem::replace(&mut sstable_entry, sstable_data_iter.next())
-                                .expect("Unreachable code")
+                                .expect("Expected some entry.")
                         },
                         cmp::Ordering::Greater => {
                             let new_entry = loop {
@@ -402,7 +402,7 @@ where
                                 }
                             };
                             mem::replace(&mut level_sstable_entry, new_entry)
-                                .expect("Unreachable code")
+                                .expect("Expected some entry.")
                         },
                     };
 

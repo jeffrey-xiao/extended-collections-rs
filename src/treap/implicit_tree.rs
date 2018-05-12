@@ -56,7 +56,7 @@ pub fn insert<T>(tree: &mut Tree<T>, index: usize, new_node: ImplicitNode<T>) {
 pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
     assert!(1 <= index && index <= len(tree));
     let new_tree = {
-        let node = tree.as_mut().expect("Unreachable code");
+        let node = tree.as_mut().expect("Expected non-empty tree.");
         let key = node.get_implicit_key();
         match index.cmp(&key) {
             Ordering::Less => {
@@ -82,7 +82,7 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
     };
 
     mem::replace(tree, new_tree)
-        .expect("Unreachable code")
+        .expect("Expected non-empty tree.")
         .value
 }
 

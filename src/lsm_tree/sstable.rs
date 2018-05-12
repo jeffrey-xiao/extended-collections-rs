@@ -343,7 +343,7 @@ where
             }
         }
 
-        let data_file = self.data_file.as_mut().expect("Expected opened file");
+        let data_file = self.data_file.as_mut().expect("Expected opened file.");
 
         let size = match data_file.read_u64::<BigEndian>() {
             Ok(size) => size,

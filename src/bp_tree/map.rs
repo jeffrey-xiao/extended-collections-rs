@@ -307,16 +307,10 @@ where
                         else {
                             if sibling_index == curr_index + 1 {
                                 let removed_entry = sibling_leaf_node.remove_at(0);
-                                let new_key = {
-                                    match sibling_leaf_node.entries[0] {
-                                        Some(ref entry) => entry.key.clone(),
-                                        _ => unreachable!(),
-                                    }
-                                };
-                                // let new_key = sibling_leaf_node.entries[0]
-                                //     .as_ref()
-                                //     .map(|entry| entry.key.clone())
-                                //     .expect("Unreachable code");
+                                let new_key = sibling_leaf_node.entries[0]
+                                    .as_ref()
+                                    .map(|entry| entry.key.clone())
+                                    .expect("Expected some entry.");
                                 parent_internal_node.keys[curr_index] = Some(new_key);
                                 curr_leaf_node.insert(removed_entry);
                             } else {
@@ -372,7 +366,7 @@ where
                         if sibling_index == curr_index + 1 {
                             let parent_key = parent_internal_node.keys[curr_index]
                                 .clone()
-                                .expect("Unreachable code");
+                                .expect("Expected some key.");
                             curr_internal_node.merge(parent_key, &mut sibling_internal_node);
                             delete_entry = Some((curr_index, parent_page, parent_internal_node));
                             self.pager.deallocate_node(sibling_page)?;
@@ -380,7 +374,7 @@ where
                         } else {
                             let parent_key = parent_internal_node.keys[sibling_index]
                                 .clone()
-                                .expect("Unreachable code");
+                                .expect("Expected some key.");
                             sibling_internal_node.merge(parent_key, &mut curr_internal_node);
                             delete_entry = Some((sibling_index, parent_page, parent_internal_node));
                             self.pager.deallocate_node(curr_page)?;
@@ -391,7 +385,7 @@ where
                         let removed_key = mem::replace(
                             &mut parent_internal_node.keys[curr_index],
                             Some(removed_key),
-                        ).expect("Unreachable code");
+                        ).expect("Expected some key.");
                         curr_internal_node.insert(removed_key, removed_pointer, true);
                         self.pager.write_node(parent_page, &Node::Internal(parent_internal_node))?;
                         self.pager.write_node(sibling_page, &Node::Internal(sibling_internal_node))?;
@@ -402,7 +396,7 @@ where
                         let removed_key = mem::replace(
                             &mut parent_internal_node.keys[sibling_index],
                             Some(removed_key),
-                        ).expect("Unreachable code");
+                        ).expect("Expected some key.");
                         curr_internal_node.insert(removed_key, removed_pointer, false);
                         self.pager.write_node(parent_page, &Node::Internal(parent_internal_node))?;
                         self.pager.write_node(sibling_page, &Node::Internal(sibling_internal_node))?;
@@ -467,13 +461,8 @@ where
         match curr_node {
             Node::Leaf(mut curr_leaf_node) => {
                 Ok(curr_leaf_node.search(key).and_then(|index| {
-                    match mem::replace(&mut curr_leaf_node.entries[index], None) {
-                        Some(entry) => Some(entry.value),
-                        _ => unreachable!(),
-                    }
-
-                    // mem::replace(&mut curr_leaf_node.entries[index], None)
-                    //     .map(|entry| entry.value)
+                    mem::replace(&mut curr_leaf_node.entries[index], None)
+                        .map(|entry| entry.value)
                 }))
             },
             _ => unreachable!(),

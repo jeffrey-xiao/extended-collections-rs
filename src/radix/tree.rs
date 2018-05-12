@@ -5,7 +5,7 @@ use std::mem;
 pub type Tree<T> = Option<Box<Node<T>>>;
 
 pub fn insert<T>(tree: &mut Tree<T>, mut key: &[u8], value: T) -> Option<T> {
-    let node = tree.as_mut().expect("Unreachable code");
+    let node = tree.as_mut().expect("Expected non-empty tree.");
     let split_index = node.key
         .iter()
         .zip(key.iter())

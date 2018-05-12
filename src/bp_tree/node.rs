@@ -105,7 +105,7 @@ where
             split_node.keys[(internal_degree - 2) / 2] = Some(new_key);
             split_node.pointers[(internal_degree - 2) / 2 + offset] = new_pointer;
             let split_key = mem::replace(&mut self.keys[(internal_degree + 1) / 2], None)
-                .expect("Unreachable code");
+                .expect("Expected some key.");
             mem::swap(
                 &mut self.pointers[(internal_degree + 1) / 2 + 1],
                 &mut split_node.pointers[(1 - offset)],
@@ -132,7 +132,7 @@ where
             }
             mem::replace(&mut self.pointers[self.len + 1], 0)
         };
-        let ret_key = mem::replace(&mut self.keys[self.len], None).expect("Unreachable code");
+        let ret_key = mem::replace(&mut self.keys[self.len], None).expect("Expected some key.");
 
         (ret_key, ret_pointer)
     }
@@ -262,7 +262,7 @@ where
             let split_key = split_node.entries[0]
                 .as_ref()
                 .map(|entry| entry.key.clone())
-                .expect("Unreachable code");
+                .expect("Expected some key.");
             let split_node = Node::Leaf(LeafNode {
                 len: (self.len + 1) / 2,
                 entries: split_node.entries,
@@ -282,7 +282,7 @@ where
         for index in remove_index..self.len {
             self.entries.swap(index, index + 1);
         }
-        self.entries[self.len].take().expect("Unreachable code")
+        self.entries[self.len].take().expect("Expected some entry.")
     }
 
     pub fn remove(&mut self, key: &T) -> Option<Entry<T, U>> {
