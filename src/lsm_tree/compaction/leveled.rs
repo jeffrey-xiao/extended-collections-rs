@@ -7,7 +7,7 @@ use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::cell::RefCell;
 use std::cmp;
-use std::collections::{BTreeMap, BinaryHeap, Bound, HashSet};
+use std::collections::{BTreeMap, BinaryHeap, Bound, HashSet, VecDeque};
 use std::fs;
 use std::hash::Hash;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -262,47 +262,23 @@ where
         for sstable in metadata_snapshot.levels[0].values() {
             entry_count_hint = cmp::max(entry_count_hint, sstable.summary.entry_count);
         }
-        let mut level_sstable_iter = mem::replace(&mut metadata_snapshot.levels[0], BTreeMap::new())
+        let mut level_data_iter = mem::replace(&mut metadata_snapshot.levels[0], BTreeMap::new())
             .into_iter()
-            .map(|entry| entry.1.data_iter());
-
-        if let Some(level_sstable_data_iter) = level_sstable_iter.next() {
-            sstable_data_iters.push(level_sstable_data_iter);
-        }
+            .map(|entry| entry.1.data_iter())
+            .collect();
 
         let mut sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
 
-        let mut entries = BinaryHeap::new();
-        let mut last_key_opt = None;
+        let mut compaction_iter = LeveledIter::new(
+            None,
+            sstable_data_iters,
+            vec![level_data_iter],
+        )?;
 
-        for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
-            if let Some(entry) = sstable_data_iter.next() {
-                let Entry { key, value } = entry?;
-                entries.push(cmp::Reverse((key, value, index)));
-            }
-        }
+        for entry in compaction_iter {
+            let (key, value) = entry?;
 
-        while let Some(cmp::Reverse((key, value, index))) = entries.pop() {
-            if let Some(entry) = sstable_data_iters[index].next() {
-                let Entry { key, value } = entry?;
-                entries.push(cmp::Reverse((key, value, index)));
-            } else if index == sstable_data_iters.len() - 1 {
-                if let Some(data_iter) = level_sstable_iter.next() {
-                    sstable_data_iters[index] = data_iter;
-                    let Entry { key, value } = sstable_data_iters[index]
-                        .next()
-                        .expect("Expected non-empty SSTable.")?;
-                    entries.push(cmp::Reverse((key, value, index)));
-                }
-            }
-
-            let should_append = match last_key_opt {
-                Some(last_key) => last_key != key,
-                None => true,
-            } && (metadata_snapshot.levels.len() > 1 || value.data.is_some());
-            last_key_opt = Some(key.clone());
-
-            if should_append {
+            if metadata_snapshot.levels.len() > 1 || value.data.is_some() {
                 sstable_builder.append(key, value)?;
             }
 
@@ -624,5 +600,119 @@ where
 
     fn iter(&mut self) -> Result<Box<CompactionIter<T, U>>> {
         unimplemented!();
+    }
+}
+
+#[derive(Eq, Ord, PartialEq, PartialOrd)]
+enum LeveledIterEntryIndex {
+    SSTableIndex(usize),
+    LevelIndex(usize),
+}
+
+type LeveledIterEntry<T, U> = cmp::Reverse<(T, SSTableValue<U>, LeveledIterEntryIndex)>;
+
+struct LeveledIter<T, U> {
+    metadata_lock_count: Option<Rc<RefCell<u64>>>,
+    sstable_data_iters: Vec<SSTableDataIter<T, U>>,
+    level_data_iters: Vec<VecDeque<SSTableDataIter<T, U>>>,
+    entries: BinaryHeap<LeveledIterEntry<T, U>>,
+    last_key_opt: Option<T>,
+}
+
+impl<T, U> LeveledIter<T, U>
+where
+    T: Hash + DeserializeOwned + Ord + Serialize,
+    U: DeserializeOwned + Serialize,
+{
+    fn get_next_level_entry(level_data_iter: &mut VecDeque<SSTableDataIter<T, U>>) -> Option<<SSTableDataIter<T, U> as Iterator>::Item> {
+        loop {
+            let entry_opt = match level_data_iter.front_mut() {
+                Some(data_iter) => data_iter.next(),
+                None => return None,
+            };
+
+            match entry_opt {
+                None => level_data_iter.pop_front(),
+                _ => return entry_opt,
+            };
+        }
+    }
+
+    pub fn new(
+        metadata_lock_count: Option<Rc<RefCell<u64>>>,
+        mut sstable_data_iters: Vec<SSTableDataIter<T, U>>,
+        mut level_data_iters: Vec<VecDeque<SSTableDataIter<T, U>>>,
+    ) -> Result<Self> {
+        let mut entries = BinaryHeap::new();
+
+        for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
+            if let Some(entry) = sstable_data_iter.next() {
+                let Entry { key, value } = entry?;
+                entries.push(cmp::Reverse((key, value, LeveledIterEntryIndex::SSTableIndex(index))));
+            }
+        }
+
+        for (index, level_data_iter) in level_data_iters.iter_mut().enumerate() {
+            if let Some(entry) = Self::get_next_level_entry(level_data_iter) {
+                let Entry { key, value } = entry?;
+                entries.push(cmp::Reverse((key, value, LeveledIterEntryIndex::LevelIndex(index))));
+            }
+        }
+
+        Ok(LeveledIter {
+            metadata_lock_count,
+            sstable_data_iters,
+            level_data_iters,
+            entries,
+            last_key_opt: None,
+        })
+    }
+}
+
+impl<T, U> Iterator for LeveledIter<T, U>
+where
+    T: Clone + Hash + DeserializeOwned + Ord + Serialize,
+    U: DeserializeOwned + Serialize,
+{
+    type Item = Result<(T, SSTableValue<U>)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(cmp::Reverse((key, value, index))) = self.entries.pop() {
+            let entry_opt = match index {
+                LeveledIterEntryIndex::LevelIndex(index) => {
+                    Self::get_next_level_entry(&mut self.level_data_iters[index])
+                },
+                LeveledIterEntryIndex::SSTableIndex(index) => {
+                    self.sstable_data_iters[index].next()
+                },
+            };
+
+            if let Some(entry) = entry_opt {
+                match entry {
+                    Ok(entry) => self.entries.push(cmp::Reverse((entry.key, entry.value, index))),
+                    Err(error) => return Some(Err(error)),
+                }
+            }
+
+            let should_return = match self.last_key_opt {
+                Some(ref last_key) => *last_key != key,
+                None => true,
+            };
+
+            self.last_key_opt = Some(key.clone());
+
+            if should_return {
+                return Some(Ok((key, value)));
+            }
+        }
+        None
+    }
+}
+
+impl<T, U> Drop for LeveledIter<T, U> {
+    fn drop(&mut self) {
+        if let Some(ref metadata_lock_count) = self.metadata_lock_count {
+            *metadata_lock_count.borrow_mut() -= 1;
+        }
     }
 }

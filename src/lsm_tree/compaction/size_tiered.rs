@@ -137,19 +137,12 @@ where
         drop(old_sstables);
 
         let compaction_iter = SizeTieredIter::new(None, old_sstable_data_iters)?;
-        let mut last_key_opt = None;
         for entry in compaction_iter {
             let (key, value) = entry?;
-            let should_append = match last_key_opt {
-                Some(last_key) => last_key != key,
-                None => true,
-            } && (!purge_tombstone || value.data.is_some());
 
-            if should_append {
-                sstable_builder.append(key.clone(), value)?;
+            if !purge_tombstone || value.data.is_some() {
+                sstable_builder.append(key, value)?;
             }
-
-            last_key_opt = Some(key);
         }
 
         if sstable_builder.key_range.is_some() {
@@ -556,11 +549,12 @@ where
     }
 }
 
-type EntryIndex<T, U> = cmp::Reverse<(T, SSTableValue<U>, usize)>;
+type SizeTieredIterEntry<T, U> = cmp::Reverse<(T, SSTableValue<U>, usize)>;
+
 struct SizeTieredIter<T, U> {
     metadata_lock_count: Option<Rc<RefCell<u64>>>,
     sstable_data_iters: Vec<SSTableDataIter<T, U>>,
-    entries: BinaryHeap<EntryIndex<T, U>>,
+    entries: BinaryHeap<SizeTieredIterEntry<T, U>>,
     last_key_opt: Option<T>,
 }
 
@@ -576,10 +570,10 @@ where
         let mut entries = BinaryHeap::new();
 
         for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
-            let Entry { key, value } = sstable_data_iter
-                .next()
-                .expect("Expected non-empty SSTable.")?;
-            entries.push(cmp::Reverse((key, value, index)));
+            if let Some(entry) = sstable_data_iter.next() {
+                let Entry { key, value } = entry?;
+                entries.push(cmp::Reverse((key, value, index)));
+            }
         }
 
         Ok(SizeTieredIter {
