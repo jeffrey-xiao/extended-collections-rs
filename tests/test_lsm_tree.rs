@@ -125,13 +125,58 @@ fn int_test_lsm_map_leveled_strategy() {
             expected.sort_by(|l, r| l.0.cmp(&r.0));
             expected.dedup_by_key(|pair| pair.0);
 
+            assert_eq!(map.len()?, expected.len());
+            assert_eq!(map.len_hint()?, expected.len());
+
+            assert_eq!(map.min()?, Some(expected[0].0));
+            assert_eq!(map.max()?, Some(expected[expected.len() - 1].0));
+
+            map.flush()?;
+            ls = LeveledStrategy::open(test_name)?;
+            map = LsmMap::new(ls);
+
             for entry in &expected {
                 assert!(map.contains_key(&entry.0)?);
                 assert_eq!(map.get(&entry.0)?, Some(entry.1));
             }
 
-            map.flush()?;
+            thread_rng().shuffle(&mut expected);
 
+            let mut expected_len = expected.len();
+
+            for (index, entry) in expected.iter().rev().enumerate() {
+                assert!(map.contains_key(&entry.0)?);
+                map.remove(entry.0)?;
+                expected_len -= 1;
+                assert!(!map.contains_key(&entry.0)?);
+                assert_eq!(map.get(&entry.0)?, None);
+
+                assert!(map.len_hint()? >= expected_len);
+                if index % 5000 == 0 {
+                    assert_eq!(map.len()?, expected_len);
+                }
+            }
+
+            expected.clear();
+
+            for _ in 0..1000 {
+                let key = rng.gen::<u32>();
+                let val = rng.gen::<u64>();
+
+                map.insert(key, val)?;
+                expected.push((key, val));
+            }
+            map.clear()?;
+
+            for entry in &expected {
+                assert!(!map.contains_key(&entry.0)?);
+                assert_eq!(map.get(&entry.0)?, None);
+            }
+
+            assert_eq!(map.min()?, None);
+            assert_eq!(map.max()?, None);
+
+            map.flush()?;
             Ok(())
         },
         test_name,

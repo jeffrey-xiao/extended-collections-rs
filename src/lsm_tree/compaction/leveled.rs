@@ -7,11 +7,10 @@ use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::cell::RefCell;
 use std::cmp;
-use std::collections::{BTreeMap, BinaryHeap, Bound, HashSet, VecDeque};
+use std::collections::{BTreeMap, BinaryHeap, HashSet, VecDeque};
 use std::fs;
 use std::hash::Hash;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::iter::{self, FromIterator};
 use std::mem;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -194,11 +193,18 @@ where
         let mut next_metadata = self.next_metadata.lock().unwrap();
 
         if let Some(next_metadata) = next_metadata.take() {
+            println!("REPLACING");
             let logical_time_opt = next_metadata
-                .sstables
+                .levels
                 .iter()
-                .map(|sstable| sstable.summary.logical_time_range.1)
-                .max();
+                .map(|level_entry| {
+                    level_entry
+                        .iter()
+                        .map(|level_entry| level_entry.1.summary.logical_time_range.1)
+                        .max()
+                })
+                .max()
+                .and_then(|max_opt| max_opt);
             let old_sstables = mem::replace(&mut curr_metadata.sstables, next_metadata.sstables);
             let old_levels = mem::replace(&mut curr_metadata.levels, next_metadata.levels);
             curr_metadata.sstables.extend(
@@ -251,7 +257,7 @@ where
 
         // compacting L0
         let mut entry_count_hint = 0;
-        let mut sstable_data_iters: Vec<_> = metadata_snapshot
+        let sstable_data_iters: Vec<_> = metadata_snapshot
             .sstables
             .drain(..)
             .map(|sstable| {
@@ -262,14 +268,14 @@ where
         for sstable in metadata_snapshot.levels[0].values() {
             entry_count_hint = cmp::max(entry_count_hint, sstable.summary.entry_count);
         }
-        let mut level_data_iter = mem::replace(&mut metadata_snapshot.levels[0], BTreeMap::new())
+        let level_data_iter = mem::replace(&mut metadata_snapshot.levels[0], BTreeMap::new())
             .into_iter()
             .map(|entry| entry.1.data_iter())
             .collect();
 
         let mut sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
 
-        let mut compaction_iter = LeveledIter::new(
+        let compaction_iter = LeveledIter::new(
             None,
             sstable_data_iters,
             vec![level_data_iter],
@@ -304,13 +310,13 @@ where
                 let curr_len = metadata_snapshot.levels[index].len();
                 let exponent = metadata_snapshot.growth_factor.pow(index as u32) as usize;
                 let max_len = metadata_snapshot.max_initial_level_count * exponent;
-                curr_len > max_len as usize + 1
+                curr_len > max_len as usize
             };
 
             while should_merge(&metadata_snapshot, index) {
                 println!("INDEX {} {}", index, metadata_snapshot.levels[index].len());
-                let old_sstable = {
-                    let old_sstable = metadata_snapshot.levels[index]
+                let sstable = {
+                    let sstable = metadata_snapshot.levels[index]
                         .iter()
                         .max_by(|x, y| {
                             (x.1.summary.tombstone_count * y.1.summary.entry_count)
@@ -318,78 +324,52 @@ where
                         })
                         .map(|level_entry| level_entry.1.summary.key_range.1.clone())
                         .expect("Expected non-empty level to remove from.");
-                    println!("old sstable {:?}", old_sstable);
+                    println!("old sstable {:?}", sstable);
                     metadata_snapshot.levels[index]
-                        .remove(&old_sstable)
+                        .remove(&sstable)
                         .expect("Expected SSTable to remove to exist.")
                 };
-                metadata_snapshot.levels[index].remove(&old_sstable.summary.key_range.1);
+                metadata_snapshot.levels[index].remove(&sstable.summary.key_range.1);
 
                 let mut sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
 
                 if index + 1 == metadata_snapshot.levels.len() {
-                    metadata_snapshot.insert_sstable(index + 1, old_sstable);
+                    metadata_snapshot.insert_sstable(index + 1, sstable);
                     continue;
                 }
 
-                let mut sstable_data_iter = old_sstable.data_iter().flat_map(|x| x);
-                let mut level_sstable_data_iters: Vec<_> = metadata_snapshot.levels[index + 1]
-                    .iter()
-                    .filter(|level_entry| {
+                let sstable_data_iter = sstable.data_iter();
+                let level = mem::replace(
+                    &mut metadata_snapshot.levels[index + 1],
+                    BTreeMap::new(),
+                );
+                let (old_level, new_level): (BTreeMap<_, _>, BTreeMap<_, _>) = level
+                    .into_iter()
+                    .partition(|level_entry| {
                         sstable::is_intersecting(
-                            &old_sstable.summary.key_range,
+                            &sstable.summary.key_range,
                             &level_entry.1.summary.key_range,
                         )
-                    })
-                    .map(|level_entry| level_entry.1.data_iter().flat_map(|x| x))
-                    .collect();
+                    });
 
-                if level_sstable_data_iters.is_empty() {
-                    metadata_snapshot.insert_sstable(index + 1, old_sstable);
-                    continue;
-                }
+                metadata_snapshot.levels[index + 1] = new_level;
 
-                let mut iter_index = 0;
-                let mut sstable_entry = sstable_data_iter.next();
-                let mut level_sstable_entry = level_sstable_data_iters[iter_index].next();
-                let mut last_key_opt = None;
+                let mut compaction_iter = LeveledIter::new(
+                    None,
+                    vec![sstable_data_iter],
+                    vec![
+                        old_level
+                            .into_iter()
+                            .map(|level_entry| level_entry.1.data_iter())
+                            .collect(),
+                    ],
+                )?;
 
-                loop {
-                    let ordering = match (&sstable_entry, &level_sstable_entry) {
-                        (Some(ref sstable_entry), Some(ref level_sstable_entry)) => sstable_entry.cmp(&level_sstable_entry),
-                        (Some(_), None) => cmp::Ordering::Less,
-                        (None, Some(_)) => cmp::Ordering::Greater,
-                        (None, None) => break,
-                    };
+                for entry in compaction_iter {
+                    let (key, value) = entry?;
 
-                    let entry = match ordering {
-                        cmp::Ordering::Less | cmp::Ordering::Equal => {
-                            mem::replace(&mut sstable_entry, sstable_data_iter.next())
-                                .expect("Expected some entry.")
-                        },
-                        cmp::Ordering::Greater => {
-                            let new_entry = loop {
-                                if iter_index == level_sstable_data_iters.len() {
-                                    break None;
-                                }
-                                match level_sstable_data_iters[iter_index].next() {
-                                    None => iter_index += 1,
-                                    entry_opt => break entry_opt,
-                                }
-                            };
-                            mem::replace(&mut level_sstable_entry, new_entry)
-                                .expect("Expected some entry.")
-                        },
-                    };
-
-                    let should_append = match last_key_opt {
-                        Some(last_key) => last_key != entry.key,
-                        None => true,
-                    } && (index + 1 == metadata_snapshot.levels.len() || entry.value.data.is_some());
-                    last_key_opt = Some(entry.key.clone());
-
-                    if should_append {
-                        sstable_builder.append(entry.key, entry.value)?;
+                    if index + 1 == metadata_snapshot.levels.len() || value.data.is_some() {
+                        sstable_builder.append(key, value)?;
                     }
 
                     if sstable_builder.size > metadata_snapshot.max_sstable_size {
@@ -518,7 +498,7 @@ where
 
         for level in &curr_metadata.levels {
             let sstable_opt = level
-                .range((Bound::Included(key), Bound::Unbounded))
+                .range(key..)
                 .next()
                 .map(|entry| entry.1);
             if let Some(sstable) = sstable_opt {
@@ -537,6 +517,7 @@ where
             self.metadata_file.seek(SeekFrom::Start(0))?;
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
         }
+        println!("Before len hint:\n {:?}", *curr_metadata);
 
         let sstables_len_hint: usize = curr_metadata.sstables
             .iter()
@@ -557,7 +538,7 @@ where
     }
 
     fn len(&mut self) -> Result<usize> {
-        unimplemented!();
+        Ok(self.iter()?.count())
     }
 
     fn is_empty(&mut self) -> Result<bool> {
@@ -575,6 +556,7 @@ where
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
         let mut next_metadata = self.next_metadata.lock().unwrap();
         curr_metadata.sstables.clear();
+        curr_metadata.levels.clear();
         *next_metadata = None;
 
         for dir_entry in fs::read_dir(self.db_path.as_path())? {
@@ -591,15 +573,59 @@ where
     }
 
     fn min(&mut self) -> Result<Option<T>> {
-        unimplemented!();
+        match self.iter()?.next() {
+            Some(entry) => Ok(Some(entry?.0)),
+            None => Ok(None),
+        }
     }
 
     fn max(&mut self) -> Result<Option<T>> {
-        unimplemented!();
+        match self.iter()?.last() {
+            Some(entry) => Ok(Some(entry?.0)),
+            None => Ok(None),
+        }
     }
 
     fn iter(&mut self) -> Result<Box<CompactionIter<T, U>>> {
-        unimplemented!();
+        let mut curr_metadata = self.curr_metadata.lock().unwrap();
+        // should never need to replace metadata as the compaction thread should not be running
+        // when yielding calling iter.
+        if self.try_replace_metadata(&mut curr_metadata)? {
+            self.metadata_file.seek(SeekFrom::Start(0))?;
+            self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
+        }
+
+        let sstable_data_iters = curr_metadata
+            .sstables
+            .iter()
+            .map(|sstable| sstable.data_iter())
+            .collect();
+        let level_data_iters = curr_metadata
+            .levels
+            .iter()
+            .map(|level| {
+                level
+                    .iter()
+                    .map(|level_entry| level_entry.1.data_iter())
+                    .collect()
+            })
+            .collect();
+        let metadata_lock_count = Rc::clone(&self.metadata_lock_count);
+        let compaction_iter = LeveledIter::new(
+            Some(metadata_lock_count),
+            sstable_data_iters,
+            level_data_iters,
+        )?.filter_map(|entry_result| {
+            match entry_result {
+                Ok(entry) => {
+                    let (key, value) = entry;
+                    value.data.map(|value| Ok((key, value)))
+                },
+                Err(error) => Some(Err(error)),
+            }
+        });
+
+        Ok(Box::new(compaction_iter))
     }
 }
 
@@ -643,6 +669,10 @@ where
         mut sstable_data_iters: Vec<SSTableDataIter<T, U>>,
         mut level_data_iters: Vec<VecDeque<SSTableDataIter<T, U>>>,
     ) -> Result<Self> {
+        if let Some(ref metadata_lock_count) = metadata_lock_count {
+            *metadata_lock_count.borrow_mut() += 1;
+        }
+
         let mut entries = BinaryHeap::new();
 
         for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {

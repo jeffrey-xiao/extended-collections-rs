@@ -301,7 +301,8 @@ where
     /// # foo().unwrap();
     /// ```
     pub fn len(&mut self) -> Result<usize> {
-        Ok(self.iter()?.count())
+        self.flush()?;
+        self.compaction_strategy.len()
     }
 
     /// Returns `true` if the map is empty. The in-memory tree is flushed and then a full scan of
@@ -452,6 +453,7 @@ where
     /// # foo().unwrap();
     /// ```
     pub fn flush(&mut self) -> Result<()> {
+        println!("FLUSHING");
         if !self.in_memory_tree.is_empty() {
             self.try_compact()?;
         }

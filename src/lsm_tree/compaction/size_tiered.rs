@@ -95,7 +95,7 @@ where
         P: AsRef<Path>,
     {
         let old_sstables: Vec<_> = self.sstables
-            .drain((Bound::Included(range.0), Bound::Excluded(range.1)))
+            .drain(range.0..range.1)
             .collect();
 
         let sstable_max_logical_time_range = old_sstables
@@ -211,6 +211,7 @@ where
         P: AsRef<Path>,
     {
         fs::create_dir(db_path.as_ref())?;
+
         let metadata_file = fs::OpenOptions::new()
             .read(true)
             .write(true)
@@ -526,8 +527,6 @@ where
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
         }
 
-        *self.metadata_lock_count.borrow_mut() += 1;
-
         let sstable_data_iters = curr_metadata
             .sstables
             .iter()
@@ -567,6 +566,10 @@ where
         metadata_lock_count: Option<Rc<RefCell<u64>>>,
         mut sstable_data_iters: Vec<SSTableDataIter<T, U>>,
     ) -> Result<Self> {
+        if let Some(ref metadata_lock_count) = metadata_lock_count {
+            *metadata_lock_count.borrow_mut() += 1;
+        }
+
         let mut entries = BinaryHeap::new();
 
         for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
