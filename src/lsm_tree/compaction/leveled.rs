@@ -87,6 +87,19 @@ where
     }
 }
 
+/// A compaction strategy based on grouping SSTables into levels of exponential increasing sizes.
+/// Each SSTable is a a fixed size and two SSTables are guaranteed to be non-overlapping if they
+/// are in the same level. As smaller levels fill up, SSTables are merged into larger levels.
+///
+/// # Configuration Parameters
+///  - `max_in_memory_size`: The maximum size of the in-memory tree before it must be flushed onto
+///  disk as a SSTable.
+///  - `max_sstable_count`: The maximum number of overlapping SSTables before they must be merged
+///  into the first level.
+///  - `max_sstable_size`: The maximum size of a SSTable in a level.
+///  - `max_initial_level_count`: The number of SSTables in the first level.
+///  - `growth_factor`: Each successive level will be `growth_factor` times larger than the
+///  previous level.
 pub struct LeveledStrategy<T, U>
 where
     T: DeserializeOwned + Ord,
@@ -108,6 +121,21 @@ where
     T: Debug + 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
     U: Debug + 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
 {
+    /// Constructs a new `LeveledStrategy<T, U>` with specific configuration parameters.
+    ///
+    /// # Examples
+    /// ```
+    /// # use extended_collections::lsm_tree::Result;
+    /// # fn foo() -> Result<()> {
+    /// # use std::fs;
+    /// use extended_collections::lsm_tree::compaction::LeveledStrategy;
+    ///
+    /// let sts: LeveledStrategy<u32, u32> = LeveledStrategy::new("leveled_strategy_new", 10000, 4, 50000, 10, 10)?;
+    /// # fs::remove_dir_all("leveled_strategy_new")?;
+    /// # Ok(())
+    /// # }
+    /// # foo().unwrap();
+    /// ```
     pub fn new<P>(
         db_path: P,
         max_in_memory_size: u64,
@@ -158,6 +186,21 @@ where
         Ok(ret)
     }
 
+    /// Opens an existing `LeveledStrategy<T, U>` from a folder.
+    ///
+    /// # Examples
+    /// ```no run
+    /// # use extended_collections::lsm_tree::Result;
+    /// # fn foo() -> Result<()> {
+    /// # use std::fs;
+    /// use extended_collections::lsm_tree::compaction::LeveledStrategy;
+    ///
+    /// let sts: LeveledStrategy<u32, u32> = LeveledStrategy::new("leveled_strategy_open")?;
+    /// # fs::remove_dir_all("leveled_strategy_open")?;
+    /// # Ok(())
+    /// # }
+    /// # foo().unwrap();
+    /// ```
     pub fn open<P>(db_path: P) -> Result<Self>
     where
         P: AsRef<Path>,

@@ -157,6 +157,8 @@ where
 /// when they become too full.
 ///
 /// # Configuration Parameters
+///  - `max_in_memory_size`: The maximum size of the in-memory tree before it must be flushed onto
+///  disk as a SSTable.
 ///  - `max_sstable_count`: The minimum number of SSTables in a bucket before a compaction is
 ///  triggered.
 ///  - `min_sstable_size`: The size threshold for the first bucket. All SSTables with size
@@ -165,8 +167,6 @@ where
 ///  to `bucket_low * bucket_average` where `bucket_average` is the average of the bucket.
 ///  - `bucket_high`: SSTables in a bucket other than the first must have size smaller than or equal
 ///  to `bucket_high * bucket_average` where `bucket_average` is the average of the bucket.
-///  - `max_in_memory_size`: The maximum size of the in-memory tree before it must be flushed onto
-///  disk as a SSTable.
 pub struct SizeTieredStrategy<T, U> {
     db_path: PathBuf,
     compaction_thread_join_handle: Option<thread::JoinHandle<()>>,
@@ -193,8 +193,8 @@ where
     /// # use std::fs;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts: SizeTieredStrategy<u32, u32> = SizeTieredStrategy::new("size_tiered_metadata_new", 10000, 4, 50000, 0.5, 1.5)?;
-    /// # fs::remove_dir_all("size_tiered_metadata_new")?;
+    /// let sts: SizeTieredStrategy<u32, u32> = SizeTieredStrategy::new("size_tiered_strategy_new", 10000, 4, 50000, 0.5, 1.5)?;
+    /// # fs::remove_dir_all("size_tiered_strategy_new")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -258,8 +258,8 @@ where
     /// # use std::fs;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts: SizeTieredStrategy<u32, u32> = SizeTieredStrategy::open("size_tiered_metadata_open")?;
-    /// # fs::remove_dir_all("size_tiered_metadata_open")?;
+    /// let sts: SizeTieredStrategy<u32, u32> = SizeTieredStrategy::open("size_tiered_strategy_open")?;
+    /// # fs::remove_dir_all("size_tiered_strategy_open")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
