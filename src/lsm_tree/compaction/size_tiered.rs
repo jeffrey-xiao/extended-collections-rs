@@ -252,7 +252,7 @@ where
     /// Opens an existing `SizeTieredStrategy<T, U>` from a folder.
     ///
     /// # Examples
-    /// ```no run
+    /// ```no_run
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;

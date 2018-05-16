@@ -11,7 +11,7 @@ use std::fmt;
 use std::io;
 use std::result;
 
-/// Convenience Error enum for `lsm_tree`.
+/// Convenience `Error` enum for `lsm_tree`.
 #[derive(Debug)]
 pub enum Error {
     IOError(io::Error),
@@ -55,5 +55,5 @@ impl fmt::Display for Error {
     }
 }
 
-/// Convenience Result type for `lsm_tree`.
+/// Convenience `Result` type for `lsm_tree`.
 pub type Result<T> = result::Result<T, Error>;
