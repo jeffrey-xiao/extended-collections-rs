@@ -236,7 +236,6 @@ where
         let mut next_metadata = self.next_metadata.lock().unwrap();
 
         if let Some(next_metadata) = next_metadata.take() {
-            println!("REPLACING");
             let logical_time_opt = next_metadata
                 .levels
                 .iter()
@@ -291,8 +290,6 @@ where
         P: AsRef<Path>,
     {
         println!("Started compacting.");
-
-        println!("Before compaction:\n {:?}", metadata_snapshot);
 
         if metadata_snapshot.levels.is_empty() {
             metadata_snapshot.levels.push(BTreeMap::new());
@@ -367,7 +364,6 @@ where
                         })
                         .map(|level_entry| level_entry.1.summary.key_range.1.clone())
                         .expect("Expected non-empty level to remove from.");
-                    println!("old sstable {:?}", sstable);
                     metadata_snapshot.levels[index]
                         .remove(&sstable)
                         .expect("Expected SSTable to remove to exist.")
@@ -429,7 +425,6 @@ where
             }
         }
 
-        println!("compacted snapshot:\n{:?}", metadata_snapshot);
         *next_metadata.lock().unwrap() = Some(metadata_snapshot);
 
         is_compacting.store(false, Ordering::Release);
@@ -560,7 +555,6 @@ where
             self.metadata_file.seek(SeekFrom::Start(0))?;
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
         }
-        println!("Before len hint:\n {:?}", *curr_metadata);
 
         let sstables_len_hint: usize = curr_metadata.sstables
             .iter()
