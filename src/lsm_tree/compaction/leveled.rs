@@ -195,7 +195,7 @@ where
     /// # use std::fs;
     /// use extended_collections::lsm_tree::compaction::LeveledStrategy;
     ///
-    /// let sts: LeveledStrategy<u32, u32> = LeveledStrategy::new("leveled_strategy_open")?;
+    /// let sts: LeveledStrategy<u32, u32> = LeveledStrategy::open("leveled_strategy_open")?;
     /// # fs::remove_dir_all("leveled_strategy_open")?;
     /// # Ok(())
     /// # }
@@ -354,9 +354,8 @@ where
             };
 
             while should_merge(&metadata_snapshot, index) {
-                println!("INDEX {} {}", index, metadata_snapshot.levels[index].len());
                 let sstable = {
-                    let sstable = metadata_snapshot.levels[index]
+                    let sstable_key = metadata_snapshot.levels[index]
                         .iter()
                         .max_by(|x, y| {
                             (x.1.summary.tombstone_count * y.1.summary.entry_count)
@@ -365,10 +364,9 @@ where
                         .map(|level_entry| level_entry.1.summary.key_range.1.clone())
                         .expect("Expected non-empty level to remove from.");
                     metadata_snapshot.levels[index]
-                        .remove(&sstable)
+                        .remove(&sstable_key)
                         .expect("Expected SSTable to remove to exist.")
                 };
-                metadata_snapshot.levels[index].remove(&sstable.summary.key_range.1);
 
                 let mut sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
 
@@ -407,7 +405,7 @@ where
                 for entry in compaction_iter {
                     let (key, value) = entry?;
 
-                    if index + 1 == metadata_snapshot.levels.len() || value.data.is_some() {
+                    if index + 1 != metadata_snapshot.levels.len() - 1 || value.data.is_some() {
                         sstable_builder.append(key, value)?;
                     }
 
@@ -428,6 +426,7 @@ where
         *next_metadata.lock().unwrap() = Some(metadata_snapshot);
 
         is_compacting.store(false, Ordering::Release);
+
         println!("Finished compacting");
         Ok(())
     }
@@ -449,7 +448,7 @@ where
                 Ok(_) => println!("Compaction terminated successfully."),
                 Err(error) => {
                     is_compacting.store(false, Ordering::Release);
-                    println!("Compaction terminated with error: {:?}", error)
+                    println!("Compaction terminated with error: {:?}", error);
                 },
             }
         }))
@@ -478,19 +477,26 @@ where
     }
 
     fn try_compact(&mut self, sstable: SSTable<T, U>) -> Result<()> {
-        // taking snapshot of current metadata
-        let metadata_snapshot = {
+        {
             let mut curr_metadata = self.curr_metadata.lock().unwrap();
-            self.try_replace_metadata(&mut curr_metadata)?;
             curr_metadata.push_sstable(Arc::new(sstable));
             self.metadata_file.seek(SeekFrom::Start(0))?;
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
-            curr_metadata.clone()
-        };
+        }
 
         if self.is_compacting.load(Ordering::Acquire) || *self.metadata_lock_count.borrow() != 0 {
             return Ok(());
         }
+
+        // taking snapshot of current metadata
+        let metadata_snapshot = {
+            let mut curr_metadata = self.curr_metadata.lock().unwrap();
+            if self.try_replace_metadata(&mut curr_metadata)? {
+                self.metadata_file.seek(SeekFrom::Start(0))?;
+                self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
+            }
+            curr_metadata.clone()
+        };
 
         if metadata_snapshot.sstables.len() > metadata_snapshot.max_sstable_count {
             self.spawn_compaction_thread(metadata_snapshot);

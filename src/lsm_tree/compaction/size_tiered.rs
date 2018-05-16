@@ -7,7 +7,7 @@ use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::cell::RefCell;
 use std::cmp;
-use std::collections::{BinaryHeap, Bound, HashSet};
+use std::collections::{BinaryHeap, HashSet};
 use std::fs;
 use std::hash::Hash;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -334,7 +334,7 @@ where
                 Ok(_) => println!("Compaction terminated successfully."),
                 Err(error) => {
                     is_compacting.store(false, Ordering::Release);
-                    println!("Compaction terminated with error: {:?}", error)
+                    println!("Compaction terminated with error: {:?}", error);
                 },
             }
         }));
@@ -399,19 +399,26 @@ where
     }
 
     fn try_compact(&mut self, sstable: SSTable<T, U>) -> Result<()> {
-        // taking snapshot of current metadata
-        let mut metadata_snapshot = {
+        {
             let mut curr_metadata = self.curr_metadata.lock().unwrap();
-            self.try_replace_metadata(&mut curr_metadata)?;
             curr_metadata.push_sstable(Arc::new(sstable));
             self.metadata_file.seek(SeekFrom::Start(0))?;
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
-            curr_metadata.clone()
-        };
+        }
 
         if self.is_compacting.load(Ordering::Acquire) || *self.metadata_lock_count.borrow() != 0 {
             return Ok(());
         }
+
+        // taking snapshot of current metadata
+        let mut metadata_snapshot = {
+            let mut curr_metadata = self.curr_metadata.lock().unwrap();
+            if self.try_replace_metadata(&mut curr_metadata)? {
+                self.metadata_file.seek(SeekFrom::Start(0))?;
+                self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
+            }
+            curr_metadata.clone()
+        };
 
         if let Some(range) = metadata_snapshot.get_compaction_range() {
             self.spawn_compaction_thread(metadata_snapshot, range);

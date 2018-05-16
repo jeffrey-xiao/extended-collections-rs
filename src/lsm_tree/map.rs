@@ -453,7 +453,6 @@ where
     /// # foo().unwrap();
     /// ```
     pub fn flush(&mut self) -> Result<()> {
-        println!("FLUSHING");
         if !self.in_memory_tree.is_empty() {
             self.try_compact()?;
         }
