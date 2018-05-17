@@ -64,7 +64,7 @@ pub fn insert<T, U>(tree: &mut Tree<T, U>, mut new_node: Node<T, U>) -> Option<E
 where
     T: Ord,
 {
-    match *tree {
+    match tree {
         Some(ref mut node) => {
             if new_node.priority <= node.priority {
                 match new_node.entry.key.cmp(&node.entry.key) {
@@ -79,7 +79,7 @@ where
                         return ret;
                     },
                     Ordering::Equal => {
-                        let &mut Node { ref mut entry, .. } = &mut **node;
+                        let Node { ref mut entry, .. } = &mut **node;
                         return Some(mem::replace(entry, new_node.entry));
                     },
                 }
@@ -103,7 +103,7 @@ where
     T: Ord,
 {
     let mut new_tree;
-    match *tree {
+    match tree {
         Some(ref mut node) => {
             match key.cmp(&node.entry.key) {
                 Ordering::Less => {
@@ -226,7 +226,7 @@ where
                 swapped = !swapped;
             }
             {
-                let &mut Node {
+                let Node {
                     left: ref mut left_subtree,
                     right: ref mut right_subtree,
                     ref mut entry,
@@ -267,7 +267,7 @@ where
                     mem::swap(&mut left_node, &mut right_node);
                     swapped = !swapped;
                 }
-                let &mut Node {
+                let Node {
                     left: ref mut left_subtree,
                     right: ref mut right_subtree,
                     ref mut entry,
@@ -314,7 +314,7 @@ where
                     mem::swap(&mut left_node, &mut right_node);
                     swapped = !swapped;
                 }
-                let &mut Node {
+                let Node {
                     left: ref mut left_subtree,
                     right: ref mut right_subtree,
                     ref mut entry,

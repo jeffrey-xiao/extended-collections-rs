@@ -14,35 +14,25 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::result;
 
-pub fn merge_ranges<T>(range_1: Option<(T, T)>, range_2: Option<(T, T)>) -> Option<(T, T)>
+use std::fmt::{self, Debug};
+
+pub fn merge_ranges<T>(range_1: (T, T), range_2: (T, T)) -> (T, T)
 where
     T: Ord,
 {
-    match (range_1, range_2) {
-        (Some(range_1), Some(range_2)) => {
-            Some((
-                cmp::min(range_1.0, range_2.0),
-                cmp::max(range_1.1, range_2.1),
-            ))
-        },
-        (None, range) => range,
-        (range, None) => range,
-    }
+    (
+        cmp::min(range_1.0, range_2.0),
+        cmp::max(range_1.1, range_2.1),
+    )
 }
 
-pub fn is_intersecting<T>(range_1: &Option<(T, T)>, range_2: &Option<(T, T)>) -> bool
+pub fn is_intersecting<T>(range_1: &(T, T), range_2: &(T, T)) -> bool
 where
     T: Ord,
 {
-    match (range_1, range_2) {
-        (&Some(ref range_1), &Some(ref range_2)) => {
-            let l = cmp::max(&range_1.0, &range_2.0);
-            let r = cmp::min(&range_1.1, &range_2.1);
-            l <= r
-        },
-        (&None, _) => false,
-        (_, &None) => false,
-    }
+    let l = cmp::max(&range_1.0, &range_2.0);
+    let r = cmp::min(&range_1.1, &range_2.1);
+    l <= r
 }
 
 #[derive(Deserialize, Serialize)]
@@ -71,20 +61,26 @@ impl<U> PartialOrd for SSTableValue<U> {
 
 impl<U> Eq for SSTableValue<U> {}
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SSTableSummary<T> {
+    pub entry_count: usize,
+    pub tombstone_count: usize,
+    pub size: u64,
+    pub key_range: (T, T),
+    pub logical_time_range: (u64, u64),
+    pub index: Vec<(T, u64)>,
+}
+
+pub struct SSTableBuilder<T, U> {
+    pub sstable_path: PathBuf,
+
     pub entry_count: usize,
     pub tombstone_count: usize,
     pub size: u64,
     pub key_range: Option<(T, T)>,
     pub logical_time_range: Option<(u64, u64)>,
     pub index: Vec<(T, u64)>,
-    pub logical_time: u64,
-}
 
-pub struct SSTableBuilder<T, U> {
-    pub sstable_path: PathBuf,
-    pub summary: SSTableSummary<T>,
     block_index: usize,
     block_size: usize,
     index_block: Vec<(T, u64)>,
@@ -105,7 +101,7 @@ where
         thread_rng().gen_ascii_chars().take(32).collect()
     }
 
-    pub fn new<P>(db_path: P, entry_count_hint: usize, logical_time: u64) -> Result<Self>
+    pub fn new<P>(db_path: P, entry_count_hint: usize) -> Result<Self>
     where
         P: AsRef<Path>,
     {
@@ -121,15 +117,14 @@ where
 
         Ok(SSTableBuilder {
             sstable_path,
-            summary: SSTableSummary {
-                entry_count: 0,
-                tombstone_count: 0,
-                size: 0,
-                key_range: None,
-                logical_time_range: None,
-                index: Vec::new(),
-                logical_time,
-            },
+
+            entry_count: 0,
+            tombstone_count: 0,
+            size: 0,
+            key_range: None,
+            logical_time_range: None,
+            index: Vec::new(),
+
             block_index: 0,
             block_size: (entry_count_hint as f64).sqrt().ceil() as usize,
             index_block: Vec::new(),
@@ -144,17 +139,22 @@ where
 
     pub fn append(&mut self, key: T, value: SSTableValue<U>) -> Result<()> {
         let logical_time = value.logical_time;
-        self.summary.entry_count += 1;
+        self.entry_count += 1;
         if value.data.is_none() {
-            self.summary.tombstone_count += 1;
+            self.tombstone_count += 1;
         }
-        match self.summary.key_range.take() {
-            Some((start, _)) => self.summary.key_range = Some((start, key.clone())),
-            None => self.summary.key_range = Some((key.clone(), key.clone())),
+        match self.key_range.take() {
+            Some((start, _)) => self.key_range = Some((start, key.clone())),
+            None => self.key_range = Some((key.clone(), key.clone())),
         }
-        match self.summary.logical_time_range.take() {
-            Some((start, _)) => self.summary.logical_time_range = Some((start, logical_time)),
-            None => self.summary.logical_time_range = Some((logical_time, logical_time)),
+        match self.logical_time_range.take() {
+            Some((start, end)) => {
+                self.logical_time_range = Some((
+                    cmp::min(start, logical_time),
+                    cmp::max(end, logical_time),
+                ))
+            },
+            None => self.logical_time_range = Some((logical_time, logical_time)),
         }
 
         self.filter.insert(&key);
@@ -164,17 +164,17 @@ where
         self.data_stream.write_u64::<BigEndian>(serialized_entry.len() as u64)?;
         self.data_stream.write_all(&serialized_entry)?;
         self.data_offset += 8 + serialized_entry.len() as u64;
-        self.summary.size += 8 + serialized_entry.len() as u64;
+        self.size += 8 + serialized_entry.len() as u64;
         self.block_index += 1;
 
         if self.block_index == self.block_size {
-            self.summary.index.push((self.index_block[0].0.clone(), self.index_offset));
+            self.index.push((self.index_block[0].0.clone(), self.index_offset));
 
             let serialized_index_block = serialize(&self.index_block)?;
             self.index_stream.write_u64::<BigEndian>(serialized_index_block.len() as u64)?;
             self.index_stream.write_all(&serialized_index_block)?;
             self.index_offset += 8 + serialized_index_block.len() as u64;
-            self.summary.size += 8 + serialized_index_block.len() as u64;
+            self.size += 8 + serialized_index_block.len() as u64;
             self.block_index = 0;
             self.index_block.clear();
         }
@@ -184,14 +184,26 @@ where
 
     pub fn flush(&mut self) -> Result<PathBuf> {
         if !self.index_block.is_empty() {
-            self.summary.index.push((self.index_block[0].0.clone(), self.index_offset));
+            self.index.push((self.index_block[0].0.clone(), self.index_offset));
 
             let serialized_index_block = serialize(&self.index_block)?;
             self.index_stream.write_u64::<BigEndian>(serialized_index_block.len() as u64)?;
             self.index_stream.write_all(&serialized_index_block)?;
         }
 
-        let serialized_summary = serialize(&self.summary)?;
+        let (key_range, logical_time_range) = match (self.key_range.clone(), self.logical_time_range) {
+            (Some(key_range), Some(logical_time_range)) => (key_range, logical_time_range),
+            _ => panic!("Expected non-empty SSTable"),
+        };
+
+        let serialized_summary = serialize(&SSTableSummary {
+            entry_count: self.entry_count,
+            tombstone_count: self.tombstone_count,
+            size: self.size,
+            key_range,
+            logical_time_range,
+            index: self.index.clone(),
+        })?;
         let mut summary_file = fs::File::create(self.sstable_path.join("summary.dat"))?;
         summary_file.write_all(&serialized_summary)?;
 
@@ -266,15 +278,17 @@ where
     }
 
     pub fn get(&self, key: &T) -> Result<Option<SSTableValue<U>>> {
+        if *key < self.summary.key_range.0 || *key > self.summary.key_range.1 {
+            return Ok(None);
+        }
+
         if !self.filter.contains(key) {
             return Ok(None);
         }
 
-        let index = {
-            match Self::floor_offset(&self.summary.index, key) {
-                Some(index) => index,
-                None => return Ok(None),
-            }
+        let index = match Self::floor_offset(&self.summary.index, key) {
+            Some(index) => index,
+            None => return Ok(None),
         };
 
         let mut index_file = fs::File::open(self.path.join("index.dat"))?;
@@ -284,11 +298,9 @@ where
         index_file.read_exact(buffer.as_mut_slice())?;
         let index_block: Vec<(T, u64)> = deserialize(&buffer)?;
 
-        let index = {
-            match index_block.binary_search_by_key(&key, |index_entry| &index_entry.0) {
-                Ok(index) => index,
-                Err(_) => return Ok(None),
-            }
+        let index = match index_block.binary_search_by_key(&key, |index_entry| &index_entry.0) {
+            Ok(index) => index,
+            Err(_) => return Ok(None),
         };
 
         let mut data_file = fs::File::open(self.path.join("data.dat"))?;
@@ -301,16 +313,18 @@ where
             .map(|entry: Entry<T, SSTableValue<U>>| Some(entry.value))
     }
 
-    pub fn data_iter(&self) -> Result<SSTableDataIter<T, U>> {
-        Ok(SSTableDataIter {
-            data_file: fs::File::open(self.path.join("data.dat"))?,
+    pub fn data_iter(&self) -> SSTableDataIter<T, U> {
+        SSTableDataIter {
+            data_path: self.path.join("data.dat"),
+            data_file: None,
             _marker: PhantomData,
-        })
+        }
     }
 }
 
 pub struct SSTableDataIter<T, U> {
-    data_file: fs::File,
+    data_path: PathBuf,
+    data_file: Option<fs::File>,
     _marker: PhantomData<(T, U)>,
 }
 
@@ -322,20 +336,27 @@ where
     type Item = Result<Entry<T, SSTableValue<U>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let size = {
-            match self.data_file.read_u64::<BigEndian>() {
-                Ok(size) => size,
-                Err(error) => {
-                    match error.kind() {
-                        ErrorKind::UnexpectedEof => return None,
-                        _ => return Some(Err(Error::from(error))),
-                    }
-                },
+        if let None = self.data_file {
+            match fs::File::open(self.data_path.as_path()) {
+                Ok(data_file) => self.data_file = Some(data_file),
+                Err(error) => return Some(Err(Error::from(error))),
             }
+        }
+
+        let data_file = self.data_file.as_mut().expect("Expected opened file.");
+
+        let size = match data_file.read_u64::<BigEndian>() {
+            Ok(size) => size,
+            Err(error) => {
+                match error.kind() {
+                    ErrorKind::UnexpectedEof => return None,
+                    _ => return Some(Err(Error::from(error))),
+                }
+            },
         };
 
         let mut buffer = vec![0; size as usize];
-        let result = self.data_file.read_exact(buffer.as_mut_slice());
+        let result = data_file.read_exact(buffer.as_mut_slice());
         if let Err(error) = result {
             return Some(Err(Error::from(error)));
         }
@@ -364,5 +385,17 @@ where
     {
         let ret = SSTable::new(PathBuf::deserialize(deserializer)?).map_err(de::Error::custom);
         Ok(ret?)
+    }
+}
+
+impl<T, U> Debug for SSTable<T, U>
+where
+    T: Debug,
+    U: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "entry count: {:?}\n", self.summary.entry_count)?;
+        write!(f, "tombstone count: {:?}\n", self.summary.tombstone_count)?;
+        write!(f, "key range: {:?}\n", self.summary.key_range)
     }
 }

@@ -65,10 +65,7 @@ impl ScalableBloomFilter {
     fn try_grow(&mut self) {
         let mut new_filter = None;
         {
-            let filter = match self.filters.last() {
-                Some(filter) => filter,
-                _ => unreachable!(),
-            };
+            let filter = self.filters.last().expect("Expected non-empty filters.");
 
             if self.approximate_bits_used * 2 >= filter.len() {
                 self.approximate_bits_used = filter.count_ones();
@@ -102,15 +99,8 @@ impl ScalableBloomFilter {
     where
         T: Hash,
     {
-        if !self.filters
-            .iter()
-            .any(|ref mut filter| filter.contains(item))
-        {
-            let filter = match self.filters.last_mut() {
-                Some(filter) => filter,
-                _ => unreachable!(),
-            };
-
+        if !self.filters.iter().any(|filter| filter.contains(item)) {
+            let filter = self.filters.last_mut().expect("Expected non-empty filters.");
             filter.insert(item);
             self.approximate_bits_used += filter.hasher_count();
         }
@@ -133,9 +123,7 @@ impl ScalableBloomFilter {
     where
         T: Hash,
     {
-        self.filters
-            .iter()
-            .any(|ref mut filter| filter.contains(item))
+        self.filters.iter().any(|filter| filter.contains(item))
     }
 
     /// Returns the number of bits in the scalable bloom filter.
@@ -194,11 +182,7 @@ impl ScalableBloomFilter {
     /// assert!(!filter.contains(&"foo"));
     /// ```
     pub fn clear(&mut self) {
-        let initial_bit_count = match self.filters.first() {
-            Some(filter) => filter.len(),
-            _ => unreachable!(),
-        };
-
+        let initial_bit_count = self.filters.first().expect("Expected non-empty filters.").len();
         self.filters = vec![BloomFilter::from_fpp(initial_bit_count, self.initial_fpp)];
         self.approximate_bits_used = 0;
     }
@@ -247,7 +231,10 @@ impl ScalableBloomFilter {
     /// assert!(filter.estimate_fpp() < 0.01);
     /// ```
     pub fn estimate_fpp(&self) -> f64 {
-        1.0 - self.filters.iter().map(|filter| 1.0 - filter.estimate_fpp()).product::<f64>()
+        1.0 - self.filters
+            .iter()
+            .map(|filter| 1.0 - filter.estimate_fpp())
+            .product::<f64>()
     }
 }
 

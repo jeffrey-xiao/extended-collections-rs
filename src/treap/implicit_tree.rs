@@ -56,12 +56,7 @@ pub fn insert<T>(tree: &mut Tree<T>, index: usize, new_node: ImplicitNode<T>) {
 pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
     assert!(1 <= index && index <= len(tree));
     let new_tree = {
-        let node = {
-            match tree.as_mut() {
-                Some(node) => node,
-                _ => unreachable!(),
-            }
-        };
+        let node = tree.as_mut().expect("Expected non-empty tree.");
         let key = node.get_implicit_key();
         match index.cmp(&key) {
             Ordering::Less => {
@@ -75,7 +70,7 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
                 return ret;
             },
             Ordering::Equal => {
-                let &mut ImplicitNode {
+                let ImplicitNode {
                     ref mut left,
                     ref mut right,
                     ..
@@ -86,10 +81,9 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
         }
     };
 
-    match mem::replace(tree, new_tree) {
-        Some(node) => node.value,
-        _ => unreachable!(),
-    }
+    mem::replace(tree, new_tree)
+        .expect("Expected non-empty tree.")
+        .value
 }
 
 pub fn get<T>(tree: &Tree<T>, index: usize) -> Option<&T> {
@@ -115,7 +109,7 @@ pub fn get_mut<T>(tree: &mut Tree<T>, index: usize) -> Option<&mut T> {
 }
 
 pub fn len<T>(tree: &Tree<T>) -> usize {
-    if let Some(ref node) = *tree {
+    if let Some(ref node) = tree {
         node.len()
     } else {
         0

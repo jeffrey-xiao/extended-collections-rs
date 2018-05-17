@@ -108,10 +108,7 @@ impl ScalableCuckooFilter {
         let mut new_filter_opt = None;
         {
             let exponent = self.filters.len() as i32;
-            let filter = match self.filters.last_mut() {
-                Some(filter) => filter,
-                _ => unreachable!(),
-            };
+            let filter = self.filters.last_mut().expect("Expected non-empty filters.");
 
             if filter.is_nearly_full() {
                 let mut new_filter = CuckooFilter::from_entries_per_index(
@@ -153,15 +150,8 @@ impl ScalableCuckooFilter {
     where
         T: Hash,
     {
-        if !self.filters
-            .iter()
-            .any(|ref mut filter| filter.contains(item))
-        {
-            let filter = match self.filters.last_mut() {
-                Some(filter) => filter,
-                _ => unreachable!(),
-            };
-
+        if !self.filters.iter().any(|filter| filter.contains(item)) {
+            let filter = self.filters.last_mut().expect("Expected non-empty filters.");
             filter.insert(item);
         }
         self.try_grow();
@@ -183,9 +173,7 @@ impl ScalableCuckooFilter {
     where
         T: Hash,
     {
-        self.filters
-            .iter()
-            .any(|ref mut filter| filter.contains(item))
+        self.filters.iter().any(|filter| filter.contains(item))
     }
 
     /// Removes an element from the scalable cuckoo filter.
@@ -266,11 +254,7 @@ impl ScalableCuckooFilter {
     /// assert_eq!(filter.entries_per_index(), 4);
     /// ```
     pub fn entries_per_index(&self) -> usize {
-        let filter = match self.filters.first() {
-            Some(filter) => filter,
-            _ => unreachable!(),
-        };
-
+        let filter = self.filters.first().expect("Expected non-empty filters.");
         filter.entries_per_index()
     }
 
@@ -302,10 +286,10 @@ impl ScalableCuckooFilter {
     /// assert!(!filter.contains(&"foo"));
     /// ```
     pub fn clear(&mut self) {
-        let default_entries_per_index = match self.filters.first() {
-            Some(filter) => filter.entries_per_index(),
-            _ => unreachable!(),
-        };
+        let default_entries_per_index = self.filters
+            .first()
+            .expect("Expected non-empty filters.")
+            .entries_per_index();
 
         self.filters = vec![CuckooFilter::from_entries_per_index(
             self.initial_item_count,
@@ -326,7 +310,10 @@ impl ScalableCuckooFilter {
     /// filter.insert(&"foo");
     /// assert!((filter.estimate_fpp() - 0.01) < 1e-6);
     pub fn estimate_fpp(&self) -> f64 {
-        1.0 - self.filters.iter().map(|filter| 1.0 - filter.estimate_fpp()).product::<f64>()
+        1.0 - self.filters
+            .iter()
+            .map(|filter| 1.0 - filter.estimate_fpp())
+            .product::<f64>()
     }
 }
 

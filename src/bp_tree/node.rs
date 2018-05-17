@@ -104,10 +104,8 @@ where
             }
             split_node.keys[(internal_degree - 2) / 2] = Some(new_key);
             split_node.pointers[(internal_degree - 2) / 2 + offset] = new_pointer;
-            let split_key = match mem::replace(&mut self.keys[(internal_degree + 1) / 2], None) {
-                Some(key) => key,
-                _ => unreachable!(),
-            };
+            let split_key = mem::replace(&mut self.keys[(internal_degree + 1) / 2], None)
+                .expect("Expected some key.");
             mem::swap(
                 &mut self.pointers[(internal_degree + 1) / 2 + 1],
                 &mut split_node.pointers[(1 - offset)],
@@ -134,13 +132,7 @@ where
             }
             mem::replace(&mut self.pointers[self.len + 1], 0)
         };
-
-        let ret_key = {
-            match mem::replace(&mut self.keys[self.len], None) {
-                Some(key) => key,
-                _ => unreachable!(),
-            }
-        };
+        let ret_key = mem::replace(&mut self.keys[self.len], None).expect("Expected some key.");
 
         (ret_key, ret_pointer)
     }
@@ -267,17 +259,20 @@ where
                 }
             }
             split_node.entries[(leaf_degree - 1) / 2] = Some(new_entry);
-            let split_key = match split_node.entries[0] {
-                Some(ref mut entry) => entry.key.clone(),
-                _ => unreachable!(),
-            };
+            let split_key = split_node.entries[0]
+                .as_ref()
+                .map(|entry| entry.key.clone())
+                .expect("Expected some key.");
             let split_node = Node::Leaf(LeafNode {
                 len: (self.len + 1) / 2,
                 entries: split_node.entries,
                 next_leaf: self.next_leaf,
             });
             self.len = (self.len + 2) / 2;
-            Some(InsertCases::Split { split_key, split_node })
+            Some(InsertCases::Split {
+                split_key,
+                split_node,
+            })
         }
     }
 
@@ -287,11 +282,7 @@ where
         for index in remove_index..self.len {
             self.entries.swap(index, index + 1);
         }
-
-        match self.entries[self.len].take() {
-            Some(entry) => entry,
-            _ => unreachable!(),
-        }
+        self.entries[self.len].take().expect("Expected some entry.")
     }
 
     pub fn remove(&mut self, key: &T) -> Option<Entry<T, U>> {
@@ -449,9 +440,11 @@ mod tests {
         let res = n.insert(2, 2, false).unwrap();
 
         let (split_key, split_node) = res;
-        let internal_node = match split_node {
-            Node::Internal(node) => node,
-            _ => panic!("Expected internal node."),
+        let internal_node = {
+            match split_node {
+                Node::Internal(node) => node,
+                _ => panic!("Expected internal node."),
+            }
         };
 
         assert_eq!(split_key, 2);
@@ -475,9 +468,11 @@ mod tests {
         let res = n.insert(2, 3, true).unwrap();
 
         let (split_key, split_node) = res;
-        let internal_node = match split_node {
-            Node::Internal(node) => node,
-            _ => panic!("Expected internal node."),
+        let internal_node = {
+            match split_node {
+                Node::Internal(node) => node,
+                _ => panic!("Expected internal node."),
+            }
         };
 
         assert_eq!(split_key, 2);
@@ -620,14 +615,21 @@ mod tests {
         };
         let res = n.insert(Entry { key: 1, value: 1 }).unwrap();
 
-        let (split_key, split_node) = match res {
-            InsertCases::Split { split_key, split_node } => (split_key, split_node),
-            _ => panic!("Expected split insert case."),
+        let (split_key, split_node) = {
+            match res {
+                InsertCases::Split {
+                    split_key,
+                    split_node,
+                } => (split_key, split_node),
+                _ => panic!("Expected split insert case."),
+            }
         };
 
-        let leaf_node = match split_node {
-            Node::Leaf(node) => node,
-            _ => panic!("Expected leaf node."),
+        let leaf_node = {
+            match split_node {
+                Node::Leaf(node) => node,
+                _ => panic!("Expected leaf node."),
+            }
         };
 
         assert_eq!(split_key, 2);

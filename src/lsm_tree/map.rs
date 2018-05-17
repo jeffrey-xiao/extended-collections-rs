@@ -25,7 +25,7 @@ use std::mem;
 /// use extended_collections::lsm_tree::LsmMap;
 /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
 ///
-/// let sts = SizeTieredStrategy::new("lsm_map", 4, 50000, 0.5, 1.5, 10000)?;
+/// let sts = SizeTieredStrategy::new("example_lsm_map", 10000, 4, 50000, 0.5, 1.5)?;
 /// let mut map = LsmMap::new(sts);
 ///
 /// map.insert(0, 1)?;
@@ -42,7 +42,7 @@ use std::mem;
 /// assert_eq!(map.get(&0)?, None);
 ///
 /// map.flush();
-/// # fs::remove_dir_all("lsm_map")?;
+/// # fs::remove_dir_all("example_lsm_map")?;
 /// # Ok(())
 /// # }
 /// # foo().unwrap();
@@ -69,9 +69,9 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_new", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_new", 10000, 4, 50000, 0.5, 1.5)?;
     /// let map: LsmMap<u32, u32, _> = LsmMap::new(sts);
-    /// # fs::remove_dir_all("lsm_map_new")?;
+    /// # fs::remove_dir_all("example_lsm_map_new")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -84,13 +84,11 @@ where
         }
     }
 
-    fn compact(&mut self) -> Result<()> {
+    fn try_compact(&mut self) -> Result<()> {
         self.in_memory_usage = 0;
-        let logical_time = self.compaction_strategy.get_and_increment_logical_time()?;
         let mut sstable_builder = SSTableBuilder::new(
             self.compaction_strategy.get_db_path(),
             self.in_memory_tree.len(),
-            logical_time,
         )?;
         for entry in mem::replace(&mut self.in_memory_tree, BTreeMap::new()) {
             sstable_builder.append(entry.0, entry.1)?;
@@ -111,7 +109,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_insert", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_insert", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -119,7 +117,7 @@ where
     ///
     /// map.insert(1, 2)?;
     /// assert_eq!(map.get(&1)?, Some(2));
-    /// # fs::remove_dir_all("lsm_map_insert")?;
+    /// # fs::remove_dir_all("example_lsm_map_insert")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -141,7 +139,7 @@ where
         self.in_memory_tree.insert(key, value);
 
         if self.in_memory_usage > self.compaction_strategy.get_max_in_memory_size() {
-            self.compact()
+            self.try_compact()
         } else {
             Ok(())
         }
@@ -159,7 +157,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_remove", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_remove", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -167,7 +165,7 @@ where
     ///
     /// map.remove(1)?;
     /// assert_eq!(map.get(&1)?, None);
-    /// # fs::remove_dir_all("lsm_map_remove")?;
+    /// # fs::remove_dir_all("example_lsm_map_remove")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -189,7 +187,7 @@ where
         self.in_memory_tree.insert(key, value);
 
         if self.in_memory_usage > self.compaction_strategy.get_max_in_memory_size() {
-            self.compact()
+            self.try_compact()
         } else {
             Ok(())
         }
@@ -205,13 +203,13 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_contains_key", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_contains_key", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
     /// assert!(!map.contains_key(&0)?);
     /// assert!(map.contains_key(&1)?);
-    /// # fs::remove_dir_all("lsm_map_contains_key")?;
+    /// # fs::remove_dir_all("example_lsm_map_contains_key")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -231,13 +229,13 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_get", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_get", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
     /// assert_eq!(map.get(&0)?, None);
     /// assert_eq!(map.get(&1)?, Some(1));
-    /// # fs::remove_dir_all("lsm_map_get")?;
+    /// # fs::remove_dir_all("example_lsm_map_get")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -266,12 +264,12 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_len_hint", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_len_hint", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
     /// assert!(map.len_hint()? >= 1);
-    /// # fs::remove_dir_all("lsm_map_len_hint")?;
+    /// # fs::remove_dir_all("example_lsm_map_len_hint")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -292,18 +290,19 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_len", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_len", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
     /// assert_eq!(map.len()?, 1);
-    /// # fs::remove_dir_all("lsm_map_len")?;
+    /// # fs::remove_dir_all("example_lsm_map_len")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
     /// ```
     pub fn len(&mut self) -> Result<usize> {
-        Ok(self.iter()?.count())
+        self.flush()?;
+        self.compaction_strategy.len()
     }
 
     /// Returns `true` if the map is empty. The in-memory tree is flushed and then a full scan of
@@ -317,13 +316,13 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_is_empty", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_is_empty", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     /// assert!(map.is_empty()?);
     ///
     /// map.insert(1, 1)?;
     /// assert!(!map.is_empty()?);
-    /// # fs::remove_dir_all("lsm_map_is_empty")?;
+    /// # fs::remove_dir_all("example_lsm_map_is_empty")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -343,14 +342,14 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_clear", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_clear", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
     /// map.insert(2, 2)?;
     /// map.clear()?;
     /// assert!(map.is_empty()?);
-    /// # fs::remove_dir_all("lsm_map_clear")?;
+    /// # fs::remove_dir_all("example_lsm_map_clear")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -370,13 +369,13 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_min", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_min", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
     /// map.insert(3, 3)?;
     /// assert_eq!(map.min()?, Some(1));
-    /// # fs::remove_dir_all("lsm_map_min")?;
+    /// # fs::remove_dir_all("example_lsm_map_min")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -408,13 +407,13 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_max", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_max", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
     /// map.insert(3, 3)?;
     /// assert_eq!(map.max()?, Some(3));
-    /// # fs::remove_dir_all("lsm_map_max")?;
+    /// # fs::remove_dir_all("example_lsm_map_max")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
@@ -442,20 +441,20 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_flush", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_flush", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
     /// map.insert(3, 3)?;
     /// map.flush()?;
-    /// # fs::remove_dir_all("lsm_map_flush")?;
+    /// # fs::remove_dir_all("example_lsm_map_flush")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();
     /// ```
     pub fn flush(&mut self) -> Result<()> {
         if !self.in_memory_tree.is_empty() {
-            self.compact()?;
+            self.try_compact()?;
         }
         self.compaction_strategy.flush()
     }
@@ -472,7 +471,7 @@ where
     /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts = SizeTieredStrategy::new("lsm_map_iter", 4, 50000, 0.5, 1.5, 10000)?;
+    /// let sts = SizeTieredStrategy::new("example_lsm_map_iter", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
     ///
     /// map.insert(1, 1)?;
@@ -482,7 +481,7 @@ where
     /// assert_eq!(iterator.next(), Some((1, 1)));
     /// assert_eq!(iterator.next(), Some((2, 2)));
     /// assert_eq!(iterator.next(), None);
-    /// # fs::remove_dir_all("lsm_map_iter")?;
+    /// # fs::remove_dir_all("example_lsm_map_iter")?;
     /// # Ok(())
     /// # }
     /// # foo().unwrap();

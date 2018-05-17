@@ -70,7 +70,7 @@ where
     /// assert_eq!(map.get(&1), Some(&2));
     /// ```
     pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
-        let &mut TreapMap { ref mut tree, ref mut rng } = self;
+        let TreapMap { ref mut tree, ref mut rng } = self;
         let new_node = Node::new(key, value, rng.next_u32());
         tree::insert(tree, new_node).and_then(|entry| {
             let Entry { key, value } = entry;
@@ -91,7 +91,7 @@ where
     /// assert_eq!(map.remove(&1), None);
     /// ```
     pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
-        let &mut TreapMap { ref mut tree, .. } = self;
+        let TreapMap { ref mut tree, .. } = self;
         tree::remove(tree, key).and_then(|entry| {
             let Entry { key, value } = entry;
             Some((key, value))
@@ -272,7 +272,7 @@ where
     /// assert_eq!(split[&3], 3);
     /// ```
     pub fn split_off(&mut self, key: &T, inclusive: bool) -> Self {
-        let TreapMap { ref mut tree, .. } = *self;
+        let TreapMap { ref mut tree, .. } = self;
         let (mut split_node, ret) = tree::split(tree, key);
         if inclusive {
             tree::merge(tree, split_node);
@@ -534,12 +534,12 @@ where
     type Item = (&'a T, &'a U);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(ref node) = *self.current {
+        while let Some(ref node) = self.current {
             self.current = &node.left;
             self.stack.push(node);
         }
         self.stack.pop().map(|node| {
-            let &Node {
+            let Node {
                 entry: Entry { ref key, ref value },
                 ref right,
                 ..
@@ -573,7 +573,7 @@ where
     type Item = (&'a T, &'a mut U);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let TreapMapIterMut { ref mut current, ref mut stack } = *self;
+        let TreapMapIterMut { ref mut current, ref mut stack } = self;
         while current.is_some() {
             stack.push(current.take().map(|node| {
                 *current = node.left.as_mut().map(|node| &mut **node);
@@ -584,7 +584,7 @@ where
             match pair_opt {
                 Some(pair) => {
                     let (entry, right) = pair;
-                    let &mut Entry { ref key, ref mut value } = entry;
+                    let Entry { ref key, ref mut value } = entry;
                     *current = right;
                     Some((key, value))
                 },
