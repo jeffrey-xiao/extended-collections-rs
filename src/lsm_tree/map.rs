@@ -87,7 +87,7 @@ where
     fn try_compact(&mut self) -> Result<()> {
         self.in_memory_usage = 0;
         let mut sstable_builder = SSTableBuilder::new(
-            self.compaction_strategy.get_db_path(),
+            self.compaction_strategy.get_path(),
             self.in_memory_tree.len(),
         )?;
         for entry in mem::replace(&mut self.in_memory_tree, BTreeMap::new()) {

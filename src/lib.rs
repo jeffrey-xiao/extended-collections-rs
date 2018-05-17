@@ -39,6 +39,7 @@
 //!  > Pugh, William. 1990b. “Skip Lists: A Probabilistic Alternative to Balanced Trees.” *Commun. ACM* 33 (6). New York, NY, USA: ACM: 668–76. doi:[10.1145/78973.78977](https://doi.org/10.1145/78973.78977).
 
 #![warn(missing_docs)]
+
 extern crate bincode;
 extern crate byteorder;
 extern crate crossbeam_epoch as epoch;

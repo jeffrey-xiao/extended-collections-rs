@@ -105,7 +105,7 @@ where
     T: DeserializeOwned + Ord,
     U: DeserializeOwned,
 {
-    db_path: PathBuf,
+    path: PathBuf,
     compaction_thread_join_handle: Option<thread::JoinHandle<()>>,
     is_compacting: Arc<AtomicBool>,
     curr_logical_time: u64,
@@ -137,7 +137,7 @@ where
     /// # foo().unwrap();
     /// ```
     pub fn new<P>(
-        db_path: P,
+        path: P,
         max_in_memory_size: u64,
         max_sstable_count: usize,
         max_sstable_size: u64,
@@ -147,20 +147,20 @@ where
     where
         P: AsRef<Path>,
     {
-        fs::create_dir(db_path.as_ref())?;
+        fs::create_dir(path.as_ref())?;
 
         let metadata_file = fs::OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(db_path.as_ref().join("metadata.dat"))?;
+            .open(path.as_ref().join("metadata.dat"))?;
         let logical_time_file = fs::OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(db_path.as_ref().join("logical_time.dat"))?;
+            .open(path.as_ref().join("logical_time.dat"))?;
         let mut ret = LeveledStrategy {
-            db_path: PathBuf::from(db_path.as_ref()),
+            path: PathBuf::from(path.as_ref()),
             compaction_thread_join_handle: None,
             is_compacting: Arc::new(AtomicBool::new(false)),
             curr_logical_time: 0,
@@ -201,23 +201,23 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn open<P>(db_path: P) -> Result<Self>
+    pub fn open<P>(path: P) -> Result<Self>
     where
         P: AsRef<Path>,
     {
         let mut metadata_file = fs::OpenOptions::new()
             .read(true)
             .write(true)
-            .open(db_path.as_ref().join("metadata.dat"))?;
+            .open(path.as_ref().join("metadata.dat"))?;
         let mut logical_time_file = fs::OpenOptions::new()
             .read(true)
             .write(true)
-            .open(db_path.as_ref().join("logical_time.dat"))?;
+            .open(path.as_ref().join("logical_time.dat"))?;
         let mut buffer = Vec::new();
         metadata_file.read_to_end(&mut buffer)?;
         logical_time_file.seek(SeekFrom::Start(0))?;
         Ok(LeveledStrategy {
-            db_path: PathBuf::from(db_path.as_ref()),
+            path: PathBuf::from(path.as_ref()),
             compaction_thread_join_handle: None,
             is_compacting: Arc::new(AtomicBool::new(false)),
             curr_logical_time: logical_time_file.read_u64::<BigEndian>()?,
@@ -281,7 +281,7 @@ where
     }
 
     fn compact<P>(
-        db_path: P,
+        path: P,
         is_compacting: &Arc<AtomicBool>,
         mut metadata_snapshot: LeveledMetadata<T, U>,
         next_metadata: &Arc<Mutex<Option<LeveledMetadata<T, U>>>>,
@@ -313,7 +313,7 @@ where
             .map(|entry| entry.1.data_iter())
             .collect();
 
-        let mut sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
+        let mut sstable_builder = SSTableBuilder::new(path.as_ref(), entry_count_hint)?;
 
         let compaction_iter = LeveledIter::new(
             None,
@@ -331,7 +331,7 @@ where
             if sstable_builder.size > metadata_snapshot.max_sstable_size {
                 let new_sstable = Arc::new(SSTable::new(sstable_builder.flush()?)?);
                 metadata_snapshot.insert_sstable(0, new_sstable);
-                sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
+                sstable_builder = SSTableBuilder::new(path.as_ref(), entry_count_hint)?;
             }
         }
 
@@ -368,7 +368,7 @@ where
                         .expect("Expected SSTable to remove to exist.")
                 };
 
-                let mut sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
+                let mut sstable_builder = SSTableBuilder::new(path.as_ref(), entry_count_hint)?;
 
                 if index + 1 == metadata_snapshot.levels.len() {
                     metadata_snapshot.insert_sstable(index + 1, sstable);
@@ -412,7 +412,7 @@ where
                     if sstable_builder.size > metadata_snapshot.max_sstable_size {
                         let new_sstable = Arc::new(SSTable::new(sstable_builder.flush()?)?);
                         metadata_snapshot.insert_sstable(index + 1, new_sstable);
-                        sstable_builder = SSTableBuilder::new(db_path.as_ref(), entry_count_hint)?;
+                        sstable_builder = SSTableBuilder::new(path.as_ref(), entry_count_hint)?;
                     }
                 }
 
@@ -432,13 +432,13 @@ where
     }
 
     fn spawn_compaction_thread(&mut self, metadata_snapshot: LeveledMetadata<T, U>) {
-        let db_path = self.db_path.clone();
+        let path = self.path.clone();
         let next_metadata = self.next_metadata.clone();
         let is_compacting = self.is_compacting.clone();
         self.is_compacting.store(true, Ordering::Release);
         self.compaction_thread_join_handle = Some(thread::spawn(move || {
             let compaction_result = LeveledStrategy::compact(
-                db_path,
+                path,
                 &is_compacting,
                 metadata_snapshot,
                 &next_metadata,
@@ -460,8 +460,8 @@ where
     T: Debug + 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
     U: Debug + 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
 {
-    fn get_db_path(&self) -> &Path {
-        self.db_path.as_path()
+    fn get_path(&self) -> &Path {
+        self.path.as_path()
     }
 
     fn get_max_in_memory_size(&self) -> u64 {
@@ -602,7 +602,7 @@ where
         curr_metadata.levels.clear();
         *next_metadata = None;
 
-        for dir_entry in fs::read_dir(self.db_path.as_path())? {
+        for dir_entry in fs::read_dir(self.path.as_path())? {
             let dir_path = dir_entry?.path();
             if dir_path.is_dir() {
                 fs::remove_dir_all(dir_path)?;
