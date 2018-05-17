@@ -1,3 +1,5 @@
+//! Probabilistic binary search tree where each node also maintains the heap invariant.
+
 mod implicit_tree;
 mod list;
 mod map;

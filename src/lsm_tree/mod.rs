@@ -1,3 +1,5 @@
+//! Hybrid tree comprised of disk-resident sorted runs of data and memory-resident tree.
+
 pub mod compaction;
 mod map;
 mod sstable;
@@ -14,7 +16,9 @@ use std::result;
 /// Convenience `Error` enum for `lsm_tree`.
 #[derive(Debug)]
 pub enum Error {
+    /// An input or output error.
     IOError(io::Error),
+    /// A serialization or deserialization error.
     SerdeError(bincode::Error),
 }
 

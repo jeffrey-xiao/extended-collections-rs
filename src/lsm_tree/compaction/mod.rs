@@ -1,5 +1,7 @@
-pub mod leveled;
-pub mod size_tiered;
+//! Strategies for merging disk-resident sorted runs of data.
+
+mod leveled;
+mod size_tiered;
 
 pub use self::leveled::LeveledStrategy;
 pub use self::size_tiered::SizeTieredStrategy;

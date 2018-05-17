@@ -1,3 +1,5 @@
+//! Space-efficient probabilistic data structure to test for membership in a set.
+
 mod bloom_filter;
 mod dd_bloom_filter;
 mod partitioned_bloom_filter;

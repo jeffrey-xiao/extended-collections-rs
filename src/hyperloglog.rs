@@ -1,3 +1,6 @@
+//! Space-efficient probabilistic data structure to count the number of distinct items in a
+//! multiset.
+
 use rand::{Rng, XorShiftRng};
 use siphasher::sip::SipHasher;
 use std::cmp;

@@ -1,3 +1,5 @@
+//! Probabilistic linked hierarchy of subsequences.
+
 mod list;
 mod map;
 mod set;

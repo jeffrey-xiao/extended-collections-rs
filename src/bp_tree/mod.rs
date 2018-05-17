@@ -1,3 +1,5 @@
+//! Disk-resident N-ary tree.
+
 macro_rules! init_array(
     ($ty:ty, $len:expr, $val:expr) => (
         {

@@ -14,7 +14,9 @@ use std::result;
 /// Convenience `Error` enum for `bp_tree`.
 #[derive(Debug)]
 pub enum Error {
+    /// An input or output error.
     IOError(io::Error),
+    /// A serialization or deserialization error.
     SerdeError(bincode::Error),
 }
 

@@ -1,3 +1,5 @@
+//! Growable list of bit arrays.
+
 use std::cmp;
 use std::mem;
 use std::ops::Range;

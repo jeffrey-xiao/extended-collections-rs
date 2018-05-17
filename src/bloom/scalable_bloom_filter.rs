@@ -1,7 +1,7 @@
 use bloom::BloomFilter;
 use std::hash::Hash;
 
-/// A space-efficient probabilistic data structure to test for membership in a set.
+/// A growable, space-efficient probabilistic data structure to test for membership in a set.
 ///
 /// A scalable bloom filter uses multiple bloom filters to progressively grow as more items are
 /// added to the scalable bloom filter. The optimal fill ratio of a bloom filter is 50%, so as

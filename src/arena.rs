@@ -1,3 +1,5 @@
+//! Fast, but limited allocator.
+
 use std::mem;
 use std::ops::{Index, IndexMut};
 use std::vec::Vec;

@@ -1,3 +1,5 @@
+//! Space-optimized trie.
+
 mod map;
 mod node;
 mod set;

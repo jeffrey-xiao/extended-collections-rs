@@ -1,7 +1,8 @@
 use cuckoo::{CuckooFilter, DEFAULT_ENTRIES_PER_INDEX};
 use std::hash::Hash;
 
-/// A space-efficient probabilistic data structure to test for membership in a set.
+/// A growable, space-efficient probabilistic data structure to test for membership in a set.
+/// Scalable cuckoo filters also provide the flexibility to remove items.
 ///
 /// A cuckoo filter is based on cuckoo hashing and is essentially a cuckoo hash table storing
 /// each keys' fingerprint. Cuckoo filters can be highly compact and serve as an improvement over

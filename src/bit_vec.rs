@@ -1,3 +1,5 @@
+//! Growable list of bits.
+
 use std::mem;
 use std::ops::{Index, Range};
 use std::slice;
