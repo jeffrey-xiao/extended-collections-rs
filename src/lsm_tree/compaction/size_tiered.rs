@@ -5,7 +5,7 @@ use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
 use lsm_tree::{sstable, Result, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
-use std::cell::RefCell;
+use std::cell::Cell;
 use std::cmp;
 use std::collections::{BinaryHeap, HashSet};
 use std::fs;
@@ -173,7 +173,7 @@ pub struct SizeTieredStrategy<T, U> {
     is_compacting: Arc<AtomicBool>,
     curr_logical_time: u64,
     logical_time_file: fs::File,
-    metadata_lock_count: Rc<RefCell<u64>>,
+    metadata_lock_count: Rc<Cell<u64>>,
     metadata_file: fs::File,
     curr_metadata: Arc<Mutex<SizeTieredMetadata<T, U>>>,
     next_metadata: Arc<Mutex<Option<SizeTieredMetadata<T, U>>>>,
@@ -228,7 +228,7 @@ where
             is_compacting: Arc::new(AtomicBool::new(false)),
             curr_logical_time: 0,
             logical_time_file,
-            metadata_lock_count: Rc::new(RefCell::new(0)),
+            metadata_lock_count: Rc::new(Cell::new(0)),
             metadata_file,
             curr_metadata: Arc::new(Mutex::new(SizeTieredMetadata::new(
                 max_in_memory_size,
@@ -285,7 +285,7 @@ where
             is_compacting: Arc::new(AtomicBool::new(false)),
             curr_logical_time: logical_time_file.read_u64::<BigEndian>()?,
             logical_time_file,
-            metadata_lock_count: Rc::new(RefCell::new(0)),
+            metadata_lock_count: Rc::new(Cell::new(0)),
             metadata_file,
             curr_metadata: Arc::new(Mutex::new(deserialize(&buffer)?)),
             next_metadata: Arc::new(Mutex::new(None)),
@@ -406,7 +406,7 @@ where
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
         }
 
-        if self.is_compacting.load(Ordering::Acquire) || *self.metadata_lock_count.borrow() != 0 {
+        if self.is_compacting.load(Ordering::Acquire) || self.metadata_lock_count.get() != 0 {
             return Ok(());
         }
 
@@ -558,7 +558,7 @@ where
 type SizeTieredIterEntry<T, U> = cmp::Reverse<(T, SSTableValue<U>, usize)>;
 
 struct SizeTieredIter<T, U> {
-    metadata_lock_count: Option<Rc<RefCell<u64>>>,
+    metadata_lock_count: Option<Rc<Cell<u64>>>,
     sstable_data_iters: Vec<SSTableDataIter<T, U>>,
     entries: BinaryHeap<SizeTieredIterEntry<T, U>>,
     last_key_opt: Option<T>,
@@ -570,11 +570,11 @@ where
     U: DeserializeOwned + Serialize,
 {
     pub fn new(
-        metadata_lock_count: Option<Rc<RefCell<u64>>>,
+        metadata_lock_count: Option<Rc<Cell<u64>>>,
         mut sstable_data_iters: Vec<SSTableDataIter<T, U>>,
     ) -> Result<Self> {
         if let Some(ref metadata_lock_count) = metadata_lock_count {
-            *metadata_lock_count.borrow_mut() += 1;
+            metadata_lock_count.set(metadata_lock_count.get() + 1);
         }
 
         let mut entries = BinaryHeap::new();
@@ -628,8 +628,8 @@ where
 
 impl<T, U> Drop for SizeTieredIter<T, U> {
     fn drop(&mut self) {
-        if let Some(ref metadata_lock_count) = self.metadata_lock_count {
-            *metadata_lock_count.borrow_mut() -= 1;
+        if let Some(ref mut metadata_lock_count) = self.metadata_lock_count {
+            metadata_lock_count.set(metadata_lock_count.get() - 1);
         }
     }
 }
