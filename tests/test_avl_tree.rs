@@ -1,17 +1,15 @@
 extern crate extended_collections;
 extern crate rand;
 
+use extended_collections::avl_tree::AvlMap;
 use self::rand::{thread_rng, Rng};
-use extended_collections::skiplist::SkipList;
-use extended_collections::skiplist::SkipMap;
-use std::vec::Vec;
 
 const NUM_OF_OPERATIONS: usize = 100_000;
 
 #[test]
-fn int_test_skip_map() {
+fn int_test_avl_tree_map() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
-    let mut map = SkipMap::new();
+    let mut map = AvlMap::new();
     let mut expected = Vec::new();
     for _ in 0..NUM_OF_OPERATIONS {
         let key = rng.gen::<u32>();
@@ -59,38 +57,5 @@ fn int_test_skip_map() {
         expected_len -= 1;
         assert_eq!(old_entry, Some((entry.0, entry.1)));
         assert_eq!(map.len(), expected_len);
-    }
-}
-
-#[test]
-fn int_test_skip_list() {
-    let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
-    let mut list = SkipList::new();
-
-    let mut expected = Vec::new();
-
-    for i in 0..NUM_OF_OPERATIONS {
-        let index = rng.gen_range(0, i + 1);
-        let val = rng.gen::<u32>();
-
-        list.insert(index, val);
-        expected.insert(index, val);
-    }
-
-    assert_eq!(list.len(), expected.len());
-    assert_eq!(
-        list.iter().collect::<Vec<&u32>>(),
-        expected.iter().collect::<Vec<&u32>>(),
-    );
-
-    for i in (0..NUM_OF_OPERATIONS).rev() {
-        let index = rng.gen_range(0, i + 1);
-        let val = rng.gen::<u32>();
-
-        list[index] = val;
-        expected[index] = val;
-
-        assert_eq!(list[index], expected[index]);
-        assert_eq!(list.remove(index), expected.remove(index));
     }
 }

@@ -158,7 +158,7 @@ where
     pub fn len(&self) -> usize {
         match self.tree {
             None => 0,
-            Some(ref node) => node.len(),
+            Some(ref node) => node.len,
         }
     }
 

@@ -50,6 +50,7 @@ extern crate serde_derive;
 extern crate siphasher;
 
 pub mod arena;
+pub mod avl_tree;
 pub mod bit_array_vec;
 pub mod bit_vec;
 pub mod bloom;

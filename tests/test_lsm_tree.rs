@@ -12,19 +12,17 @@ fn teardown(test_name: &str) {
     fs::remove_dir_all(format!("{}", test_name)).ok();
 }
 
-fn run_test<T>(test: T, test_name: &str)
+fn run_test<T>(test: T, test_name: &str) -> Result<()>
 where
-    T: FnOnce() -> Result<()> + panic::UnwindSafe,
+    T: FnOnce() -> Result<()>,
 {
-    let result = panic::catch_unwind(|| test().unwrap());
-
+    let result = test();
     teardown(test_name);
-
-    assert!(result.is_ok());
+    result
 }
 
 #[test]
-fn int_test_lsm_map_size_tiered_strategy() {
+fn int_test_lsm_map_size_tiered_strategy() -> Result<()> {
     let test_name = "int_test_lsm_map_size_tiered_strategy";
     run_test(
         || {
@@ -100,11 +98,11 @@ fn int_test_lsm_map_size_tiered_strategy() {
             Ok(())
         },
         test_name,
-    );
+    )
 }
 
 #[test]
-fn int_test_lsm_map_leveled_strategy() {
+fn int_test_lsm_map_leveled_strategy() -> Result<()> {
     let test_name = "int_test_lsm_map_leveled_strategy";
     run_test(
         || {
@@ -180,5 +178,5 @@ fn int_test_lsm_map_leveled_strategy() {
             Ok(())
         },
         test_name,
-    );
+    )
 }

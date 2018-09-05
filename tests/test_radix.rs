@@ -1,15 +1,15 @@
 extern crate extended_collections;
 extern crate rand;
 
-use self::rand::{thread_rng, Rng};
 use extended_collections::radix::RadixMap;
+use self::rand::{thread_rng, Rng};
 use std::iter;
 use std::vec::Vec;
 
 const NUM_OF_OPERATIONS: usize = 100_000;
 
 #[test]
-fn int_test_radixmap() {
+fn int_test_radix_map() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut map = RadixMap::new();
     let mut expected = Vec::new();

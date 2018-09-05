@@ -1,15 +1,14 @@
 extern crate extended_collections;
 extern crate rand;
 
+use extended_collections::treap::{TreapList, TreapMap};
 use self::rand::{thread_rng, Rng};
-use extended_collections::treap::TreapList;
-use extended_collections::treap::TreapMap;
 use std::vec::Vec;
 
 const NUM_OF_OPERATIONS: usize = 100_000;
 
 #[test]
-fn int_test_treapmap() {
+fn int_test_treap_map() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut map = TreapMap::new();
     let mut expected = Vec::new();
@@ -63,7 +62,7 @@ fn int_test_treapmap() {
 }
 
 #[test]
-fn int_test_treaplist() {
+fn int_test_treap_list() {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut list = TreapList::new();
     let mut expected = Vec::new();

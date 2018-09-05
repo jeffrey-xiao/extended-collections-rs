@@ -1,8 +1,8 @@
 extern crate extended_collections;
 extern crate rand;
 
-use self::rand::{thread_rng, Rng};
 use extended_collections::bp_tree::{BpMap, Result};
+use self::rand::{thread_rng, Rng};
 use std::fs;
 use std::panic;
 use std::vec::Vec;
@@ -11,19 +11,17 @@ fn teardown(test_name: &str) {
     fs::remove_file(format!("{}.dat", test_name)).ok();
 }
 
-fn run_test<T>(test: T, test_name: &str)
+fn run_test<T>(test: T, test_name: &str) -> Result<()>
 where
-    T: FnOnce() -> Result<()> + panic::UnwindSafe,
+    T: FnOnce() -> Result<()>,
 {
-    let result = panic::catch_unwind(|| test().unwrap());
-
+    let result = test();
     teardown(test_name);
-
-    assert!(result.is_ok());
+    result
 }
 
 #[test]
-fn int_test_bp_map() {
+fn int_test_bp_map() -> Result<()> {
     let test_name = "int_test_bp_map";
     let file_name = &format!("{}.dat", test_name);
     run_test(
@@ -69,5 +67,5 @@ fn int_test_bp_map() {
             Ok(())
         },
         test_name,
-    );
+    )
 }
