@@ -1,6 +1,6 @@
 [package]
 name = "extended-collections"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Jeffrey Xiao <jeffrey.xiao1998@gmail.com>"]
 license = "MIT"
 readme = "README.md"
