@@ -50,6 +50,7 @@ fn bench_treapmap_get(b: &mut Bencher) {
 #[bench]
 fn bench_avlmap_insert(b: &mut Bencher) {
     b.iter(|| {
+        let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
         let mut map = AvlMap::new();
         for _ in 0..NUM_OF_OPERATIONS {
             let key = rng.next_u32();
@@ -62,6 +63,7 @@ fn bench_avlmap_insert(b: &mut Bencher) {
 
 #[bench]
 fn bench_avlmap_get(b: &mut Bencher) {
+    let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut map = AvlMap::new();
     let mut values = Vec::new();
 

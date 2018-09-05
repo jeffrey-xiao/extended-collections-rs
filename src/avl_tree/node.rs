@@ -22,7 +22,7 @@ impl<T, U> Node<T, U> {
 
     pub fn update(&mut self) {
         let Node { ref mut height, ref left, ref right, .. } = self;
-        *height = cmp::max(tree::height(left), tree::height(right));
+        *height = cmp::max(tree::height(left), tree::height(right)) + 1;
     }
 
     pub fn balance(&self) -> i32 {

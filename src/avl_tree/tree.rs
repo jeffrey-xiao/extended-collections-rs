@@ -46,15 +46,19 @@ fn balance<T, U>(tree: &mut Tree<T, U>) {
 
     if node.balance() > 1 {
         if let Some(child) = node.left.take() {
-            if (height(&child.left) as i32) - (height(&child.right) as i32) < 0 {
+            if child.balance() < 0 {
                 node.left = Some(rotate_left(child));
+            } else {
+                node.left = Some(child);
             }
         }
         node = rotate_right(node);
     } else if node.balance() < -1 {
         if let Some(child) = node.right.take() {
-            if (height(&child.left) as i32) - (height(&child.right) as i32) > 0 {
+            if child.balance() > 0 {
                 node.right = Some(rotate_right(child));
+            } else {
+                node.right = Some(child);
             }
         }
         node = rotate_left(node);
