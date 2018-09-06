@@ -173,7 +173,7 @@ impl<T> SkipList<T> {
                 curr_height -= 1;
             }
 
-            for i in 1..MAX_HEIGHT + 1 {
+            for i in 1..=MAX_HEIGHT {
                 last_nodes[i].1 += last_nodes[i - 1].1;
                 if i <= new_height {
                     (*last_nodes[i].0).get_pointer_mut(i).distance = last_nodes[i - 1].1 + 1;
@@ -669,12 +669,12 @@ impl<T> Add for SkipList<T> {
                 curr_node = (*curr_node).get_pointer(curr_height).next;
             }
 
-            for i in 0..MAX_HEIGHT + 1 {
+            for (i, curr_node) in curr_nodes.iter_mut().enumerate().take(MAX_HEIGHT + 1) {
                 mem::swap(
-                    (*curr_nodes[i]).get_pointer_mut(i),
+                    (**curr_node).get_pointer_mut(i),
                     (*other.head).get_pointer_mut(i),
                 );
-                (*curr_nodes[i]).get_pointer_mut(i).distance += (*other.head).get_pointer_mut(i).distance;
+                (**curr_node).get_pointer_mut(i).distance += (*other.head).get_pointer_mut(i).distance;
             }
         }
         self
@@ -715,7 +715,7 @@ mod tests {
                 ).next;
             }
 
-            for i in 1..super::MAX_HEIGHT + 1 {
+            for i in 1..=super::MAX_HEIGHT {
                 let mut curr_node = &mut (*list.head).get_pointer_mut(i).next;
                 while !curr_node.is_null() {
                     let x = &(**curr_node).value;

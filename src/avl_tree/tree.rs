@@ -7,8 +7,8 @@ pub type Tree<T, U> = Option<Box<Node<T, U>>>;
 
 pub fn height<T, U>(tree: &Tree<T, U>) -> usize {
     match tree {
-        &None => 0,
-        &Some(ref node) => (**node).height,
+        None => 0,
+        Some(ref node) => (**node).height,
     }
 }
 

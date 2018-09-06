@@ -578,9 +578,11 @@ where
                 ret.len += 1;
 
                 ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_len);
-                for i in 0..(*next_node).links_len {
-                    *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
-                    curr_nodes[i] = next_node;
+
+                let links_len = (*next_node).links_len;
+                for (i, curr_node) in curr_nodes.iter_mut().enumerate().take(links_len) {
+                    *(**curr_node).get_pointer_mut(i) = next_node;
+                    *curr_node = next_node;
                 }
             }
             left.head = left_head;
@@ -663,9 +665,11 @@ where
                 ret.len += 1;
 
                 ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_len);
-                for i in 0..(*next_node).links_len {
-                    *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
-                    curr_nodes[i] = next_node;
+
+                let links_len = (*next_node).links_len;
+                for (i, curr_node) in curr_nodes.iter_mut().enumerate().take(links_len + 1) {
+                    *(**curr_node).get_pointer_mut(i) = next_node;
+                    *curr_node = next_node;
                 }
             }
             left.head = left_head;
@@ -747,9 +751,11 @@ where
                 ret.len += 1;
 
                 ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_len);
-                for i in 0..(*next_node).links_len {
-                    *(*curr_nodes[i]).get_pointer_mut(i) = next_node;
-                    curr_nodes[i] = next_node;
+
+                let links_len = (*next_node).links_len;
+                for (i, curr_node) in curr_nodes.iter_mut().enumerate().take(links_len) {
+                    *(**curr_node).get_pointer_mut(i) = next_node;
+                    *curr_node = next_node;
                 }
             }
             left.head = left_head;

@@ -76,11 +76,11 @@ where
     U: Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\nsstables:\n{:#?}\n", self.sstables)?;
+        writeln!(f, "\nsstables:\n{:#?}", self.sstables)?;
         for (index, level) in self.levels.iter().enumerate() {
-            write!(f, "level {}:\n", index)?;
+            writeln!(f, "level {}:", index)?;
             for sstable in level.values() {
-                write!(f, "{:?}\n", sstable)?;
+                writeln!(f, "{:?}", sstable)?;
             }
         }
         Ok(())

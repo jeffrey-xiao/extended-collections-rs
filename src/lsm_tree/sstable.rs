@@ -336,7 +336,7 @@ where
     type Item = Result<Entry<T, SSTableValue<U>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let None = self.data_file {
+        if self.data_file.is_none() {
             match fs::File::open(self.data_path.as_path()) {
                 Ok(data_file) => self.data_file = Some(data_file),
                 Err(error) => return Some(Err(Error::from(error))),
@@ -394,8 +394,8 @@ where
     U: Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "entry count: {:?}\n", self.summary.entry_count)?;
-        write!(f, "tombstone count: {:?}\n", self.summary.tombstone_count)?;
-        write!(f, "key range: {:?}\n", self.summary.key_range)
+        writeln!(f, "entry count: {:?}", self.summary.entry_count)?;
+        writeln!(f, "tombstone count: {:?}", self.summary.tombstone_count)?;
+        writeln!(f, "key range: {:?}", self.summary.key_range)
     }
 }
