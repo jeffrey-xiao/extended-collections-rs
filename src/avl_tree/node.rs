@@ -1,6 +1,6 @@
-use std::cmp;
-use entry::Entry;
 use avl_tree::tree;
+use entry::Entry;
+use std::cmp;
 
 /// A struct representing an internal node of an avl tree.
 pub struct Node<T, U> {

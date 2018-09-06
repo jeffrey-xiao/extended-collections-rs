@@ -4,7 +4,7 @@ version = "0.3.1"
 authors = ["Jeffrey Xiao <jeffrey.xiao1998@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/jeffrey-xiao/extended-collections-rs"
+repository = "https://gitlab.com/jeffrey-xiao/extended-collections-rs"
 documentation = "https://docs.rs/extended-collections"
 description = """
 An extension to the collections in the standard library with various data structures.
@@ -15,16 +15,16 @@ include = ["src/**/*", "Cargo.toml"]
 
 [badges]
 travis-ci = { repository = "jeffrey-xiao/extended-collections-rs", branch = "master" }
-codecov = { repository = "jeffrey-xiao/extended-collections-rs", service = "github" }
+codecov = { repository = "jeffrey-xiao/extended-collections-rs", service = "gitlab" }
 
 [dependencies]
-byteorder = "1"
 bincode = "1.0"
+byteorder = "1"
 crossbeam-epoch = "0.2"
-siphasher = "0.2"
+probabilistic-collections = "0.1"
+rand = "0.4"
 serde = { version = "1.0", features = ["rc"] }
 serde_derive = "1.0"
-rand = "0.4"
 
 [dev-dependencies]
 serde_test = "1.0"

@@ -17,7 +17,6 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
-
 use std::fmt::{self, Debug};
 
 #[derive(Clone, Serialize, Deserialize)]

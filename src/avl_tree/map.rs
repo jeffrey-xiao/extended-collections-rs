@@ -1,7 +1,7 @@
-use entry::Entry;
-use std::ops::{Index, IndexMut};
 use avl_tree::node::Node;
 use avl_tree::tree;
+use entry::Entry;
+use std::ops::{Index, IndexMut};
 
 /// An ordered map implemented using an avl tree.
 ///

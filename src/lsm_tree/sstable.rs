@@ -1,20 +1,19 @@
 use bincode::{deserialize, serialize};
-use bloom::BloomFilter;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use entry::Entry;
 use lsm_tree::{Error, Result};
+use probabilistic_collections::bloom::BloomFilter;
 use rand::{thread_rng, Rng};
 use serde::de::{self, Deserialize, DeserializeOwned, Deserializer};
 use serde::ser::{Serialize, Serializer};
 use std::cmp;
+use std::fmt::{self, Debug};
 use std::fs;
 use std::hash::Hash;
 use std::io::{BufWriter, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::result;
-
-use std::fmt::{self, Debug};
 
 pub fn merge_ranges<T>(range_1: (T, T), range_2: (T, T)) -> (T, T)
 where
