@@ -1,6 +1,7 @@
 use avl_tree::node::Node;
 use avl_tree::tree;
 use entry::Entry;
+use std::borrow::Borrow;
 use std::ops::{Index, IndexMut};
 
 /// An ordered map implemented using an avl tree.
@@ -32,10 +33,7 @@ pub struct AvlMap<T, U> {
     len: usize,
 }
 
-impl<T, U> AvlMap<T, U>
-where
-    T: Ord,
-{
+impl<T, U> AvlMap<T, U> {
     /// Constructs a new, empty `AvlMap<T, U>`.
     ///
     /// # Examples
@@ -64,7 +62,10 @@ where
     /// assert_eq!(map.insert(1, 2), Some((1, 1)));
     /// assert_eq!(map.get(&1), Some(&2));
     /// ```
-    pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
+    pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)>
+    where
+        T: Ord,
+    {
         let AvlMap { ref mut tree, ref mut len } = self;
         let new_node = Node::new(key, value);
         *len += 1;
@@ -87,9 +88,13 @@ where
     /// assert_eq!(map.remove(&1), Some((1, 1)));
     /// assert_eq!(map.remove(&1), None);
     /// ```
-    pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
+    pub fn remove<V>(&mut self, key: &V) -> Option<(T, U)>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let AvlMap { ref mut tree, ref mut len } = self;
-        tree::remove(tree, key).and_then(|entry| {
+        tree::remove(tree, &key).and_then(|entry| {
             let Entry { key, value } = entry;
             *len -= 1;
             Some((key, value))
@@ -107,7 +112,11 @@ where
     /// assert!(!map.contains_key(&0));
     /// assert!(map.contains_key(&1));
     /// ```
-    pub fn contains_key(&self, key: &T) -> bool {
+    pub fn contains_key<V>(&self, key: &V) -> bool
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         self.get(key).is_some()
     }
 
@@ -123,7 +132,11 @@ where
     /// assert_eq!(map.get(&0), None);
     /// assert_eq!(map.get(&1), Some(&1));
     /// ```
-    pub fn get(&self, key: &T) -> Option<&U> {
+    pub fn get<V>(&self, key: &V) -> Option<&U>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         tree::get(&self.tree, key).map(|entry| &entry.value)
     }
 
@@ -139,7 +152,11 @@ where
     /// *map.get_mut(&1).unwrap() = 2;
     /// assert_eq!(map.get(&1), Some(&2));
     /// ```
-    pub fn get_mut(&mut self, key: &T) -> Option<&mut U> {
+    pub fn get_mut<V>(&mut self, key: &V) -> Option<&mut U>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         tree::get_mut(&mut self.tree, key).map(|entry| &mut entry.value)
     }
 
@@ -199,7 +216,11 @@ where
     /// assert_eq!(map.floor(&0), None);
     /// assert_eq!(map.floor(&2), Some(&1));
     /// ```
-    pub fn floor(&self, key: &T) -> Option<&T> {
+    pub fn floor<V>(&self, key: &V) -> Option<&T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         tree::floor(&self.tree, key).map(|entry| &entry.key)
     }
 
@@ -215,7 +236,11 @@ where
     /// assert_eq!(map.ceil(&0), Some(&1));
     /// assert_eq!(map.ceil(&2), None);
     /// ```
-    pub fn ceil(&self, key: &T) -> Option<&T> {
+    pub fn ceil<V>(&self, key: &V) -> Option<&T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         tree::ceil(&self.tree, key).map(|entry| &entry.key)
     }
 
@@ -230,7 +255,10 @@ where
     /// map.insert(3, 3);
     /// assert_eq!(map.min(), Some(&1));
     /// ```
-    pub fn min(&self) -> Option<&T> {
+    pub fn min(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
         tree::min(&self.tree).map(|entry| &entry.key)
     }
 
@@ -245,7 +273,10 @@ where
     /// map.insert(3, 3);
     /// assert_eq!(map.max(), Some(&3));
     /// ```
-    pub fn max(&self) -> Option<&T> {
+    pub fn max(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
         tree::max(&self.tree).map(|entry| &entry.key)
     }
 
@@ -300,10 +331,7 @@ where
     }
 }
 
-impl<T, U> IntoIterator for AvlMap<T, U>
-where
-    T: Ord,
-{
+impl<T, U> IntoIterator for AvlMap<T, U> {
     type Item = (T, U);
     type IntoIter = AvlMapIntoIter<T, U>;
 
@@ -317,7 +345,7 @@ where
 
 impl<'a, T, U> IntoIterator for &'a AvlMap<T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a U);
@@ -330,7 +358,7 @@ where
 
 impl<'a, T, U> IntoIterator for &'a mut AvlMap<T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a mut U);
@@ -349,10 +377,7 @@ pub struct AvlMapIntoIter<T, U> {
     stack: Vec<Node<T, U>>,
 }
 
-impl<T, U> Iterator for AvlMapIntoIter<T, U>
-where
-    T: Ord,
-{
+impl<T, U> Iterator for AvlMapIntoIter<T, U> {
     type Item = (T, U);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -386,7 +411,7 @@ where
 
 impl<'a, T, U> Iterator for AvlMapIter<'a, T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a U);
@@ -425,7 +450,7 @@ where
 
 impl<'a, T, U> Iterator for AvlMapIterMut<'a, T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a mut U);
@@ -452,31 +477,30 @@ where
     }
 }
 
-impl<T, U> Default for AvlMap<T, U>
-where
-    T: Ord,
-{
+impl<T, U> Default for AvlMap<T, U> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 
-impl<'a, T, U> Index<&'a T> for AvlMap<T, U>
+impl<'a, T, U, V> Index<&'a V> for AvlMap<T, U>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
     type Output = U;
-    fn index(&self, key: &T) -> &Self::Output {
+    fn index(&self, key: &V) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
     }
 }
 
-impl<'a, T, U> IndexMut<&'a T> for AvlMap<T, U>
+impl<'a, T, U, V> IndexMut<&'a V> for AvlMap<T, U>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
-    fn index_mut(&mut self, key: &T) -> &mut Self::Output {
+    fn index_mut(&mut self, key: &V) -> &mut Self::Output {
         self.get_mut(key).expect("Key does not exist.")
     }
 }

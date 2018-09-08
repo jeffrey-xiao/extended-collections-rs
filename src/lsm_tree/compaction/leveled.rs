@@ -5,19 +5,21 @@ use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
 use lsm_tree::{sstable, Result, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
+use std::borrow::Borrow;
 use std::cell::Cell;
 use std::cmp;
 use std::collections::{BTreeMap, BinaryHeap, HashSet, VecDeque};
+use std::fmt::{self, Debug};
 use std::fs;
 use std::hash::Hash;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::mem;
+use std::ops::Bound::{Included, Unbounded};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
-use std::fmt::{self, Debug};
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(bound(deserialize = "T: DeserializeOwned, U: DeserializeOwned"))]
@@ -36,7 +38,7 @@ where
 
 impl<T, U> LeveledMetadata<T, U>
 where
-    T: Clone + Ord,
+    T: Ord,
 {
     pub fn new(
         max_in_memory_size: u64,
@@ -60,7 +62,10 @@ where
         self.sstables.push(sstable);
     }
 
-    pub fn insert_sstable(&mut self, index: usize, sstable: Arc<SSTable<T, U>>) {
+    pub fn insert_sstable(&mut self, index: usize, sstable: Arc<SSTable<T, U>>)
+    where
+        T: Clone,
+    {
         while index >= self.levels.len() {
             self.levels.push(BTreeMap::new());
         }
@@ -101,8 +106,7 @@ where
 ///  previous level.
 pub struct LeveledStrategy<T, U>
 where
-    T: DeserializeOwned + Ord,
-    U: DeserializeOwned,
+    T: Ord,
 {
     path: PathBuf,
     compaction_thread_join_handle: Option<thread::JoinHandle<()>>,
@@ -117,8 +121,7 @@ where
 
 impl<T, U> LeveledStrategy<T, U>
 where
-    T: Debug + 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
-    U: Debug + 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
+    T: Ord,
 {
     /// Constructs a new `LeveledStrategy<T, U>` with specific configuration parameters.
     ///
@@ -144,6 +147,8 @@ where
         growth_factor: u64,
     ) -> Result<Self>
     where
+        T: Serialize,
+        U: Serialize,
         P: AsRef<Path>,
     {
         fs::create_dir(path.as_ref())?;
@@ -202,6 +207,8 @@ where
     /// ```
     pub fn open<P>(path: P) -> Result<Self>
     where
+        T: DeserializeOwned,
+        U: DeserializeOwned,
         P: AsRef<Path>,
     {
         let mut metadata_file = fs::OpenOptions::new()
@@ -286,6 +293,8 @@ where
         next_metadata: &Arc<Mutex<Option<LeveledMetadata<T, U>>>>,
     ) -> Result<()>
     where
+        T: Clone + DeserializeOwned + Hash + Serialize,
+        U: DeserializeOwned + Serialize,
         P: AsRef<Path>,
     {
         println!("Started compacting.");
@@ -430,7 +439,11 @@ where
         Ok(())
     }
 
-    fn spawn_compaction_thread(&mut self, metadata_snapshot: LeveledMetadata<T, U>) {
+    fn spawn_compaction_thread(&mut self, metadata_snapshot: LeveledMetadata<T, U>)
+    where
+        T: 'static + Clone + DeserializeOwned + Hash + Send + Serialize + Sync,
+        U: 'static + DeserializeOwned + Serialize + Send + Sync,
+    {
         let path = self.path.clone();
         let next_metadata = self.next_metadata.clone();
         let is_compacting = self.is_compacting.clone();
@@ -456,8 +469,8 @@ where
 
 impl<T, U> CompactionStrategy<T, U> for LeveledStrategy<T, U>
 where
-    T: Debug + 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
-    U: Debug + 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
+    T: 'static + Clone + DeserializeOwned + Hash + Ord + Send + Serialize + Sync,
+    U: 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
 {
     fn get_path(&self) -> &Path {
         self.path.as_path()
@@ -520,7 +533,11 @@ where
         Ok(())
     }
 
-    fn get(&mut self, key: &T) -> Result<Option<SSTableValue<U>>> {
+    fn get<V>(&mut self, key: &V) -> Result<Option<SSTableValue<U>>>
+    where
+        T: Borrow<V>,
+        V: Ord + Hash + ?Sized,
+    {
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
         if self.try_replace_metadata(&mut curr_metadata)? {
             self.metadata_file.seek(SeekFrom::Start(0))?;
@@ -529,7 +546,7 @@ where
 
         let mut ret = None;
         for sstable in &curr_metadata.sstables {
-            let res = sstable.get(key)?;
+            let res = sstable.get(&key)?;
             if res.is_some() && (ret.is_none() || res < ret) {
                 ret = res;
             }
@@ -541,7 +558,7 @@ where
 
         for level in &curr_metadata.levels {
             let sstable_opt = level
-                .range(key..)
+                .range((Included(key), Unbounded))
                 .next()
                 .map(|entry| entry.1);
             if let Some(sstable) = sstable_opt {

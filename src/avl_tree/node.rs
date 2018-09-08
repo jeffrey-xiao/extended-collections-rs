@@ -28,5 +28,4 @@ impl<T, U> Node<T, U> {
     pub fn balance(&self) -> i32 {
         (tree::height(&self.left) as i32) - (tree::height(&self.right) as i32)
     }
-
 }

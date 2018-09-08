@@ -1,14 +1,12 @@
 use entry::Entry;
+use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::mem;
 use treap::node::Node;
 
 pub type Tree<T, U> = Option<Box<Node<T, U>>>;
 
-pub fn merge<T, U>(l_tree: &mut Tree<T, U>, r_tree: Tree<T, U>)
-where
-    T: Ord,
-{
+pub fn merge<T, U>(l_tree: &mut Tree<T, U>, r_tree: Tree<T, U>) {
     match (l_tree.take(), r_tree) {
         (Some(mut l_node), Some(mut r_node)) => {
             if l_node.priority > r_node.priority {
@@ -27,14 +25,15 @@ where
     }
 }
 
-pub fn split<T, U>(tree: &mut Tree<T, U>, key: &T) -> (Tree<T, U>, Tree<T, U>)
+pub fn split<T, U, V>(tree: &mut Tree<T, U>, key: &V) -> (Tree<T, U>, Tree<T, U>)
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
     match tree.take() {
         Some(mut node) => {
             let mut ret;
-            match key.cmp(&node.entry.key) {
+            match key.cmp(node.entry.key.borrow()) {
                 Ordering::Less => {
                     let mut res = split(&mut node.left, key);
                     *tree = node.left.take();
@@ -98,14 +97,15 @@ where
     dup_opt.map(|node| node.entry)
 }
 
-pub fn remove<T, U>(tree: &mut Tree<T, U>, key: &T) -> Option<Entry<T, U>>
+pub fn remove<T, U, V>(tree: &mut Tree<T, U>, key: &V) -> Option<Entry<T, U>>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
     let mut new_tree;
     match tree {
         Some(ref mut node) => {
-            match key.cmp(&node.entry.key) {
+            match key.cmp(node.entry.key.borrow()) {
                 Ordering::Less => {
                     let ret = remove(&mut node.left, key);
                     node.update();
@@ -127,12 +127,13 @@ where
     mem::replace(tree, new_tree).map(|node| node.entry)
 }
 
-pub fn get<'a, T, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>>
+pub fn get<'a, T, U, V>(tree: &'a Tree<T, U>, key: &V) -> Option<&'a Entry<T, U>>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
     tree.as_ref().and_then(|node| {
-        match key.cmp(&node.entry.key) {
+        match key.cmp(node.entry.key.borrow()) {
             Ordering::Less => get(&node.left, key),
             Ordering::Greater => get(&node.right, key),
             Ordering::Equal => Some(&node.entry),
@@ -140,12 +141,13 @@ where
     })
 }
 
-pub fn get_mut<'a, T, U>(tree: &'a mut Tree<T, U>, key: &T) -> Option<&'a mut Entry<T, U>>
+pub fn get_mut<'a, T, U, V>(tree: &'a mut Tree<T, U>, key: &V) -> Option<&'a mut Entry<T, U>>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
     tree.as_mut().and_then(|node| {
-        match key.cmp(&node.entry.key) {
+        match key.cmp(node.entry.key.borrow()) {
             Ordering::Less => get_mut(&mut node.left, key),
             Ordering::Greater => get_mut(&mut node.right, key),
             Ordering::Equal => Some(&mut node.entry),
@@ -153,12 +155,13 @@ where
     })
 }
 
-pub fn ceil<'a, T, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>>
+pub fn ceil<'a, T, U, V>(tree: &'a Tree<T, U>, key: &V) -> Option<&'a Entry<T, U>>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
     tree.as_ref().and_then(|node| {
-        match key.cmp(&node.entry.key) {
+        match key.cmp(node.entry.key.borrow()) {
             Ordering::Greater => ceil(&node.right, key),
             Ordering::Less => {
                 match ceil(&node.left, key) {
@@ -171,12 +174,13 @@ where
     })
 }
 
-pub fn floor<'a, T, U>(tree: &'a Tree<T, U>, key: &T) -> Option<&'a Entry<T, U>>
+pub fn floor<'a, T, U, V>(tree: &'a Tree<T, U>, key: &V) -> Option<&'a Entry<T, U>>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
     tree.as_ref().and_then(|node| {
-        match key.cmp(&node.entry.key) {
+        match key.cmp(node.entry.key.borrow()) {
             Ordering::Less => floor(&node.left, key),
             Ordering::Greater => {
                 match floor(&node.right, key) {

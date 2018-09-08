@@ -1,4 +1,5 @@
 use avl_tree::map::{AvlMap, AvlMapIntoIter, AvlMapIter};
+use std::borrow::Borrow;
 
 /// An ordered set implemented using a avl_tree.
 ///
@@ -25,10 +26,7 @@ pub struct AvlSet<T> {
     map: AvlMap<T, ()>,
 }
 
-impl<T> AvlSet<T>
-where
-    T: Ord,
-{
+impl<T> AvlSet<T> {
     /// Constructs a new, empty `AvlSet<T>`
     ///
     /// # Examples
@@ -55,7 +53,10 @@ where
     /// assert!(set.contains(&1));
     /// assert_eq!(set.insert(1), Some(1));
     /// ```
-    pub fn insert(&mut self, key: T) -> Option<T> {
+    pub fn insert(&mut self, key: T) -> Option<T>
+    where
+        T: Ord,
+    {
         self.map.insert(key, ()).map(|pair| pair.0)
     }
 
@@ -71,7 +72,10 @@ where
     /// assert_eq!(set.remove(&1), Some(1));
     /// assert_eq!(set.remove(&1), None);
     /// ```
-    pub fn remove(&mut self, key: &T) -> Option<T> {
+    pub fn remove(&mut self, key: &T) -> Option<T>
+    where
+        T: Ord,
+    {
         self.map.remove(key).map(|pair| pair.0)
     }
 
@@ -86,7 +90,11 @@ where
     /// assert!(!set.contains(&0));
     /// assert!(set.contains(&1));
     /// ```
-    pub fn contains(&self, key: &T) -> bool {
+    pub fn contains<V>(&self, key: &V) -> bool
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         self.map.contains_key(key)
     }
 
@@ -145,7 +153,11 @@ where
     /// assert_eq!(set.floor(&0), None);
     /// assert_eq!(set.floor(&2), Some(&1));
     /// ```
-    pub fn floor(&self, key: &T) -> Option<&T> {
+    pub fn floor<V>(&self, key: &V) -> Option<&T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         self.map.floor(key)
     }
 
@@ -161,7 +173,11 @@ where
     /// assert_eq!(set.ceil(&0), Some(&1));
     /// assert_eq!(set.ceil(&2), None);
     /// ```
-    pub fn ceil(&self, key: &T) -> Option<&T> {
+    pub fn ceil<V>(&self, key: &V) -> Option<&T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         self.map.ceil(key)
     }
 
@@ -176,7 +192,10 @@ where
     /// set.insert(3);
     /// assert_eq!(set.min(), Some(&1));
     /// ```
-    pub fn min(&self) -> Option<&T> {
+    pub fn min(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
         self.map.min()
     }
 
@@ -191,7 +210,10 @@ where
     /// set.insert(3);
     /// assert_eq!(set.max(), Some(&3));
     /// ```
-    pub fn max(&self) -> Option<&T> {
+    pub fn max(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
         self.map.max()
     }
 
@@ -217,10 +239,7 @@ where
     }
 }
 
-impl<T> IntoIterator for AvlSet<T>
-where
-    T: Ord,
-{
+impl<T> IntoIterator for AvlSet<T> {
     type Item = T;
     type IntoIter = AvlSetIntoIter<T>;
 
@@ -233,7 +252,7 @@ where
 
 impl<'a, T> IntoIterator for &'a AvlSet<T>
 where
-    T: 'a + Ord,
+    T: 'a,
 {
     type Item = &'a T;
     type IntoIter = AvlSetIter<'a, T>;
@@ -250,10 +269,7 @@ pub struct AvlSetIntoIter<T> {
     map_iter: AvlMapIntoIter<T, ()>,
 }
 
-impl<T> Iterator for AvlSetIntoIter<T>
-where
-    T: Ord,
-{
+impl<T> Iterator for AvlSetIntoIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -273,7 +289,7 @@ where
 
 impl<'a, T> Iterator for AvlSetIter<'a, T>
 where
-    T: 'a + Ord,
+    T: 'a,
 {
     type Item = &'a T;
 
@@ -282,10 +298,7 @@ where
     }
 }
 
-impl<T> Default for AvlSet<T>
-where
-    T: Ord,
-{
+impl<T> Default for AvlSet<T> {
     fn default() -> Self {
         Self::new()
     }

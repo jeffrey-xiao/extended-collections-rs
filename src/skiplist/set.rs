@@ -1,5 +1,6 @@
 use skiplist::map::{SkipMap, SkipMapIntoIter, SkipMapIter};
 use std::ops::{Add, Sub};
+use std::borrow::Borrow;
 
 /// An ordered set implemented using a skiplist.
 ///
@@ -30,10 +31,7 @@ pub struct SkipSet<T> {
     map: SkipMap<T, ()>,
 }
 
-impl<T> SkipSet<T>
-where
-    T: Ord,
-{
+impl<T> SkipSet<T> {
     /// Constructs a new, empty `SkipSet<T>`.
     ///
     /// # Examples
@@ -60,7 +58,10 @@ where
     /// assert!(set.contains(&1));
     /// assert_eq!(set.insert(1), Some(1));
     /// ```
-    pub fn insert(&mut self, key: T) -> Option<T> {
+    pub fn insert(&mut self, key: T) -> Option<T>
+    where
+        T: Ord,
+    {
         self.map.insert(key, ()).map(|pair| pair.0)
     }
 
@@ -76,7 +77,11 @@ where
     /// assert_eq!(set.remove(&1), Some(1));
     /// assert_eq!(set.remove(&1), None);
     /// ```
-    pub fn remove(&mut self, key: &T) -> Option<T> {
+    pub fn remove<V>(&mut self, key: &V) -> Option<T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         self.map.remove(key).map(|pair| pair.0)
     }
 
@@ -91,7 +96,11 @@ where
     /// assert!(!set.contains(&0));
     /// assert!(set.contains(&1));
     /// ```
-    pub fn contains(&self, key: &T) -> bool {
+    pub fn contains<V>(&self, key: &V) -> bool
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         self.map.contains_key(key)
     }
 
@@ -150,7 +159,11 @@ where
     /// assert_eq!(set.floor(&0), None);
     /// assert_eq!(set.floor(&2), Some(&1));
     /// ```
-    pub fn floor(&self, key: &T) -> Option<&T> {
+    pub fn floor<V>(&self, key: &V) -> Option<&T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         self.map.floor(key)
     }
 
@@ -166,7 +179,11 @@ where
     /// assert_eq!(set.ceil(&0), Some(&1));
     /// assert_eq!(set.ceil(&2), None);
     /// ```
-    pub fn ceil(&self, key: &T) -> Option<&T> {
+    pub fn ceil<V>(&self, key: &V) -> Option<&T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         self.map.ceil(key)
     }
 
@@ -181,7 +198,10 @@ where
     /// set.insert(3);
     /// assert_eq!(set.min(), Some(&1));
     /// ```
-    pub fn min(&self) -> Option<&T> {
+    pub fn min(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
         self.map.min()
     }
 
@@ -196,7 +216,10 @@ where
     /// set.insert(3);
     /// assert_eq!(set.max(), Some(&3));
     /// ```
-    pub fn max(&self) -> Option<&T> {
+    pub fn max(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
         self.map.max()
     }
 
@@ -221,7 +244,10 @@ where
     ///     vec![&1, &2, &3],
     /// );
     /// ```
-    pub fn union(left: Self, right: Self) -> Self {
+    pub fn union(left: Self, right: Self) -> Self
+    where
+        T: Ord,
+    {
         SkipSet {
             map: SkipMap::union(left.map, right.map),
         }
@@ -247,7 +273,10 @@ where
     ///     vec![&2],
     /// );
     /// ```
-    pub fn intersection(left: Self, right: Self) -> Self {
+    pub fn intersection(left: Self, right: Self) -> Self
+    where
+        T: Ord,
+    {
         SkipSet {
             map: SkipMap::intersection(left.map, right.map),
         }
@@ -274,7 +303,10 @@ where
     ///     vec![&1],
     /// );
     /// ```
-    pub fn difference(left: Self, right: Self) -> Self {
+    pub fn difference(left: Self, right: Self) -> Self
+    where
+        T: Ord,
+    {
         SkipSet {
             map: SkipMap::difference(left.map, right.map),
         }
@@ -301,7 +333,10 @@ where
     ///     vec![&1, &3],
     /// );
     /// ```
-    pub fn symmetric_difference(left: Self, right: Self) -> Self {
+    pub fn symmetric_difference(left: Self, right: Self) -> Self
+    where
+        T: Ord,
+    {
         SkipSet {
             map: SkipMap::symmetric_difference(left.map, right.map),
         }
@@ -329,10 +364,7 @@ where
     }
 }
 
-impl<T> IntoIterator for SkipSet<T>
-where
-    T: Ord,
-{
+impl<T> IntoIterator for SkipSet<T> {
     type Item = T;
     type IntoIter = SkipSetIntoIter<T>;
 
@@ -345,7 +377,7 @@ where
 
 impl<'a, T> IntoIterator for &'a SkipSet<T>
 where
-    T: 'a + Ord,
+    T: 'a,
 {
     type Item = &'a T;
     type IntoIter = SkipSetIter<'a, T>;
@@ -362,10 +394,7 @@ pub struct SkipSetIntoIter<T> {
     map_iter: SkipMapIntoIter<T, ()>,
 }
 
-impl<T> Iterator for SkipSetIntoIter<T>
-where
-    T: Ord,
-{
+impl<T> Iterator for SkipSetIntoIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -386,7 +415,7 @@ where
 
 impl<'a, T> Iterator for SkipSetIter<'a, T>
 where
-    T: 'a + Ord,
+    T: 'a,
 {
     type Item = &'a T;
 
@@ -395,10 +424,7 @@ where
     }
 }
 
-impl<T> Default for SkipSet<T>
-where
-    T: Ord,
-{
+impl<T> Default for SkipSet<T> {
     fn default() -> Self {
         Self::new()
     }

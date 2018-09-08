@@ -7,6 +7,8 @@ pub use self::leveled::LeveledStrategy;
 pub use self::size_tiered::SizeTieredStrategy;
 
 use lsm_tree::{Result, SSTable, SSTableValue};
+use std::borrow::Borrow;
+use std::hash::Hash;
 use std::path::Path;
 
 /// An iterator for the disk-resident data.
@@ -36,7 +38,11 @@ pub trait CompactionStrategy<T, U> {
 
     /// Searches through disk-resident data and returns the value associated with a particular key.
     /// It will return `None` if the key does not exist in the disk-resident data.
-    fn get(&mut self, key: &T) -> Result<Option<SSTableValue<U>>>;
+    fn get<V>(&mut self, key: &V) -> Result<Option<SSTableValue<U>>>
+    where
+        T: Borrow<V>,
+        V: Ord + Hash + ?Sized,
+    ;
 
     /// Returns the approximate number of items in the disk-resident data.
     fn len_hint(&mut self) -> Result<usize>;

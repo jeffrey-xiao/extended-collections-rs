@@ -3,6 +3,7 @@ use bp_tree::pager::{Pager, Result};
 use entry::Entry;
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
+use std::borrow::Borrow;
 use std::mem;
 use std::path::Path;
 
@@ -45,11 +46,7 @@ pub struct BpMap<T, U> {
     pager: Pager<T, U>,
 }
 
-impl<T, U> BpMap<T, U>
-where
-    T: Ord + Clone + Serialize + DeserializeOwned,
-    U: Serialize + DeserializeOwned,
-{
+impl<T, U> BpMap<T, U> {
     /// Constructs a new, empty `BpMap<T, U>` with maximum sizes for keys and values, and creates a
     /// file for data persistence.
     ///
@@ -69,6 +66,8 @@ where
     /// ```
     pub fn new<P>(file_path: P, key_size: u64, value_size: u64) -> Result<BpMap<T, U>>
     where
+        T: Serialize,
+        U: Serialize,
         P: AsRef<Path>,
     {
         let leaf_degree = LeafNode::<T, U>::get_degree(key_size, value_size);
@@ -106,6 +105,8 @@ where
         internal_degree: usize,
     ) -> Result<BpMap<T, U>>
     where
+        T: Serialize,
+        U: Serialize,
         P: AsRef<Path>,
     {
         assert!(LeafNode::<T, U>::get_max_size(leaf_degree, key_size, value_size) <= BLOCK_SIZE);
@@ -139,7 +140,12 @@ where
         Pager::open(file_path).map(|pager| BpMap { pager })
     }
 
-    fn search_node(&mut self, key: &T) -> Result<SearchOutcome<T, U>> {
+    fn search_node<V>(&mut self, key: &V) -> Result<SearchOutcome<T, U>>
+    where
+        T: Borrow<V> + DeserializeOwned,
+        U: DeserializeOwned,
+        V: Ord + ?Sized,
+    {
         let mut curr_page = self.pager.get_root_page();
         let mut curr_node = self.pager.get_page(curr_page)?;
 
@@ -179,7 +185,11 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn insert(&mut self, key: T, value: U) -> Result<Option<(T, U)>> {
+    pub fn insert(&mut self, key: T, value: U) -> Result<Option<(T, U)>>
+    where
+        T: Clone + DeserializeOwned + Ord + Serialize,
+        U: DeserializeOwned + Serialize,
+    {
         self.pager.validate_key(&key)?;
         self.pager.validate_value(&value)?;
         let (mut curr_page, mut curr_node, mut stack) = self.search_node(&key)?;
@@ -258,7 +268,12 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn remove(&mut self, key: &T) -> Result<Option<(T, U)>> {
+    pub fn remove<V>(&mut self, key: &V) -> Result<Option<(T, U)>>
+    where
+        T: Borrow<V> + Clone + DeserializeOwned + Ord + Serialize,
+        U: DeserializeOwned + Serialize,
+        V: Ord + ?Sized,
+    {
         let (curr_page, curr_node, mut stack) = self.search_node(key)?;
         let mut delete_entry = None;
         let ret;
@@ -433,7 +448,12 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn contains_key(&mut self, key: &T) -> Result<bool> {
+    pub fn contains_key<V>(&mut self, key: &V) -> Result<bool>
+    where
+        T: Borrow<V> + DeserializeOwned ,
+        U: DeserializeOwned,
+        V: Ord + ?Sized,
+    {
         self.get(key).map(|value| value.is_some())
     }
 
@@ -456,7 +476,12 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn get(&mut self, key: &T) -> Result<Option<U>> {
+    pub fn get<V>(&mut self, key: &V) -> Result<Option<U>>
+    where
+        T: Borrow<V> + DeserializeOwned,
+        U: DeserializeOwned,
+        V: Ord + ?Sized,
+    {
         let (_, curr_node, _) = self.search_node(key)?;
         match curr_node {
             Node::Leaf(mut curr_leaf_node) => {
@@ -529,7 +554,11 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn clear(&mut self) -> Result<()> {
+    pub fn clear(&mut self) -> Result<()>
+    where
+        T: Serialize,
+        U: Serialize,
+    {
         self.pager.clear()
     }
 
@@ -551,7 +580,11 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn min(&mut self) -> Result<Option<T>> {
+    pub fn min(&mut self) -> Result<Option<T>>
+    where
+        T: DeserializeOwned,
+        U: DeserializeOwned,
+    {
         let mut curr_page = self.pager.get_root_page();
         let mut curr_node = self.pager.get_page(curr_page)?;
 
@@ -584,7 +617,11 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn max(&mut self) -> Result<Option<T>> {
+    pub fn max(&mut self) -> Result<Option<T>>
+    where
+        T: DeserializeOwned,
+        U: DeserializeOwned,
+    {
         let mut curr_page = self.pager.get_root_page();
         let mut curr_node = self.pager.get_page(curr_page)?;
 
@@ -629,7 +666,11 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn iter_mut(&mut self) -> Result<BpMapIterMut<T, U>> {
+    pub fn iter_mut(&mut self) -> Result<BpMapIterMut<T, U>>
+    where
+        T: DeserializeOwned,
+        U: DeserializeOwned,
+    {
         let mut curr_page = self.pager.get_root_page();
         let mut curr_node = self.pager.get_page(curr_page)?;
 
@@ -653,8 +694,8 @@ where
 
 impl<'a, T, U> IntoIterator for &'a mut BpMap<T, U>
 where
-    T: 'a + Ord + Clone + Serialize + DeserializeOwned,
-    U: 'a + Serialize + DeserializeOwned,
+    T: 'a + DeserializeOwned,
+    U: 'a + DeserializeOwned,
 {
     type Item = Result<(T, U)>;
     type IntoIter = BpMapIterMut<'a, T, U>;
@@ -679,8 +720,8 @@ where
 
 impl<'a, T, U> Iterator for BpMapIterMut<'a, T, U>
 where
-    T: 'a + Ord + Clone + Serialize + DeserializeOwned,
-    U: 'a + Serialize + DeserializeOwned,
+    T: 'a + DeserializeOwned,
+    U: 'a + DeserializeOwned,
 {
     type Item = Result<(T, U)>;
 

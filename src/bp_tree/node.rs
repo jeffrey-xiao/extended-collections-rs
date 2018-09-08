@@ -1,4 +1,5 @@
 use entry::Entry;
+use std::borrow::Borrow;
 use std::cmp::{self, Ordering};
 use std::marker::PhantomData;
 use std::mem;
@@ -15,10 +16,7 @@ pub struct InternalNode<T, U> {
     pub _marker: PhantomData<U>,
 }
 
-impl<T, U> InternalNode<T, U>
-where
-    T: Ord + Clone,
-{
+impl<T, U> InternalNode<T, U> {
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
     #[inline]
@@ -58,7 +56,10 @@ where
         mut new_key: T,
         mut new_pointer: usize,
         is_right: bool,
-    ) -> Option<(T, Node<T, U>)> {
+    ) -> Option<(T, Node<T, U>)>
+    where
+        T: Ord,
+    {
         let internal_degree = self.keys.len();
         let offset = is_right as usize;
         // node has room; can insert
@@ -137,7 +138,11 @@ where
         (ret_key, ret_pointer)
     }
 
-    pub fn search(&self, search_key: &T) -> usize {
+    pub fn search<V>(&self, search_key: &V) -> usize
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let mut lo = 0;
         let mut hi = (self.keys.len() - 1) as isize;
         while lo <= hi {
@@ -145,7 +150,7 @@ where
             match self.keys[mid as usize] {
                 None => hi = mid - 1,
                 Some(ref key) => {
-                    if key <= search_key {
+                    if key.borrow() <= search_key {
                         lo = mid + 1;
                     } else {
                         hi = mid - 1;
@@ -184,10 +189,7 @@ pub enum InsertCases<T, U> {
     Entry(Entry<T, U>),
 }
 
-impl<T, U> LeafNode<T, U>
-where
-    T: Ord + Clone,
-{
+impl<T, U> LeafNode<T, U> {
     // 1) a usize is encoded as u64 (8 bytes)
     // 2) a boxed slice is encoded as a tuple of u64 (8 bytes) and the items
     #[inline]
@@ -221,7 +223,10 @@ where
         }
     }
 
-    pub fn insert(&mut self, mut new_entry: Entry<T, U>) -> Option<InsertCases<T, U>> {
+    pub fn insert(&mut self, mut new_entry: Entry<T, U>) -> Option<InsertCases<T, U>>
+    where
+        T: Clone + Ord,
+    {
         let leaf_degree = self.entries.len();
         // node has room; can insert
         if self.len < leaf_degree {
@@ -285,12 +290,16 @@ where
         self.entries[self.len].take().expect("Expected some entry.")
     }
 
-    pub fn remove(&mut self, key: &T) -> Option<Entry<T, U>> {
+    pub fn remove<V>(&mut self, key: &V) -> Option<Entry<T, U>>
+    where
+        T: Borrow<V>,
+        V: Eq + ?Sized,
+    {
         let mut removed = false;
         for index in 0..self.len {
             let swap = {
                 if let Some(ref entry) = self.entries[index] {
-                    if *key == entry.key {
+                    if key == entry.key.borrow() {
                         removed = true;
                         index + 1 < self.len
                     } else {
@@ -314,7 +323,11 @@ where
         }
     }
 
-    pub fn search(&self, search_key: &T) -> Option<usize> {
+    pub fn search<V>(&self, search_key: &V) -> Option<usize>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let mut lo = 0;
         let mut hi = (self.entries.len() - 1) as isize;
         while lo <= hi {
@@ -322,7 +335,7 @@ where
             match self.entries[mid as usize] {
                 None => hi = mid - 1,
                 Some(ref entry) => {
-                    match entry.key.cmp(search_key) {
+                    match entry.key.borrow().cmp(search_key) {
                         Ordering::Less => lo = mid + 1,
                         Ordering::Greater => hi = mid - 1,
                         Ordering::Equal => return Some(mid as usize),
@@ -351,10 +364,7 @@ pub enum Node<T, U> {
     Free(Option<usize>),
 }
 
-impl<T, U> Node<T, U>
-where
-    T: Ord + Clone,
-{
+impl<T, U> Node<T, U> {
     #[inline]
     pub fn get_max_size(
         key_size: u64,

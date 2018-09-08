@@ -2,6 +2,7 @@ use bincode::{self, deserialize, serialize, serialized_size};
 use bp_tree::node::{LeafNode, Node};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
+use std::borrow::Borrow;
 use std::error;
 use std::fmt;
 use std::fs::{File, OpenOptions};
@@ -78,11 +79,7 @@ pub struct Pager<T, U> {
     _marker: PhantomData<(T, U)>,
 }
 
-impl<T, U> Pager<T, U>
-where
-    T: Ord + Clone + Serialize + DeserializeOwned,
-    U: Serialize + DeserializeOwned,
-{
+impl<T, U> Pager<T, U> {
     pub fn new<P>(
         file_path: P,
         key_size: u64,
@@ -91,6 +88,8 @@ where
         internal_degree: usize,
     ) -> Result<Pager<T, U>>
     where
+        T: Serialize,
+        U: Serialize,
         P: AsRef<Path>,
     {
         let header_size = Self::get_metadata_size();
@@ -207,7 +206,11 @@ where
         self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
     }
 
-    pub fn get_page(&mut self, index: usize) -> Result<Node<T, U>> {
+    pub fn get_page(&mut self, index: usize) -> Result<Node<T, U>>
+    where
+        T: DeserializeOwned,
+        U: DeserializeOwned,
+    {
         let offset = self.calculate_page_offset(index);
         self.db_file.seek(SeekFrom::Start(offset))?;
         let mut buffer: Vec<u8> = vec![0; self.get_node_size() as usize];
@@ -215,14 +218,17 @@ where
         deserialize(buffer.as_slice()).map_err(Error::SerdeError)
     }
 
-    pub fn allocate_node(&mut self, new_node: &Node<T, U>) -> Result<usize> {
+    pub fn allocate_node(&mut self, new_node: &Node<T, U>) -> Result<usize>
+    where
+        T: DeserializeOwned + Serialize,
+        U: DeserializeOwned + Serialize,
+    {
         match self.metadata.free_page {
             None => {
                 self.metadata.pages += 1;
                 let len = self.calculate_page_offset(self.metadata.pages);
                 let node_size = self.get_node_size();
                 self.db_file.set_len(len)?;
-
                 self.db_file.seek(SeekFrom::Start(len - node_size))?;
                 let serialized_node = &serialize(&new_node)?;
                 self.db_file.write_all(serialized_node)?;
@@ -257,7 +263,11 @@ where
         }
     }
 
-    pub fn deallocate_node(&mut self, index: usize) -> Result<()> {
+    pub fn deallocate_node(&mut self, index: usize) -> Result<()>
+    where
+        T: Serialize,
+        U: Serialize,
+    {
         let offset = self.calculate_page_offset(index);
 
         self.db_file.seek(SeekFrom::Start(offset))?;
@@ -270,14 +280,22 @@ where
         self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
     }
 
-    pub fn write_node(&mut self, index: usize, node: &Node<T, U>) -> Result<()> {
+    pub fn write_node(&mut self, index: usize, node: &Node<T, U>) -> Result<()>
+    where
+        T: Serialize,
+        U: Serialize,
+    {
         let offset = self.calculate_page_offset(index);
         self.db_file.seek(SeekFrom::Start(offset))?;
         let serialized_node = &serialize(&node)?;
         self.db_file.write_all(serialized_node).map_err(Error::IOError)
     }
 
-    pub fn clear(&mut self) -> Result<()> {
+    pub fn clear(&mut self) -> Result<()>
+    where
+        T: Serialize,
+        U: Serialize,
+    {
         let header_size = Self::get_metadata_size();
         let body_size = self.get_node_size();
         self.metadata.pages = 1;
@@ -295,12 +313,20 @@ where
         self.db_file.write_all(serialized_node).map_err(Error::IOError)
     }
 
-    pub fn validate_key(&self, key: &T) -> Result<()> {
+    pub fn validate_key<V>(&self, key: &V) -> Result<()>
+    where
+        T: Borrow<V>,
+        V: Serialize + ?Sized,
+    {
         assert!(serialized_size(key)? <= self.metadata.key_size);
         Ok(())
     }
 
-    pub fn validate_value(&self, value: &U) -> Result<()> {
+    pub fn validate_value<V>(&self, value: &V) -> Result<()>
+    where
+        U: Borrow<V>,
+        V: Serialize + ?Sized,
+    {
         assert!(serialized_size(value)? <= self.metadata.value_size);
         Ok(())
     }

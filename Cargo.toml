@@ -21,7 +21,7 @@ codecov = { repository = "jeffrey-xiao/extended-collections-rs", service = "gitl
 bincode = "1.0"
 byteorder = "1"
 crossbeam-epoch = "0.2"
-probabilistic-collections = "0.1"
+probabilistic-collections = "0.3"
 rand = "0.4"
 serde = { version = "1.0", features = ["rc"] }
 serde_derive = "1.0"

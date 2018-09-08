@@ -19,10 +19,7 @@ pub struct ImplicitNode<T> {
     pub right: implicit_tree::Tree<T>,
 }
 
-impl<T, U> Node<T, U>
-where
-    T: Ord,
-{
+impl<T, U> Node<T, U> {
     pub fn new(key: T, value: U, priority: u32) -> Self {
         Node {
             entry: Entry { key, value },

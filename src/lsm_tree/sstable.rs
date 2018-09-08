@@ -1,6 +1,7 @@
 use bincode::{deserialize, serialize};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use entry::Entry;
+use std::borrow::Borrow;
 use lsm_tree::{Error, Result};
 use probabilistic_collections::bloom::BloomFilter;
 use rand::{thread_rng, Rng};
@@ -83,7 +84,7 @@ pub struct SSTableBuilder<T, U> {
     block_index: usize,
     block_size: usize,
     index_block: Vec<(T, u64)>,
-    filter: BloomFilter,
+    filter: BloomFilter<T>,
     index_offset: u64,
     index_stream: BufWriter<fs::File>,
     data_offset: u64,
@@ -91,11 +92,7 @@ pub struct SSTableBuilder<T, U> {
     _marker: PhantomData<U>,
 }
 
-impl<T, U> SSTableBuilder<T, U>
-where
-    T: Clone + DeserializeOwned + Hash + Serialize,
-    U: DeserializeOwned + Serialize,
-{
+impl<T, U> SSTableBuilder<T, U> {
     fn generate_file_name() -> String {
         thread_rng().gen_ascii_chars().take(32).collect()
     }
@@ -136,7 +133,11 @@ where
         })
     }
 
-    pub fn append(&mut self, key: T, value: SSTableValue<U>) -> Result<()> {
+    pub fn append(&mut self, key: T, value: SSTableValue<U>) -> Result<()>
+    where
+        T: Clone + Hash + Serialize,
+        U: Serialize,
+    {
         let logical_time = value.logical_time;
         self.entry_count += 1;
         if value.data.is_none() {
@@ -181,7 +182,10 @@ where
         Ok(())
     }
 
-    pub fn flush(&mut self) -> Result<PathBuf> {
+    pub fn flush(&mut self) -> Result<PathBuf>
+    where
+        T: Clone + Serialize,
+    {
         if !self.index_block.is_empty() {
             self.index.push((self.index_block[0].0.clone(), self.index_offset));
 
@@ -220,17 +224,14 @@ where
 pub struct SSTable<T, U> {
     pub path: PathBuf,
     pub summary: SSTableSummary<T>,
-    pub filter: BloomFilter,
+    pub filter: BloomFilter<T>,
     _marker: PhantomData<U>,
 }
 
-impl<T, U> SSTable<T, U>
-where
-    T: DeserializeOwned,
-    U: DeserializeOwned,
-{
+impl<T, U> SSTable<T, U> {
     pub fn new<P>(path: P) -> Result<Self>
     where
+        T: DeserializeOwned,
         P: AsRef<Path>,
     {
         let mut buffer = Vec::new();
@@ -250,19 +251,17 @@ where
             _marker: PhantomData,
         })
     }
-}
 
-impl<T, U> SSTable<T, U>
-where
-    T: Hash + DeserializeOwned + Ord + Serialize,
-    U: DeserializeOwned + Serialize,
-{
-    fn floor_offset(index: &[(T, u64)], key: &T) -> Option<usize> {
+    fn floor_offset<V>(index: &[(T, u64)], key: &V) -> Option<usize>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let mut lo = 0isize;
         let mut hi = index.len() as isize - 1;
         while lo <= hi {
             let mid = (lo + hi) / 2;
-            if index[mid as usize].0 <= *key {
+            if index[mid as usize].0.borrow() <= key {
                 lo = mid + 1;
             } else {
                 hi = mid - 1;
@@ -276,8 +275,13 @@ where
         }
     }
 
-    pub fn get(&self, key: &T) -> Result<Option<SSTableValue<U>>> {
-        if *key < self.summary.key_range.0 || *key > self.summary.key_range.1 {
+    pub fn get<V>(&self, key: &V) -> Result<Option<SSTableValue<U>>>
+    where
+        T: Borrow<V> + DeserializeOwned,
+        U: DeserializeOwned,
+        V: Ord + Hash + ?Sized,
+    {
+        if key < self.summary.key_range.0.borrow() || key > self.summary.key_range.1.borrow() {
             return Ok(None);
         }
 
@@ -297,7 +301,7 @@ where
         index_file.read_exact(buffer.as_mut_slice())?;
         let index_block: Vec<(T, u64)> = deserialize(&buffer)?;
 
-        let index = match index_block.binary_search_by_key(&key, |index_entry| &index_entry.0) {
+        let index = match index_block.binary_search_by_key(&key, |index_entry| index_entry.0.borrow()) {
             Ok(index) => index,
             Err(_) => return Ok(None),
         };

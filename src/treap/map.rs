@@ -1,6 +1,7 @@
 use entry::Entry;
 use rand::Rng;
 use rand::XorShiftRng;
+use std::borrow::Borrow;
 use std::ops::{Add, Index, IndexMut, Sub};
 use treap::node::Node;
 use treap::tree;
@@ -37,10 +38,7 @@ pub struct TreapMap<T, U> {
     rng: XorShiftRng,
 }
 
-impl<T, U> TreapMap<T, U>
-where
-    T: Ord,
-{
+impl<T, U> TreapMap<T, U> {
     /// Constructs a new, empty `TreapMap<T, U>`.
     ///
     /// # Examples
@@ -69,7 +67,10 @@ where
     /// assert_eq!(map.insert(1, 2), Some((1, 1)));
     /// assert_eq!(map.get(&1), Some(&2));
     /// ```
-    pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
+    pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)>
+    where
+        T: Ord,
+    {
         let TreapMap { ref mut tree, ref mut rng } = self;
         let new_node = Node::new(key, value, rng.next_u32());
         tree::insert(tree, new_node).and_then(|entry| {
@@ -90,7 +91,11 @@ where
     /// assert_eq!(map.remove(&1), Some((1, 1)));
     /// assert_eq!(map.remove(&1), None);
     /// ```
-    pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
+    pub fn remove<V>(&mut self, key: &V) -> Option<(T, U)>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let TreapMap { ref mut tree, .. } = self;
         tree::remove(tree, key).and_then(|entry| {
             let Entry { key, value } = entry;
@@ -109,7 +114,11 @@ where
     /// assert!(!map.contains_key(&0));
     /// assert!(map.contains_key(&1));
     /// ```
-    pub fn contains_key(&self, key: &T) -> bool {
+    pub fn contains_key<V>(&self, key: &V) -> bool
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         self.get(key).is_some()
     }
 
@@ -125,7 +134,11 @@ where
     /// assert_eq!(map.get(&0), None);
     /// assert_eq!(map.get(&1), Some(&1));
     /// ```
-    pub fn get(&self, key: &T) -> Option<&U> {
+    pub fn get<V>(&self, key: &V) -> Option<&U>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         tree::get(&self.tree, key).map(|entry| &entry.value)
     }
 
@@ -141,7 +154,11 @@ where
     /// *map.get_mut(&1).unwrap() = 2;
     /// assert_eq!(map.get(&1), Some(&2));
     /// ```
-    pub fn get_mut(&mut self, key: &T) -> Option<&mut U> {
+    pub fn get_mut<V>(&mut self, key: &V) -> Option<&mut U>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         tree::get_mut(&mut self.tree, key).map(|entry| &mut entry.value)
     }
 
@@ -203,7 +220,11 @@ where
     /// assert_eq!(map.floor(&0), None);
     /// assert_eq!(map.floor(&2), Some(&1));
     /// ```
-    pub fn floor(&self, key: &T) -> Option<&T> {
+    pub fn floor<V>(&self, key: &V) -> Option<&T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         tree::floor(&self.tree, key).map(|entry| &entry.key)
     }
 
@@ -219,7 +240,11 @@ where
     /// assert_eq!(map.ceil(&0), Some(&1));
     /// assert_eq!(map.ceil(&2), None);
     /// ```
-    pub fn ceil(&self, key: &T) -> Option<&T> {
+    pub fn ceil<V>(&self, key: &V) -> Option<&T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         tree::ceil(&self.tree, key).map(|entry| &entry.key)
     }
 
@@ -234,7 +259,10 @@ where
     /// map.insert(3, 3);
     /// assert_eq!(map.min(), Some(&1));
     /// ```
-    pub fn min(&self) -> Option<&T> {
+    pub fn min(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
         tree::min(&self.tree).map(|entry| &entry.key)
     }
 
@@ -249,7 +277,10 @@ where
     /// map.insert(3, 3);
     /// assert_eq!(map.max(), Some(&3));
     /// ```
-    pub fn max(&self) -> Option<&T> {
+    pub fn max(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
         tree::max(&self.tree).map(|entry| &entry.key)
     }
 
@@ -271,7 +302,11 @@ where
     /// assert_eq!(map[&2], 2);
     /// assert_eq!(split[&3], 3);
     /// ```
-    pub fn split_off(&mut self, key: &T, inclusive: bool) -> Self {
+    pub fn split_off<V>(&mut self, key: &V, inclusive: bool) -> Self
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let TreapMap { ref mut tree, .. } = self;
         let (mut split_node, ret) = tree::split(tree, key);
         if inclusive {
@@ -305,7 +340,10 @@ where
     ///     vec![(&1, &1), (&2, &2), (&3, &3)],
     /// );
     /// ```
-    pub fn union(left: Self, right: Self) -> Self {
+    pub fn union(left: Self, right: Self) -> Self
+    where
+        T: Ord,
+    {
         let TreapMap { tree: left_tree, rng } = left;
         let TreapMap { tree: right_tree, .. } = right;
         TreapMap { tree: tree::union(left_tree, right_tree, false), rng }
@@ -332,7 +370,10 @@ where
     ///     vec![(&2, &2)],
     /// );
     /// ```
-    pub fn intersection(left: Self, right: Self) -> Self {
+    pub fn intersection(left: Self, right: Self) -> Self
+    where
+        T: Ord,
+    {
         let TreapMap { tree: left_tree, rng } = left;
         TreapMap { tree: tree::intersection(left_tree, right.tree, false), rng }
     }
@@ -359,7 +400,10 @@ where
     ///     vec![(&1, &1)],
     /// );
     /// ```
-    pub fn difference(left: Self, right: Self) -> Self {
+    pub fn difference(left: Self, right: Self) -> Self
+    where
+        T: Ord,
+    {
         let TreapMap { tree: left_tree, rng } = left;
         TreapMap { tree: tree::difference(left_tree, right.tree, false, false), rng }
     }
@@ -385,7 +429,10 @@ where
     ///     vec![(&1, &1), (&3, &3)],
     /// );
     /// ```
-    pub fn symmetric_difference(left: Self, right:Self) -> Self {
+    pub fn symmetric_difference(left: Self, right:Self) -> Self
+    where
+        T: Ord,
+    {
         let TreapMap { tree: left_tree, rng } = left;
         let TreapMap { tree: right_tree, .. } = right;
         TreapMap { tree: tree::difference(left_tree, right_tree, false, true), rng }
@@ -442,10 +489,7 @@ where
     }
 }
 
-impl<T, U> IntoIterator for TreapMap<T, U>
-where
-    T: Ord,
-{
+impl<T, U> IntoIterator for TreapMap<T, U> {
     type Item = (T, U);
     type IntoIter = TreapMapIntoIter<T, U>;
 
@@ -459,7 +503,7 @@ where
 
 impl<'a, T, U> IntoIterator for &'a TreapMap<T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a U);
@@ -472,7 +516,7 @@ where
 
 impl<'a, T, U> IntoIterator for &'a mut TreapMap<T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a mut U);
@@ -491,10 +535,7 @@ pub struct TreapMapIntoIter<T, U> {
     stack: Vec<Node<T, U>>,
 }
 
-impl<T, U> Iterator for TreapMapIntoIter<T, U>
-where
-    T: Ord,
-{
+impl<T, U> Iterator for TreapMapIntoIter<T, U> {
     type Item = (T, U);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -528,7 +569,7 @@ where
 
 impl<'a, T, U> Iterator for TreapMapIter<'a, T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a U);
@@ -567,7 +608,7 @@ where
 
 impl<'a, T, U> Iterator for TreapMapIterMut<'a, T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a mut U);
@@ -594,10 +635,7 @@ where
     }
 }
 
-impl<T, U> Default for TreapMap<T, U>
-where
-    T: Ord,
-{
+impl<T, U> Default for TreapMap<T, U> {
     fn default() -> Self {
         Self::new()
     }
@@ -625,21 +663,23 @@ where
     }
 }
 
-impl<'a, T, U> Index<&'a T> for TreapMap<T, U>
+impl<'a, T, U, V> Index<&'a V> for TreapMap<T, U>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
     type Output = U;
-    fn index(&self, key: &T) -> &Self::Output {
+    fn index(&self, key: &V) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
     }
 }
 
-impl<'a, T, U> IndexMut<&'a T> for TreapMap<T, U>
+impl<'a, T, U, V> IndexMut<&'a V> for TreapMap<T, U>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
-    fn index_mut(&mut self, key: &T) -> &mut Self::Output {
+    fn index_mut(&mut self, key: &V) -> &mut Self::Output {
         self.get_mut(key).expect("Key does not exist.")
     }
 }
@@ -675,8 +715,7 @@ mod tests {
         assert_eq!(map.get(&1), Some(&1));
     }
 
-    #[test]
-    fn test_insert_replace() {
+    #[test] fn test_insert_replace() {
         let mut map = TreapMap::new();
         assert_eq!(map.insert(1, 1), None);
         assert_eq!(map.insert(1, 3), Some((1, 1)));

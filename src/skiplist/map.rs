@@ -1,6 +1,7 @@
 use entry::Entry;
 use rand::Rng;
 use rand::XorShiftRng;
+use std::borrow::Borrow;
 use std::cmp;
 use std::mem;
 use std::ops::{Add, Index, IndexMut, Sub};
@@ -96,10 +97,7 @@ pub struct SkipMap<T, U> {
     len: usize,
 }
 
-impl<T, U> SkipMap<T, U>
-where
-    T: Ord,
-{
+impl<T, U> SkipMap<T, U> {
     /// Constructs a new, empty `SkipMap<T, U>`.
     ///
     /// # Examples
@@ -137,7 +135,10 @@ where
     /// assert_eq!(map.insert(1, 2), Some((1, 1)));
     /// assert_eq!(map.get(&1), Some(&2));
     /// ```
-    pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)> {
+    pub fn insert(&mut self, key: T, value: U) -> Option<(T, U)>
+    where
+        T: Ord,
+    {
         self.len += 1;
         let new_height = self.gen_random_height();
         let new_node = Node::new(key, value, new_height + 1);
@@ -197,7 +198,11 @@ where
     /// assert_eq!(map.remove(&1), Some((1, 1)));
     /// assert_eq!(map.remove(&1), None);
     /// ```
-    pub fn remove(&mut self, key: &T) -> Option<(T, U)> {
+    pub fn remove<V>(&mut self, key: &V) -> Option<(T, U)>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let mut curr_height = MAX_HEIGHT;
         let mut curr_node = &mut self.head;
         let mut ret = None;
@@ -205,14 +210,14 @@ where
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer_mut(curr_height);
-                while !next_node.is_null() && (**next_node).entry.key < *key {
+                while !next_node.is_null() && (**next_node).entry.key.borrow() < key {
                     curr_node = mem::replace(
                         &mut next_node,
                         (**next_node).get_pointer_mut(curr_height),
                     );
                 }
 
-                if !next_node.is_null() && (**next_node).entry.key == *key {
+                if !next_node.is_null() && (**next_node).entry.key.borrow() == key {
                     let temp = *next_node;
                     *(**curr_node).get_pointer_mut(curr_height) = *(**next_node).get_pointer_mut(curr_height);
                     if curr_height == 0 {
@@ -246,7 +251,11 @@ where
     /// assert!(!map.contains_key(&0));
     /// assert!(map.contains_key(&1));
     /// ```
-    pub fn contains_key(&self, key: &T) -> bool {
+    pub fn contains_key<V>(&self, key: &V) -> bool
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         self.get(key).is_some()
     }
 
@@ -262,21 +271,25 @@ where
     /// assert_eq!(map.get(&0), None);
     /// assert_eq!(map.get(&1), Some(&1));
     /// ```
-    pub fn get(&self, key: &T) -> Option<&U> {
+    pub fn get<V>(&self, key: &V) -> Option<&U>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
 
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
-                while !next_node.is_null() && (**next_node).entry.key < *key {
+                while !next_node.is_null() && (**next_node).entry.key.borrow() < key {
                     curr_node = mem::replace(
                         &mut next_node,
                         (**next_node).get_pointer(curr_height),
                     );
                 }
 
-                if !next_node.is_null() && (**next_node).entry.key == *key {
+                if !next_node.is_null() && (**next_node).entry.key.borrow() == key {
                     return Some(&(**next_node).entry.value);
                 }
 
@@ -302,21 +315,25 @@ where
     /// *map.get_mut(&1).unwrap() = 2;
     /// assert_eq!(map.get(&1), Some(&2));
     /// ```
-    pub fn get_mut(&mut self, key: &T) -> Option<&mut U> {
+    pub fn get_mut<V>(&mut self, key: &V) -> Option<&mut U>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &mut self.head;
 
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer_mut(curr_height);
-                while !next_node.is_null() && (**next_node).entry.key < *key {
+                while !next_node.is_null() && (**next_node).entry.key.borrow() < key {
                     curr_node = mem::replace(
                         &mut next_node,
                         (**next_node).get_pointer_mut(curr_height),
                     );
                 }
 
-                if !next_node.is_null() && (**next_node).entry.key == *key {
+                if !next_node.is_null() && (**next_node).entry.key.borrow() == key {
                     return Some(&mut (**next_node).entry.value);
                 }
 
@@ -392,14 +409,18 @@ where
     /// assert_eq!(map.floor(&0), None);
     /// assert_eq!(map.floor(&2), Some(&1));
     /// ```
-    pub fn floor(&self, key: &T) -> Option<&T> {
+    pub fn floor<V>(&self, key: &V) -> Option<&T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
 
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
-                while !next_node.is_null() && (**next_node).entry.key <= *key {
+                while !next_node.is_null() && (**next_node).entry.key.borrow() <= key {
                     curr_node = mem::replace(
                         &mut next_node,
                         (**next_node).get_pointer(curr_height),
@@ -431,14 +452,18 @@ where
     /// assert_eq!(map.ceil(&0), Some(&1));
     /// assert_eq!(map.ceil(&2), None);
     /// ```
-    pub fn ceil(&self, key: &T) -> Option<&T> {
+    pub fn ceil<V>(&self, key: &V) -> Option<&T>
+    where
+        T: Borrow<V>,
+        V: Ord + ?Sized,
+    {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
 
         unsafe {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
-                while !next_node.is_null() && (**next_node).entry.key < *key {
+                while !next_node.is_null() && (**next_node).entry.key.borrow() < key {
                     curr_node = mem::replace(
                         &mut next_node,
                         (**next_node).get_pointer(curr_height),
@@ -469,7 +494,10 @@ where
     /// map.insert(3, 3);
     /// assert_eq!(map.min(), Some(&1));
     /// ```
-    pub fn min(&self) -> Option<&T> {
+    pub fn min(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
         unsafe {
             let min_node = (*self.head).get_pointer(0);
             if min_node.is_null() {
@@ -491,7 +519,10 @@ where
     /// map.insert(3, 3);
     /// assert_eq!(map.max(), Some(&3));
     /// ```
-    pub fn max(&self) -> Option<&T> {
+    pub fn max(&self) -> Option<&T>
+    where
+        T: Ord,
+    {
         let mut curr_height = self.get_starting_height();
         let mut curr_node = &self.head;
 
@@ -540,7 +571,10 @@ where
     ///     vec![(&1, &1), (&2, &2), (&3, &3)],
     /// );
     /// ```
-    pub fn union(mut left: Self, mut right: Self) -> Self {
+    pub fn union(mut left: Self, mut right: Self) -> Self
+    where
+        T: Ord,
+    {
         let mut ret = SkipMap {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
             rng: XorShiftRng::new_unseeded(),
@@ -612,7 +646,10 @@ where
     ///     vec![(&2, &2)],
     /// );
     /// ```
-    pub fn intersection(mut left: Self, mut right: Self) -> Self {
+    pub fn intersection(mut left: Self, mut right: Self) -> Self
+    where
+        T: Ord,
+    {
         let mut ret = SkipMap {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
             rng: XorShiftRng::new_unseeded(),
@@ -678,7 +715,10 @@ where
         ret
     }
 
-    fn map_difference(mut left: Self, mut right: Self, symmetric: bool) -> Self {
+    fn map_difference(mut left: Self, mut right: Self, symmetric: bool) -> Self
+    where
+        T: Ord,
+    {
         let mut ret = SkipMap {
             head: unsafe { Node::allocate(MAX_HEIGHT + 1) },
             rng: XorShiftRng::new_unseeded(),
@@ -786,7 +826,10 @@ where
     ///     vec![(&1, &1)],
     /// );
     /// ```
-    pub fn difference(left: Self, right: Self) -> Self {
+    pub fn difference(left: Self, right: Self) -> Self
+    where
+        T: Ord,
+    {
         Self::map_difference(left, right, false)
     }
 
@@ -811,7 +854,10 @@ where
     ///     vec![(&1, &1), (&3, &3)],
     /// );
     /// ```
-    pub fn symmetric_difference(left: Self, right: Self) -> Self {
+    pub fn symmetric_difference(left: Self, right: Self) -> Self
+    where
+        T: Ord,
+    {
         Self::map_difference(left, right, true)
     }
 
@@ -879,10 +925,7 @@ impl<T, U> Drop for SkipMap<T, U> {
     }
 }
 
-impl<T, U> IntoIterator for SkipMap<T, U>
-where
-    T: Ord,
-{
+impl<T, U> IntoIterator for SkipMap<T, U> {
     type Item = (T, U);
     type IntoIter = SkipMapIntoIter<T, U>;
 
@@ -899,7 +942,7 @@ where
 
 impl<'a, T, U> IntoIterator for &'a SkipMap<T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a U);
@@ -912,7 +955,7 @@ where
 
 impl<'a, T, U> IntoIterator for &'a mut SkipMap<T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a mut U);
@@ -930,10 +973,7 @@ pub struct SkipMapIntoIter<T, U> {
     current: *mut Node<T, U>,
 }
 
-impl<T, U> Iterator for SkipMapIntoIter<T, U>
-where
-    T: Ord,
-{
+impl<T, U> Iterator for SkipMapIntoIter<T, U> {
     type Item = (T, U);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -980,7 +1020,7 @@ where
 
 impl<'a, T, U> Iterator for SkipMapIter<'a, T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a U);
@@ -1011,7 +1051,7 @@ where
 
 impl<'a, T, U> Iterator for SkipMapIterMut<'a, T, U>
 where
-    T: 'a + Ord,
+    T: 'a,
     U: 'a,
 {
     type Item = (&'a T, &'a mut U);
@@ -1029,10 +1069,7 @@ where
     }
 }
 
-impl<T, U> Default for SkipMap<T, U>
-where
-    T: Ord,
-{
+impl<T, U> Default for SkipMap<T, U> {
     fn default() -> Self {
         Self::new()
     }
@@ -1060,21 +1097,23 @@ where
     }
 }
 
-impl<'a, T, U> Index<&'a T> for SkipMap<T, U>
+impl<'a, T, U, V> Index<&'a V> for SkipMap<T, U>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
     type Output = U;
-    fn index(&self, key: &T) -> &Self::Output {
+    fn index(&self, key: &V) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
     }
 }
 
-impl<'a, T, U> IndexMut<&'a T> for SkipMap<T, U>
+impl<'a, T, U, V> IndexMut<&'a V> for SkipMap<T, U>
 where
-    T: Ord,
+    T: Borrow<V>,
+    V: Ord + ?Sized,
 {
-    fn index_mut(&mut self, key: &T) -> &mut Self::Output {
+    fn index_mut(&mut self, key: &V) -> &mut Self::Output {
         self.get_mut(key).expect("Key does not exist.")
     }
 }

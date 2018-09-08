@@ -5,6 +5,7 @@ use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
 use lsm_tree::{sstable, Result, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
+use std::borrow::Borrow;
 use std::cell::Cell;
 use std::cmp;
 use std::collections::{BinaryHeap, HashSet};
@@ -31,11 +32,7 @@ struct SizeTieredMetadata<T, U> {
     sstables: Vec<Arc<SSTable<T, U>>>,
 }
 
-impl<T, U> SizeTieredMetadata<T, U>
-where
-    T: Clone + DeserializeOwned + Hash + Ord + Serialize,
-    U: DeserializeOwned + Serialize,
-{
+impl<T, U> SizeTieredMetadata<T, U> {
     pub fn new(
         max_in_memory_size: u64,
         max_sstable_count: usize,
@@ -92,6 +89,8 @@ where
 
     fn compact<P>(&mut self, path: P, range: (usize, usize)) -> Result<()>
     where
+        T: Clone + DeserializeOwned + Hash + Ord + Serialize,
+        U: DeserializeOwned + Serialize,
         P: AsRef<Path>,
     {
         let old_sstables: Vec<_> = self.sstables
@@ -179,11 +178,7 @@ pub struct SizeTieredStrategy<T, U> {
     next_metadata: Arc<Mutex<Option<SizeTieredMetadata<T, U>>>>,
 }
 
-impl<T, U> SizeTieredStrategy<T, U>
-where
-    T: 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
-    U: 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
-{
+impl<T, U> SizeTieredStrategy<T, U> {
     /// Constructs a new `SizeTieredStrategy<T, U>` with specific configuration parameters.
     ///
     /// # Examples
@@ -208,6 +203,8 @@ where
         bucket_high: f64,
     ) -> Result<Self>
     where
+        T: Serialize,
+        U: Serialize,
         P: AsRef<Path>,
     {
         fs::create_dir(path.as_ref())?;
@@ -266,6 +263,8 @@ where
     /// ```
     pub fn open<P>(path: P) -> Result<Self>
     where
+        T: DeserializeOwned,
+        U: DeserializeOwned,
         P: AsRef<Path>,
     {
         let mut metadata_file = fs::OpenOptions::new()
@@ -300,6 +299,8 @@ where
         range: (usize, usize),
     ) -> Result<()>
     where
+        T: Clone + DeserializeOwned + Hash + Ord + Serialize,
+        U: DeserializeOwned + Serialize,
         P: AsRef<Path>,
     {
         println!("Started compacting.");
@@ -316,7 +317,11 @@ where
         &mut self,
         metadata_snapshot: SizeTieredMetadata<T, U>,
         range: (usize, usize),
-    ) {
+    )
+    where
+        T: 'static + Clone + DeserializeOwned + Hash + Ord + Send + Serialize + Sync,
+        U: 'static + DeserializeOwned + Send + Serialize + Sync,
+    {
         let path = self.path.clone();
         let next_metadata = self.next_metadata.clone();
         let is_compacting = self.is_compacting.clone();
@@ -379,7 +384,7 @@ where
 
 impl<T, U> CompactionStrategy<T, U> for SizeTieredStrategy<T, U>
 where
-    T: 'static + Clone + Hash + DeserializeOwned + Ord + Send + Serialize + Sync,
+    T: 'static + Clone + DeserializeOwned + Hash + Ord + Send + Serialize + Sync,
     U: 'static + Clone + DeserializeOwned + Send + Serialize + Sync,
 {
     fn get_path(&self) -> &Path {
@@ -443,7 +448,11 @@ where
         Ok(())
     }
 
-    fn get(&mut self, key: &T) -> Result<Option<SSTableValue<U>>> {
+    fn get<V>(&mut self, key: &V) -> Result<Option<SSTableValue<U>>>
+    where
+        T: Borrow<V>,
+        V: Ord + Hash + ?Sized,
+    {
         let mut curr_metadata = self.curr_metadata.lock().unwrap();
         if self.try_replace_metadata(&mut curr_metadata)? {
             self.metadata_file.seek(SeekFrom::Start(0))?;
@@ -452,7 +461,7 @@ where
 
         let mut ret = None;
         for sstable in &curr_metadata.sstables {
-            let res = sstable.get(key)?;
+            let res = sstable.get(&key)?;
             if res.is_some() && (ret.is_none() || res < ret) {
                 ret = res;
             }

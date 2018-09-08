@@ -3,6 +3,7 @@ use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
 use lsm_tree::{Result, SSTable, SSTableBuilder, SSTableValue};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
+use std::borrow::Borrow;
 use std::cmp;
 use std::collections::BTreeMap;
 use std::hash::Hash;
@@ -47,17 +48,17 @@ use std::mem;
 /// # }
 /// # foo().unwrap();
 /// ```
-pub struct LsmMap<T, U, V> {
+pub struct LsmMap<T, U, C> {
     in_memory_tree: BTreeMap<T, SSTableValue<U>>,
     in_memory_usage: u64,
-    compaction_strategy: V,
+    compaction_strategy: C,
 }
 
-impl<T, U, V> LsmMap<T, U, V>
+impl<T, U, C> LsmMap<T, U, C>
 where
     T: Clone + Ord + Hash + DeserializeOwned + Serialize,
     U: Clone + DeserializeOwned + Serialize,
-    V: CompactionStrategy<T, U>,
+    C: CompactionStrategy<T, U>,
 {
     /// Constructs a new `LsmMap<T, U>` with a specific `CompactionStrategy<T, U>`.
     ///
@@ -76,7 +77,7 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn new(compaction_strategy: V) -> Self {
+    pub fn new(compaction_strategy: C) -> Self {
         LsmMap {
             in_memory_tree: BTreeMap::new(),
             in_memory_usage: 0,
@@ -214,7 +215,11 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn contains_key(&mut self, key: &T) -> Result<bool> {
+    pub fn contains_key<V>(&mut self, key: &V) -> Result<bool>
+    where
+        T: Borrow<V>,
+        V: Ord + Hash + ?Sized,
+    {
         self.get(key).map(|value| value.is_some())
     }
 
@@ -240,7 +245,11 @@ where
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn get(&mut self, key: &T) -> Result<Option<U>> {
+    pub fn get<V>(&mut self, key: &V) -> Result<Option<U>>
+    where
+        T: Borrow<V>,
+        V: Ord + Hash + ?Sized,
+    {
         if let Some(value) = self.in_memory_tree.get(&key) {
             Ok(value.data.clone())
         } else {
@@ -491,3 +500,16 @@ where
         self.compaction_strategy.iter()
     }
 }
+
+// impl<'a, T, U> IntoIterator for &'a LsmMap<T, U>
+// where
+//     T: 'a,
+//     U: 'a,
+// {
+//     type Item = Result<(T, U)>;
+//     type IntoIter = BpMapIterMut<'a, T, U>;
+
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.iter_mut().unwrap()
+//     }
+// }
