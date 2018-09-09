@@ -441,6 +441,7 @@ where
             while let Some(node) = self.current.take() {
                 let Node { ref key, ref mut value, ref mut next, ref mut child } = node;
                 let key_len = key.len();
+
                 self.prefix.extend_from_slice(key.as_slice());
                 self.current = child.as_mut().map(|node| &mut **node);
                 self.stack.push((next, key_len));

@@ -42,6 +42,14 @@ impl<T> Node<T> {
         get_mut_inner(&mut self.child, byte)
     }
 
+    pub fn split(&mut self, split_index: usize) {
+        let split_key = self.key.split_off(split_index);
+        let mut split = Node::new(split_key, None);
+        mem::swap(&mut self.value, &mut split.value);
+        mem::swap(&mut self.child, &mut split.child);
+        self.insert_child(split);
+    }
+
     pub fn insert_child(&mut self, child: Node<T>) {
         fn insert_inner<T>(tree: &mut Tree<T>, mut new_node: Box<Node<T>>) {
             match tree {
@@ -69,6 +77,32 @@ impl<T> Node<T> {
                 self.child = Some(child_node);
             }
         }
+    }
+
+    pub fn is_leaf(&self) -> bool {
+        self.child.is_none()
+    }
+
+    pub fn get_replacement_tree(&mut self) -> Tree<T> {
+        self.next.take()
+    }
+
+    pub fn push_all_children(&self, curr_key: Vec<u8>, keys: &mut Vec<Vec<u8>>) {
+        fn push_all_children_inner<T>(tree: &Tree<T>, mut curr_key: Vec<u8>, keys: &mut Vec<Vec<u8>>) {
+            if let Some(ref node) = tree {
+                let len = curr_key.len();
+
+                curr_key.extend(node.key.iter());
+                if node.value.is_some() {
+                    keys.push(curr_key.clone());
+                }
+                push_all_children_inner(&node.child, curr_key.clone(), keys);
+
+                curr_key.split_off(len);
+                push_all_children_inner(&node.next, curr_key, keys);
+            }
+        }
+        push_all_children_inner(&self.child, curr_key, keys);
     }
 
     pub fn min(&self) -> &Tree<T> {
