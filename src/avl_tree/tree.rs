@@ -14,10 +14,7 @@ pub fn height<T, U>(tree: &Tree<T, U>) -> usize {
 }
 
 fn rotate_left<T, U>(mut node: Box<Node<T, U>>) -> Box<Node<T, U>> {
-    let mut child = match node.right.take() {
-        Some(child) => child,
-        None => unreachable!(),
-    };
+    let mut child = node.right.take().expect("Expected child node to be `Some`");
     node.right = child.left.take();
     node.update();
     child.left = Some(node);
@@ -26,10 +23,7 @@ fn rotate_left<T, U>(mut node: Box<Node<T, U>>) -> Box<Node<T, U>> {
 }
 
 fn rotate_right<T, U>(mut node: Box<Node<T, U>>) -> Box<Node<T, U>> {
-    let mut child = match node.left.take() {
-        Some(child) => child,
-        None => unreachable!(),
-    };
+    let mut child = node.left.take().expect("Expected child node to be `Some`");
     node.left = child.right.take();
     node.update();
     child.right = Some(node);
@@ -76,13 +70,9 @@ fn remove_min<T, U>(tree: &mut Tree<T, U>) -> Box<Node<T, U>> {
         }
     }
 
-    match tree.take() {
-        Some(mut node) => {
-            *tree = node.right.take();
-            node
-        },
-        _ => unreachable!(),
-    }
+    let mut node = tree.take().expect("Expected a non-empty tree.");
+    *tree = node.right.take();
+    node
 }
 
 fn combine_subtrees<T, U>(left_tree: Tree<T, U>, mut right_tree: Tree<T, U>) -> Tree<T, U> {
