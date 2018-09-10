@@ -13,23 +13,20 @@ pub fn height<T, U>(tree: &Tree<T, U>) -> usize {
     }
 }
 
-fn rotate_left<T, U>(mut node: Box<Node<T, U>>) -> Box<Node<T, U>> {
-    let mut child = node.right.take().expect("Expected child node to be `Some`");
+fn rotate_left<T, U>(node: &mut Box<Node<T, U>>) {
+    let mut child = node.right.take().expect("Expected right child node to be `Some`.");
     node.right = child.left.take();
-    node.update();
-    child.left = Some(node);
-    child.update();
-    child
+    mem::swap(&mut child, node);
+    node.left = Some(child);
 }
 
-fn rotate_right<T, U>(mut node: Box<Node<T, U>>) -> Box<Node<T, U>> {
-    let mut child = node.left.take().expect("Expected child node to be `Some`");
+fn rotate_right<T, U>(node: &mut Box<Node<T, U>>) {
+    let mut child = node.left.take().expect("Expected left child node to be `Some`.");
     node.left = child.right.take();
-    node.update();
-    child.right = Some(node);
-    child.update();
-    child
+    mem::swap(&mut child, node);
+    node.right = Some(child);
 }
+
 
 fn balance<T, U>(tree: &mut Tree<T, U>) {
     let mut node = match tree.take() {
@@ -40,23 +37,19 @@ fn balance<T, U>(tree: &mut Tree<T, U>) {
     node.update();
 
     if node.balance() > 1 {
-        if let Some(child) = node.left.take() {
+        if let Some(ref mut child) = node.left {
             if child.balance() < 0 {
-                node.left = Some(rotate_left(child));
-            } else {
-                node.left = Some(child);
+                rotate_left(child);
             }
         }
-        node = rotate_right(node);
+        rotate_right(&mut node);
     } else if node.balance() < -1 {
-        if let Some(child) = node.right.take() {
+        if let Some(ref mut child) = node.right {
             if child.balance() > 0 {
-                node.right = Some(rotate_right(child));
-            } else {
-                node.right = Some(child);
+                rotate_right(child);
             }
         }
-        node = rotate_left(node);
+        rotate_left(&mut node);
     }
 
     *tree = Some(node);
