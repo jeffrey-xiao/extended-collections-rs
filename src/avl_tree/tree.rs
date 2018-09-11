@@ -13,21 +13,6 @@ pub fn height<T, U>(tree: &Tree<T, U>) -> usize {
     }
 }
 
-fn rotate_left<T, U>(node: &mut Box<Node<T, U>>) {
-    let mut child = node.right.take().expect("Expected right child node to be `Some`.");
-    node.right = child.left.take();
-    mem::swap(&mut child, node);
-    node.left = Some(child);
-}
-
-fn rotate_right<T, U>(node: &mut Box<Node<T, U>>) {
-    let mut child = node.left.take().expect("Expected left child node to be `Some`.");
-    node.left = child.right.take();
-    mem::swap(&mut child, node);
-    node.right = Some(child);
-}
-
-
 fn balance<T, U>(tree: &mut Tree<T, U>) {
     let mut node = match tree.take() {
         Some(node) => node,
@@ -39,17 +24,17 @@ fn balance<T, U>(tree: &mut Tree<T, U>) {
     if node.balance() > 1 {
         if let Some(ref mut child) = node.left {
             if child.balance() < 0 {
-                rotate_left(child);
+                child.rotate_left();
             }
         }
-        rotate_right(&mut node);
+        node.rotate_right();
     } else if node.balance() < -1 {
         if let Some(ref mut child) = node.right {
             if child.balance() > 0 {
-                rotate_right(child);
+                child.rotate_right();
             }
         }
-        rotate_left(&mut node);
+        node.rotate_left();
     }
 
     *tree = Some(node);

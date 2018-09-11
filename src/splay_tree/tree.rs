@@ -6,20 +6,6 @@ use std::mem;
 
 pub type Tree<T, U> = Option<Box<Node<T, U>>>;
 
-fn rotate_left<T, U>(node: &mut Box<Node<T, U>>) {
-    let mut child = node.right.take().expect("Expected right child node to be `Some`.");
-    node.right = child.left.take();
-    mem::swap(&mut child, node);
-    node.left = Some(child);
-}
-
-fn rotate_right<T, U>(node: &mut Box<Node<T, U>>) {
-    let mut child = node.left.take().expect("Expected left child node to be `Some`.");
-    node.left = child.right.take();
-    mem::swap(&mut child, node);
-    node.right = Some(child);
-}
-
 fn splay<T, U, V>(node: &mut Box<Node<T, U>>, key: &V)
 where
     T: Borrow<V>,
@@ -38,7 +24,7 @@ where
                         None => break,
                     };
                     if should_rotate {
-                        rotate_right(node);
+                        node.rotate_right();
                     }
 
                     let child = match node.left.take() {
@@ -54,7 +40,7 @@ where
                         None => break,
                     };
                     if should_rotate {
-                        rotate_left(node);
+                        node.rotate_left();
                     }
 
                     let child = match node.right.take() {
