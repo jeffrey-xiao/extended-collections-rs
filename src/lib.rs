@@ -43,6 +43,7 @@ pub mod avl_tree;
 pub mod bp_tree;
 pub mod lsm_tree;
 pub mod radix;
+pub mod red_black_tree;
 pub mod skiplist;
 pub mod splay_tree;
 pub mod sync;

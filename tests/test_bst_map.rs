@@ -71,6 +71,7 @@ macro_rules! bst_map_tests {
 
 bst_map_tests!(
     avl_tree: AvlMap,
+    red_black_tree: RedBlackMap,
     skiplist: SkipMap,
     splay_tree: SplayMap,
     treap: TreapMap,
