@@ -25,3 +25,9 @@ extern crate extended_collections;
  > Pugh, William. 1990a. “A Skip List Cookbook.” College Park, MD, USA: University of Maryland at College Park.
  - [Skip Lists: A Probabilistic Alternative to Balanced Trees](https://dl.acm.org/citation.cfm?id=78977)
  > Pugh, William. 1990b. “Skip Lists: A Probabilistic Alternative to Balanced Trees.” *Commun. ACM* 33 (6). New York, NY, USA: ACM: 668–76. doi:[10.1145/78973.78977](https://doi.org/10.1145/78973.78977).
+
+## License
+`extended-collections-rs` is dual-licensed under the terms of either the MIT license or the Apache
+License (Version 2.0).
+
+See [LICENSE-APACHE](LICENSE-APACHE) and [LICENSE-MIT](LICENSE-MIT) for more details.
