@@ -73,6 +73,7 @@ impl<T, U> Node<T, U> {
 /// approximately logarithm time.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::skiplist::SkipMap;
 ///
@@ -101,6 +102,7 @@ impl<T, U> SkipMap<T, U> {
     /// Constructs a new, empty `SkipMap<T, U>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -126,6 +128,7 @@ impl<T, U> SkipMap<T, U> {
     /// and replace the old key-value pair.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -150,15 +153,14 @@ impl<T, U> SkipMap<T, U> {
             loop {
                 let mut next_node = (**curr_node).get_pointer_mut(curr_height);
                 while !next_node.is_null() && (**next_node).entry.key < (*new_node).entry.key {
-                    curr_node = mem::replace(
-                        &mut next_node,
-                        (**next_node).get_pointer_mut(curr_height),
-                    );
+                    let next_next_node = (**next_node).get_pointer_mut(curr_height);
+                    curr_node = mem::replace(&mut next_node, next_next_node);
                 }
 
                 if !next_node.is_null() && (**next_node).entry.key == (*new_node).entry.key {
                     let temp = *next_node;
-                    *(**curr_node).get_pointer_mut(curr_height) = *(**next_node).get_pointer_mut(curr_height);
+                    let next_next_node = *(**next_node).get_pointer_mut(curr_height);
+                    *(**curr_node).get_pointer_mut(curr_height) = next_next_node;
                     if curr_height == 0 {
                         ret = Some((
                             ptr::read(&(*temp).entry.key),
@@ -170,10 +172,8 @@ impl<T, U> SkipMap<T, U> {
                 }
 
                 if curr_height <= new_height {
-                    *(*new_node).get_pointer_mut(curr_height) = mem::replace(
-                        &mut *(**curr_node).get_pointer_mut(curr_height),
-                        new_node,
-                    );
+                    let next_node = &mut *(**curr_node).get_pointer_mut(curr_height);
+                    *(*new_node).get_pointer_mut(curr_height) = mem::replace(next_node, new_node);
                 }
 
                 if curr_height == 0 {
@@ -190,6 +190,7 @@ impl<T, U> SkipMap<T, U> {
     /// associated key-value pair. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -211,15 +212,14 @@ impl<T, U> SkipMap<T, U> {
             loop {
                 let mut next_node = (**curr_node).get_pointer_mut(curr_height);
                 while !next_node.is_null() && (**next_node).entry.key.borrow() < key {
-                    curr_node = mem::replace(
-                        &mut next_node,
-                        (**next_node).get_pointer_mut(curr_height),
-                    );
+                    let next_next_node = (**next_node).get_pointer_mut(curr_height);
+                    curr_node = mem::replace(&mut next_node, next_next_node);
                 }
 
                 if !next_node.is_null() && (**next_node).entry.key.borrow() == key {
                     let temp = *next_node;
-                    *(**curr_node).get_pointer_mut(curr_height) = *(**next_node).get_pointer_mut(curr_height);
+                    let next_next_node = *(**next_node).get_pointer_mut(curr_height);
+                    *(**curr_node).get_pointer_mut(curr_height) = next_next_node;
                     if curr_height == 0 {
                         ret = Some((
                             ptr::read(&(*temp).entry.key),
@@ -243,6 +243,7 @@ impl<T, U> SkipMap<T, U> {
     /// Checks if a key exists in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -263,6 +264,7 @@ impl<T, U> SkipMap<T, U> {
     /// return `None` if the key does not exist in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -283,10 +285,8 @@ impl<T, U> SkipMap<T, U> {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
                 while !next_node.is_null() && (**next_node).entry.key.borrow() < key {
-                    curr_node = mem::replace(
-                        &mut next_node,
-                        (**next_node).get_pointer(curr_height),
-                    );
+                    let next_next_node = (**next_node).get_pointer(curr_height);
+                    curr_node = mem::replace(&mut next_node, next_next_node);
                 }
 
                 if !next_node.is_null() && (**next_node).entry.key.borrow() == key {
@@ -307,6 +307,7 @@ impl<T, U> SkipMap<T, U> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -327,10 +328,8 @@ impl<T, U> SkipMap<T, U> {
             loop {
                 let mut next_node = (**curr_node).get_pointer_mut(curr_height);
                 while !next_node.is_null() && (**next_node).entry.key.borrow() < key {
-                    curr_node = mem::replace(
-                        &mut next_node,
-                        (**next_node).get_pointer_mut(curr_height),
-                    );
+                    let next_next_node = (**next_node).get_pointer_mut(curr_height);
+                    curr_node = mem::replace(&mut next_node, next_next_node);
                 }
 
                 if !next_node.is_null() && (**next_node).entry.key.borrow() == key {
@@ -350,6 +349,7 @@ impl<T, U> SkipMap<T, U> {
     /// Returns the number of elements in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -364,6 +364,7 @@ impl<T, U> SkipMap<T, U> {
     /// Returns `true` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -377,6 +378,7 @@ impl<T, U> SkipMap<T, U> {
     /// Clears the map, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -401,6 +403,7 @@ impl<T, U> SkipMap<T, U> {
     /// such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -421,10 +424,8 @@ impl<T, U> SkipMap<T, U> {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
                 while !next_node.is_null() && (**next_node).entry.key.borrow() <= key {
-                    curr_node = mem::replace(
-                        &mut next_node,
-                        (**next_node).get_pointer(curr_height),
-                    );
+                    let next_next_node = (**next_node).get_pointer(curr_height);
+                    curr_node = mem::replace(&mut next_node, next_next_node);
                 }
 
                 if curr_height == 0 {
@@ -444,6 +445,7 @@ impl<T, U> SkipMap<T, U> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -464,10 +466,8 @@ impl<T, U> SkipMap<T, U> {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
                 while !next_node.is_null() && (**next_node).entry.key.borrow() < key {
-                    curr_node = mem::replace(
-                        &mut next_node,
-                        (**next_node).get_pointer(curr_height),
-                    );
+                    let next_next_node = (**next_node).get_pointer(curr_height);
+                    curr_node = mem::replace(&mut next_node, next_next_node);
                 }
 
                 if curr_height == 0 {
@@ -486,6 +486,7 @@ impl<T, U> SkipMap<T, U> {
     /// Returns the minimum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -511,6 +512,7 @@ impl<T, U> SkipMap<T, U> {
     /// Returns the maximum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -530,10 +532,8 @@ impl<T, U> SkipMap<T, U> {
             loop {
                 let mut next_node = (**curr_node).get_pointer(curr_height);
                 while !next_node.is_null() {
-                    curr_node = mem::replace(
-                        &mut next_node,
-                        (**next_node).get_pointer(curr_height),
-                    );
+                    let next_next_node = (**next_node).get_pointer(curr_height);
+                    curr_node = mem::replace(&mut next_node, next_next_node);
                 }
 
                 if curr_height == 0 {
@@ -554,6 +554,7 @@ impl<T, U> SkipMap<T, U> {
     /// operator is implemented to take the union of two maps.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -596,22 +597,36 @@ impl<T, U> SkipMap<T, U> {
                         let cmp = (*left.head).entry.cmp(&(*right.head).entry);
                         match cmp {
                             cmp::Ordering::Equal => {
-                                Node::free(mem::replace(
-                                    &mut right.head,
-                                    *(*right.head).get_pointer(0),
-                                ));
+                                let next_right_node = *(*right.head).get_pointer(0);
+                                Node::free(mem::replace(&mut right.head, next_right_node));
                                 continue;
                             },
-                            cmp::Ordering::Less => next_node = mem::replace(&mut left.head, *(*left.head).get_pointer(0)),
-                            cmp::Ordering::Greater => next_node = mem::replace(&mut right.head, *(*right.head).get_pointer(0)),
+                            cmp::Ordering::Less => {
+                                let next_left_node = *(*left.head).get_pointer(0);
+                                next_node = mem::replace(&mut left.head, next_left_node);
+                            },
+                            cmp::Ordering::Greater => {
+                                let next_right_node = *(*right.head).get_pointer(0);
+                                next_node = mem::replace(&mut right.head, next_right_node);
+                            },
                         }
                     },
-                    (true, false) => next_node = mem::replace(&mut right.head, *(*right.head).get_pointer(0)),
-                    (false, true) => next_node = mem::replace(&mut left.head, *(*left.head).get_pointer(0)),
+                    (true, false) => {
+                        let next_right_node = *(*right.head).get_pointer(0);
+                        next_node = mem::replace(&mut right.head, next_right_node);
+                    },
+                    (false, true) => {
+                        let next_left_node = *(*left.head).get_pointer(0);
+                        next_node = mem::replace(&mut left.head, next_left_node);
+                    },
                 }
                 ret.len += 1;
 
-                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_len);
+                ptr::write_bytes(
+                    (*next_node).links.get_unchecked_mut(0),
+                    0,
+                    (*next_node).links_len,
+                );
 
                 let links_len = (*next_node).links_len;
                 for (i, curr_node) in curr_nodes.iter_mut().enumerate().take(links_len) {
@@ -629,6 +644,7 @@ impl<T, U> SkipMap<T, U> {
     /// `right`, the intersection will contain the value associated with the key in `left`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -671,37 +687,41 @@ impl<T, U> SkipMap<T, U> {
                         let cmp = (*left.head).entry.cmp(&(*right.head).entry);
                         match cmp {
                             cmp::Ordering::Equal => {
-                                next_node = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
-                                Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
+                                let next_left_node = *(*left.head).get_pointer(0);
+                                let next_right_node = *(*right.head).get_pointer(0);
+                                next_node = mem::replace(&mut left.head, next_left_node);
+                                Node::free(mem::replace(&mut right.head, next_right_node));
                             },
                             cmp::Ordering::Less => {
-                                Node::free(mem::replace(
-                                    &mut left.head,
-                                    *(*left.head).get_pointer(0),
-                                ));
+                                let next_left_node = *(*left.head).get_pointer(0);
+                                Node::free(mem::replace(&mut left.head, next_left_node));
                                 continue;
                             },
                             cmp::Ordering::Greater => {
-                                Node::free(mem::replace(
-                                    &mut right.head,
-                                    *(*right.head).get_pointer(0),
-                                ));
+                                let next_right_node = *(*right.head).get_pointer(0);
+                                Node::free(mem::replace(&mut right.head, next_right_node));
                                 continue;
                             },
                         }
                     },
                     (true, false) => {
-                        Node::free(mem::replace(&mut right.head, *(*right.head).get_pointer(0)));
+                        let next_right_node = *(*right.head).get_pointer(0);
+                        Node::free(mem::replace(&mut right.head, next_right_node));
                         continue;
                     },
                     (false, true) => {
-                        Node::free(mem::replace(&mut left.head, *(*left.head).get_pointer(0)));
+                        let next_left_node = *(*left.head).get_pointer(0);
+                        Node::free(mem::replace(&mut left.head, next_left_node));
                         continue;
                     },
                 }
                 ret.len += 1;
 
-                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_len);
+                ptr::write_bytes(
+                    (*next_node).links.get_unchecked_mut(0),
+                    0,
+                    (*next_node).links_len,
+                );
 
                 let links_len = (*next_node).links_len;
                 for (i, curr_node) in curr_nodes.iter_mut().enumerate().take(links_len + 1) {
@@ -740,57 +760,48 @@ impl<T, U> SkipMap<T, U> {
                         let cmp = (*left.head).entry.cmp(&(*right.head).entry);
                         match cmp {
                             cmp::Ordering::Equal => {
-                                Node::free(mem::replace(
-                                    &mut left.head,
-                                    *(*left.head).get_pointer(0),
-                                ));
-                                Node::free(mem::replace(
-                                    &mut right.head,
-                                    *(*right.head).get_pointer(0),
-                                ));
+                                let next_left_node = *(*left.head).get_pointer(0);
+                                let next_right_node = *(*right.head).get_pointer(0);
+                                Node::free(mem::replace(&mut left.head, next_left_node));
+                                Node::free(mem::replace(&mut right.head, next_right_node));
                                 continue;
                             },
-                            cmp::Ordering::Less => next_node = mem::replace(&mut left.head, *(*left.head).get_pointer(0)),
+                            cmp::Ordering::Less => {
+                                let next_left_node = *(*left.head).get_pointer(0);
+                                next_node = mem::replace(&mut left.head, next_left_node);
+                            },
                             cmp::Ordering::Greater => {
+                                let next_right_node = *(*right.head).get_pointer(0);
                                 if symmetric {
-                                    next_node = mem::replace(
-                                        &mut right.head,
-                                        *(*right.head).get_pointer(0),
-                                    );
+                                    next_node = mem::replace(&mut right.head, next_right_node);
                                 } else {
-                                    Node::free(mem::replace(
-                                        &mut right.head,
-                                        *(*right.head).get_pointer(0),
-                                    ));
+                                    Node::free(mem::replace(&mut right.head, next_right_node));
                                     continue;
                                 }
                             },
                         }
                     },
                     (true, false) => {
+                        let next_right_node = *(*right.head).get_pointer(0);
                         if symmetric {
-                            next_node = mem::replace(
-                                &mut right.head,
-                                *(*right.head).get_pointer(0),
-                            );
+                            next_node = mem::replace(&mut right.head, next_right_node);
                         } else {
-                            Node::free(mem::replace(
-                                &mut right.head,
-                                *(*right.head).get_pointer(0),
-                            ));
+                            Node::free(mem::replace(&mut right.head, next_right_node));
                             continue;
                         }
                     },
                     (false, true) => {
-                        next_node = mem::replace(
-                            &mut right.head,
-                            *(*right.head).get_pointer(0),
-                        );
+                        let next_right_node = *(*right.head).get_pointer(0);
+                        next_node = mem::replace(&mut right.head, next_right_node);
                     },
                 }
                 ret.len += 1;
 
-                ptr::write_bytes((*next_node).links.get_unchecked_mut(0), 0, (*next_node).links_len);
+                ptr::write_bytes(
+                    (*next_node).links.get_unchecked_mut(0),
+                    0,
+                    (*next_node).links_len,
+                );
 
                 let links_len = (*next_node).links_len;
                 for (i, curr_node) in curr_nodes.iter_mut().enumerate().take(links_len) {
@@ -809,6 +820,7 @@ impl<T, U> SkipMap<T, U> {
     /// of two maps.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -837,6 +849,7 @@ impl<T, U> SkipMap<T, U> {
     /// entries that exist in one map, but not both maps.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -865,6 +878,7 @@ impl<T, U> SkipMap<T, U> {
     /// order.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -889,6 +903,7 @@ impl<T, U> SkipMap<T, U> {
     /// ascending order.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipMap;
     ///
@@ -926,8 +941,8 @@ impl<T, U> Drop for SkipMap<T, U> {
 }
 
 impl<T, U> IntoIterator for SkipMap<T, U> {
-    type Item = (T, U);
     type IntoIter = SkipMapIntoIter<T, U>;
+    type Item = (T, U);
 
     fn into_iter(self) -> Self::IntoIter {
         unsafe {
@@ -945,8 +960,8 @@ where
     T: 'a,
     U: 'a,
 {
-    type Item = (&'a T, &'a U);
     type IntoIter = SkipMapIter<'a, T, U>;
+    type Item = (&'a T, &'a U);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -958,8 +973,8 @@ where
     T: 'a,
     U: 'a,
 {
-    type Item = (&'a T, &'a mut U);
     type IntoIter = SkipMapIterMut<'a, T, U>;
+    type Item = (&'a T, &'a mut U);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -1061,7 +1076,10 @@ where
             None
         } else {
             unsafe {
-                let Entry { ref key, ref mut value } = (**self.current).entry;
+                let Entry {
+                    ref key,
+                    ref mut value,
+                } = (**self.current).entry;
                 mem::replace(&mut self.current, &mut *(**self.current).get_pointer_mut(0));
                 Some((key, value))
             }
@@ -1103,6 +1121,7 @@ where
     V: Ord + ?Sized,
 {
     type Output = U;
+
     fn index(&self, key: &V) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
     }

@@ -237,14 +237,12 @@ where
                     ..
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
-                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
-                let new_left_subtree = union(left_subtree.take(), right_left_subtree, swapped);
-                let new_right_subtree = union(right_subtree.take(), right_right_subtree, swapped);
-                *left_subtree = new_left_subtree;
-                *right_subtree = new_right_subtree;
-                if let Some(duplicate_node) = duplicate_opt {
+                let (dup_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
+                *left_subtree = union(left_subtree.take(), right_left_subtree, swapped);
+                *right_subtree = union(right_subtree.take(), right_right_subtree, swapped);
+                if let Some(dup_node) = dup_opt {
                     if swapped {
-                        *entry = duplicate_node.entry;
+                        *entry = dup_node.entry;
                     }
                 }
             }
@@ -278,15 +276,13 @@ where
                     ..
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
-                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
-                let new_left_subtree = intersection(left_subtree.take(), right_left_subtree, swapped);
-                let new_right_subtree = intersection(right_subtree.take(), right_right_subtree, swapped);
-                *left_subtree = new_left_subtree;
-                *right_subtree = new_right_subtree;
-                match duplicate_opt {
-                    Some(duplicate_node) => {
+                let (dup_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
+                *left_subtree = intersection(left_subtree.take(), right_left_subtree, swapped);
+                *right_subtree = intersection(right_subtree.take(), right_right_subtree, swapped);
+                match dup_opt {
+                    Some(dup_node) => {
                         if swapped {
-                            *entry = duplicate_node.entry;
+                            *entry = dup_node.entry;
                         }
                     },
                     None => {
@@ -325,12 +321,16 @@ where
                     ..
                 } = &mut *left_node;
                 let mut right_left_subtree = Some(right_node);
-                let (duplicate_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
-                let new_left_subtree = difference(left_subtree.take(), right_left_subtree, swapped, symmetric);
-                let new_right_subtree = difference(right_subtree.take(), right_right_subtree, swapped, symmetric);
-                *left_subtree = new_left_subtree;
-                *right_subtree = new_right_subtree;
-                if duplicate_opt.is_some() || (swapped && !symmetric) {
+                let (dup_opt, right_right_subtree) = split(&mut right_left_subtree, &entry.key);
+                *left_subtree =
+                    difference(left_subtree.take(), right_left_subtree, swapped, symmetric);
+                *right_subtree = difference(
+                    right_subtree.take(),
+                    right_right_subtree,
+                    swapped,
+                    symmetric,
+                );
+                if dup_opt.is_some() || (swapped && !symmetric) {
                     merge(left_subtree, right_subtree.take());
                     return left_subtree.take();
                 }

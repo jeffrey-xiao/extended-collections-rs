@@ -19,6 +19,7 @@ type SearchOutcome<T, U> = (usize, Node<T, U>, SearchHistory<T, U>);
 /// contains keys and values.
 ///
 /// # Examples
+///
 /// ```
 /// # use extended_collections::bp_tree::Result;
 /// # fn foo() -> Result<()> {
@@ -51,6 +52,7 @@ impl<T, U> BpMap<T, U> {
     /// file for data persistence.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -85,6 +87,7 @@ impl<T, U> BpMap<T, U> {
     /// sizes for leaf and internal nodes, and creates a file for data persistence.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -123,6 +126,7 @@ impl<T, U> BpMap<T, U> {
     /// Opens an existing `BpMap<T, U>` from a file.
     ///
     /// # Examples
+    ///
     /// ```no_run
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -165,10 +169,12 @@ impl<T, U> BpMap<T, U> {
     /// and replace the old key-value pair.
     ///
     /// # Panics
+    ///
     /// Panics if attempting to insert a key or value that exceeds the maximum key or value size
     /// specified on creation.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -198,17 +204,25 @@ impl<T, U> BpMap<T, U> {
         match curr_node {
             Node::Leaf(mut curr_leaf_node) => {
                 match curr_leaf_node.insert(Entry { key, value }) {
-                    Some(InsertCases::Split { split_key, split_node }) => {
+                    Some(InsertCases::Split {
+                        split_key,
+                        split_node,
+                    }) => {
                         let split_node_index = self.pager.allocate_node(&split_node)?;
                         curr_leaf_node.next_leaf = Some(split_node_index);
                         split_node_entry = Some((split_key, split_node_index));
-                        self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
+                        self.pager
+                            .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
                     },
                     Some(InsertCases::Entry(entry)) => {
-                        self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
+                        self.pager
+                            .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
                         return Ok(Some((entry.key, entry.value)));
                     },
-                    None => self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node))?,
+                    None => {
+                        self.pager
+                            .write_node(curr_page, &Node::Leaf(curr_leaf_node))?
+                    },
                 }
             },
             _ => unreachable!(),
@@ -219,7 +233,8 @@ impl<T, U> BpMap<T, U> {
                 Some((parent_page, mut parent_node, _)) => {
                     match parent_node {
                         Node::Internal(ref mut node) => {
-                            if let Some((split_key, split_node)) = node.insert(split_key, split_pointer, true) {
+                            let split_node_opt = node.insert(split_key, split_pointer, true);
+                            if let Some((split_key, split_node)) = split_node_opt {
                                 let split_node_index = self.pager.allocate_node(&split_node)?;
                                 split_node_entry = Some((split_key, split_node_index));
                             } else {
@@ -253,6 +268,7 @@ impl<T, U> BpMap<T, U> {
     /// associated key-value pair. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -281,9 +297,10 @@ impl<T, U> BpMap<T, U> {
         match curr_node {
             Node::Leaf(mut curr_leaf_node) => {
                 ret = curr_leaf_node.remove(key);
-                if curr_leaf_node.len < (self.pager.get_leaf_degree() + 1) / 2 && !stack.is_empty() {
+                let is_underflow = curr_leaf_node.len < (self.pager.get_leaf_degree() + 1) / 2;
+                if is_underflow && !stack.is_empty() {
                     if let Some((parent_page, parent_node, curr_index)) = stack.pop() {
-                        let mut parent_internal_node = {
+                        let mut parent_node = {
                             match parent_node {
                                 Node::Internal(node) => node,
                                 _ => unreachable!(),
@@ -296,7 +313,7 @@ impl<T, U> BpMap<T, U> {
                                 curr_index - 1
                             }
                         };
-                        let sibling_page = parent_internal_node.pointers[sibling_index];
+                        let sibling_page = parent_node.pointers[sibling_index];
                         let mut sibling_leaf_node = {
                             match self.pager.get_page(sibling_page)? {
                                 Node::Leaf(node) => node,
@@ -308,14 +325,16 @@ impl<T, U> BpMap<T, U> {
                         if sibling_leaf_node.len == (self.pager.get_leaf_degree() + 1) / 2 {
                             if sibling_index == curr_index + 1 {
                                 curr_leaf_node.merge(&mut sibling_leaf_node);
-                                delete_entry = Some((curr_index, parent_page, parent_internal_node));
+                                delete_entry = Some((curr_index, parent_page, parent_node));
                                 self.pager.deallocate_node(sibling_page)?;
-                                self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
+                                self.pager
+                                    .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
                             } else {
                                 sibling_leaf_node.merge(&mut curr_leaf_node);
-                                delete_entry = Some((sibling_index, parent_page, parent_internal_node));
+                                delete_entry = Some((sibling_index, parent_page, parent_node));
                                 self.pager.deallocate_node(curr_page)?;
-                                self.pager.write_node(sibling_page, &Node::Leaf(sibling_leaf_node))?;
+                                self.pager
+                                    .write_node(sibling_page, &Node::Leaf(sibling_leaf_node))?;
                             }
                         }
                         // take one entry
@@ -326,17 +345,20 @@ impl<T, U> BpMap<T, U> {
                                     .as_ref()
                                     .map(|entry| entry.key.clone())
                                     .expect("Expected some entry.");
-                                parent_internal_node.keys[curr_index] = Some(new_key);
+                                parent_node.keys[curr_index] = Some(new_key);
                                 curr_leaf_node.insert(removed_entry);
                             } else {
                                 let remove_index = sibling_leaf_node.len - 1;
                                 let removed_entry = sibling_leaf_node.remove_at(remove_index);
-                                parent_internal_node.keys[sibling_index] = Some(removed_entry.key.clone());
+                                parent_node.keys[sibling_index] = Some(removed_entry.key.clone());
                                 curr_leaf_node.insert(removed_entry);
                             }
-                            self.pager.write_node(parent_page, &Node::Internal(parent_internal_node))?;
-                            self.pager.write_node(sibling_page, &Node::Leaf(sibling_leaf_node))?;
-                            self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
+                            self.pager
+                                .write_node(parent_page, &Node::Internal(parent_node))?;
+                            self.pager
+                                .write_node(sibling_page, &Node::Leaf(sibling_leaf_node))?;
+                            self.pager
+                                .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
                         }
                     }
                     let new_len = self.pager.get_len() - 1;
@@ -344,19 +366,21 @@ impl<T, U> BpMap<T, U> {
                 } else if ret.is_some() {
                     let new_len = self.pager.get_len() - 1;
                     self.pager.set_len(new_len)?;
-                    self.pager.write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
+                    self.pager
+                        .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
                 }
             },
             _ => unreachable!(),
         }
 
-        while let Some((delete_index, curr_page, mut curr_internal_node)) = delete_entry {
+        while let Some((delete_index, curr_page, mut curr_node)) = delete_entry {
             delete_entry = None;
-            curr_internal_node.remove_at(delete_index, true);
+            curr_node.remove_at(delete_index, true);
 
-            if curr_internal_node.len + 1 < (self.pager.get_internal_degree() + 1) / 2 {
+            let is_underflow = curr_node.len + 1 < (self.pager.get_internal_degree() + 1) / 2;
+            if is_underflow {
                 if let Some((parent_page, parent_node, curr_index)) = stack.pop() {
-                    let mut parent_internal_node = {
+                    let mut parent_node = {
                         match parent_node {
                             Node::Internal(node) => node,
                             _ => unreachable!(),
@@ -369,62 +393,71 @@ impl<T, U> BpMap<T, U> {
                             curr_index - 1
                         }
                     };
-                    let sibling_page = parent_internal_node.pointers[sibling_index];
-                    let mut sibling_internal_node = {
+                    let sibling_page = parent_node.pointers[sibling_index];
+                    let mut sibling_node = {
                         match self.pager.get_page(sibling_page)? {
                             Node::Internal(node) => node,
                             _ => unreachable!(),
                         }
                     };
 
-                    if sibling_internal_node.len + 1 == (self.pager.get_internal_degree() + 1) / 2 {
+                    if sibling_node.len + 1 == (self.pager.get_internal_degree() + 1) / 2 {
                         if sibling_index == curr_index + 1 {
-                            let parent_key = parent_internal_node.keys[curr_index]
+                            let parent_key = parent_node.keys[curr_index]
                                 .clone()
                                 .expect("Expected some key.");
-                            curr_internal_node.merge(parent_key, &mut sibling_internal_node);
-                            delete_entry = Some((curr_index, parent_page, parent_internal_node));
+                            curr_node.merge(parent_key, &mut sibling_node);
+                            delete_entry = Some((curr_index, parent_page, parent_node));
                             self.pager.deallocate_node(sibling_page)?;
-                            self.pager.write_node(curr_page, &Node::Internal(curr_internal_node))?;
+                            self.pager
+                                .write_node(curr_page, &Node::Internal(curr_node))?;
                         } else {
-                            let parent_key = parent_internal_node.keys[sibling_index]
+                            let parent_key = parent_node.keys[sibling_index]
                                 .clone()
                                 .expect("Expected some key.");
-                            sibling_internal_node.merge(parent_key, &mut curr_internal_node);
-                            delete_entry = Some((sibling_index, parent_page, parent_internal_node));
+                            sibling_node.merge(parent_key, &mut curr_node);
+                            delete_entry = Some((sibling_index, parent_page, parent_node));
                             self.pager.deallocate_node(curr_page)?;
-                            self.pager.write_node(sibling_page, &Node::Internal(sibling_internal_node))?;
+                            self.pager
+                                .write_node(sibling_page, &Node::Internal(sibling_node))?;
                         }
                     } else if sibling_index == curr_index + 1 {
-                        let (mut removed_key, removed_pointer) = sibling_internal_node.remove_at(0, false);
-                        let removed_key = mem::replace(
-                            &mut parent_internal_node.keys[curr_index],
-                            Some(removed_key),
-                        ).expect("Expected some key.");
-                        curr_internal_node.insert(removed_key, removed_pointer, true);
-                        self.pager.write_node(parent_page, &Node::Internal(parent_internal_node))?;
-                        self.pager.write_node(sibling_page, &Node::Internal(sibling_internal_node))?;
-                        self.pager.write_node(curr_page, &Node::Internal(curr_internal_node))?;
+                        let (mut removed_key, removed_pointer) = sibling_node.remove_at(0, false);
+                        let removed_key =
+                            mem::replace(&mut parent_node.keys[curr_index], Some(removed_key))
+                                .expect("Expected some key.");
+                        curr_node.insert(removed_key, removed_pointer, true);
+                        self.pager
+                            .write_node(parent_page, &Node::Internal(parent_node))?;
+                        self.pager
+                            .write_node(sibling_page, &Node::Internal(sibling_node))?;
+                        self.pager
+                            .write_node(curr_page, &Node::Internal(curr_node))?;
                     } else {
-                        let remove_index = sibling_internal_node.len - 1;
-                        let (mut removed_key, removed_pointer) = sibling_internal_node.remove_at(remove_index, true);
-                        let removed_key = mem::replace(
-                            &mut parent_internal_node.keys[sibling_index],
-                            Some(removed_key),
-                        ).expect("Expected some key.");
-                        curr_internal_node.insert(removed_key, removed_pointer, false);
-                        self.pager.write_node(parent_page, &Node::Internal(parent_internal_node))?;
-                        self.pager.write_node(sibling_page, &Node::Internal(sibling_internal_node))?;
-                        self.pager.write_node(curr_page, &Node::Internal(curr_internal_node))?;
+                        let remove_index = sibling_node.len - 1;
+                        let (mut removed_key, removed_pointer) =
+                            sibling_node.remove_at(remove_index, true);
+                        let removed_key =
+                            mem::replace(&mut parent_node.keys[sibling_index], Some(removed_key))
+                                .expect("Expected some key.");
+                        curr_node.insert(removed_key, removed_pointer, false);
+                        self.pager
+                            .write_node(parent_page, &Node::Internal(parent_node))?;
+                        self.pager
+                            .write_node(sibling_page, &Node::Internal(sibling_node))?;
+                        self.pager
+                            .write_node(curr_page, &Node::Internal(curr_node))?;
                     }
-                } else if curr_internal_node.len == 0 {
-                    self.pager.set_root_page(curr_internal_node.pointers[0])?;
+                } else if curr_node.len == 0 {
+                    self.pager.set_root_page(curr_node.pointers[0])?;
                     self.pager.deallocate_node(curr_page)?;
                 } else {
-                    self.pager.write_node(curr_page, &Node::Internal(curr_internal_node))?;
+                    self.pager
+                        .write_node(curr_page, &Node::Internal(curr_node))?;
                 }
             } else {
-                self.pager.write_node(curr_page, &Node::Internal(curr_internal_node))?;
+                self.pager
+                    .write_node(curr_page, &Node::Internal(curr_node))?;
             }
         }
         Ok(ret.map(|entry| (entry.key, entry.value)))
@@ -433,6 +466,7 @@ impl<T, U> BpMap<T, U> {
     /// Checks if a key exists in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -450,7 +484,7 @@ impl<T, U> BpMap<T, U> {
     /// ```
     pub fn contains_key<V>(&mut self, key: &V) -> Result<bool>
     where
-        T: Borrow<V> + DeserializeOwned ,
+        T: Borrow<V> + DeserializeOwned,
         U: DeserializeOwned,
         V: Ord + ?Sized,
     {
@@ -461,6 +495,7 @@ impl<T, U> BpMap<T, U> {
     /// not exist in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -486,8 +521,7 @@ impl<T, U> BpMap<T, U> {
         match curr_node {
             Node::Leaf(mut curr_leaf_node) => {
                 Ok(curr_leaf_node.search(key).and_then(|index| {
-                    mem::replace(&mut curr_leaf_node.entries[index], None)
-                        .map(|entry| entry.value)
+                    mem::replace(&mut curr_leaf_node.entries[index], None).map(|entry| entry.value)
                 }))
             },
             _ => unreachable!(),
@@ -497,6 +531,7 @@ impl<T, U> BpMap<T, U> {
     /// Returns the number of elements in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -518,6 +553,7 @@ impl<T, U> BpMap<T, U> {
     /// Returns `true` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -538,6 +574,7 @@ impl<T, U> BpMap<T, U> {
     /// Clears the map, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -565,6 +602,7 @@ impl<T, U> BpMap<T, U> {
     /// Returns the minimum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -594,7 +632,9 @@ impl<T, U> BpMap<T, U> {
         }
 
         match curr_node {
-            Node::Leaf(mut curr_leaf_node) => Ok(mem::replace(&mut curr_leaf_node.entries[0], None).map(|entry| entry.key)),
+            Node::Leaf(mut curr_leaf_node) => {
+                Ok(mem::replace(&mut curr_leaf_node.entries[0], None).map(|entry| entry.key))
+            },
             _ => unreachable!(),
         }
     }
@@ -602,6 +642,7 @@ impl<T, U> BpMap<T, U> {
     /// Returns the maximum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -636,7 +677,8 @@ impl<T, U> BpMap<T, U> {
                     Ok(None)
                 } else {
                     let index = curr_leaf_node.len - 1;
-                    Ok(mem::replace(&mut curr_leaf_node.entries[index], None).map(|entry| entry.key))
+                    Ok(mem::replace(&mut curr_leaf_node.entries[index], None)
+                        .map(|entry| entry.key))
                 }
             },
             _ => unreachable!(),
@@ -647,6 +689,7 @@ impl<T, U> BpMap<T, U> {
     /// in-order traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::bp_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -697,8 +740,8 @@ where
     T: 'a + DeserializeOwned,
     U: 'a + DeserializeOwned,
 {
-    type Item = Result<(T, U)>;
     type IntoIter = BpMapIterMut<'a, T, U>;
+    type Item = Result<(T, U)>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut().unwrap()

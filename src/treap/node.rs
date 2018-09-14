@@ -31,7 +31,12 @@ impl<T, U> Node<T, U> {
     }
 
     pub fn update(&mut self) {
-        let Node { ref mut len, ref left, ref right, .. } = self;
+        let Node {
+            ref mut len,
+            ref left,
+            ref right,
+            ..
+        } = self;
         *len = 1;
         if let Some(ref left_node) = left {
             *len += left_node.len;
@@ -52,12 +57,18 @@ impl<T> ImplicitNode<T> {
             right: None,
         }
     }
+
     pub fn len(&self) -> usize {
         self.len
     }
 
     pub fn update(&mut self) {
-        let ImplicitNode { ref mut len, ref left, ref right, .. } = self;
+        let ImplicitNode {
+            ref mut len,
+            ref left,
+            ref right,
+            ..
+        } = self;
         *len = 1;
         if let Some(ref left_node) = left {
             *len += left_node.len;

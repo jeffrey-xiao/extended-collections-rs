@@ -93,12 +93,8 @@ impl<T, U> Pager<T, U> {
         P: AsRef<Path>,
     {
         let header_size = Self::get_metadata_size();
-        let body_size = Node::<T, U>::get_max_size(
-            key_size,
-            value_size,
-            leaf_degree,
-            internal_degree
-        ) as u64;
+        let body_size =
+            Node::<T, U>::get_max_size(key_size, value_size, leaf_degree, internal_degree) as u64;
         let metadata = Metadata {
             pages: 1,
             len: 0,
@@ -192,7 +188,9 @@ impl<T, U> Pager<T, U> {
         self.metadata.len = len;
         self.db_file.seek(SeekFrom::Start(0))?;
         let serialized_metadata = &serialize(&self.metadata)?;
-        self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
+        self.db_file
+            .write_all(serialized_metadata)
+            .map_err(Error::IOError)
     }
 
     pub fn get_root_page(&self) -> usize {
@@ -203,7 +201,9 @@ impl<T, U> Pager<T, U> {
         self.metadata.root_page = new_root_page;
         self.db_file.seek(SeekFrom::Start(0))?;
         let serialized_metadata = &serialize(&self.metadata)?;
-        self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
+        self.db_file
+            .write_all(serialized_metadata)
+            .map_err(Error::IOError)
     }
 
     pub fn get_page(&mut self, index: usize) -> Result<Node<T, U>>
@@ -277,7 +277,9 @@ impl<T, U> Pager<T, U> {
         self.metadata.free_page = Some(index);
         self.db_file.seek(SeekFrom::Start(0))?;
         let serialized_metadata = &serialize(&self.metadata)?;
-        self.db_file.write_all(serialized_metadata).map_err(Error::IOError)
+        self.db_file
+            .write_all(serialized_metadata)
+            .map_err(Error::IOError)
     }
 
     pub fn write_node(&mut self, index: usize, node: &Node<T, U>) -> Result<()>
@@ -288,7 +290,9 @@ impl<T, U> Pager<T, U> {
         let offset = self.calculate_page_offset(index);
         self.db_file.seek(SeekFrom::Start(offset))?;
         let serialized_node = &serialize(&node)?;
-        self.db_file.write_all(serialized_node).map_err(Error::IOError)
+        self.db_file
+            .write_all(serialized_node)
+            .map_err(Error::IOError)
     }
 
     pub fn clear(&mut self) -> Result<()>
@@ -309,8 +313,12 @@ impl<T, U> Pager<T, U> {
         self.db_file.write_all(serialized_metadata)?;
 
         self.db_file.seek(SeekFrom::Start(header_size))?;
-        let serialized_node = &serialize(&Node::Leaf(LeafNode::<T, U>::new(self.metadata.leaf_degree)))?;
-        self.db_file.write_all(serialized_node).map_err(Error::IOError)
+        let serialized_node = &serialize(&Node::Leaf(LeafNode::<T, U>::new(
+            self.metadata.leaf_degree,
+        )))?;
+        self.db_file
+            .write_all(serialized_node)
+            .map_err(Error::IOError)
     }
 
     pub fn validate_key<V>(&self, key: &V) -> Result<()>

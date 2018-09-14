@@ -6,7 +6,8 @@ pub type Tree<T> = Option<Box<Node<T>>>;
 
 pub fn insert<T>(tree: &mut Tree<T>, mut key: &[u8], value: T) -> Option<T> {
     let node = tree.as_mut().expect("Expected non-empty tree.");
-    let split_index = node.key
+    let split_index = node
+        .key
         .iter()
         .zip(key.iter())
         .position(|pair| pair.0 != pair.1);
@@ -49,7 +50,8 @@ pub fn remove<T>(tree: &mut Tree<T>, key: &[u8], mut index: usize) -> Option<(Ve
             Some(ref mut node) => node,
             None => return None,
         };
-        let split_index = node.key
+        let split_index = node
+            .key
             .iter()
             .zip(key[index..].iter())
             .position(|pair| pair.0 != pair.1);
@@ -89,7 +91,8 @@ pub fn get<'a, T>(tree: &'a Tree<T>, key: &[u8], mut index: usize) -> Option<&'a
         Some(ref node) => node,
         None => return None,
     };
-    let split_index = node.key
+    let split_index = node
+        .key
         .iter()
         .zip(key[index..].iter())
         .position(|pair| pair.0 != pair.1);
@@ -113,7 +116,8 @@ pub fn get_mut<'a, T>(tree: &'a mut Tree<T>, key: &[u8], mut index: usize) -> Op
         Some(ref mut node) => node,
         None => return None,
     };
-    let split_index = node.key
+    let split_index = node
+        .key
         .iter()
         .zip(key[index..].iter())
         .position(|pair| pair.0 != pair.1);
@@ -144,7 +148,8 @@ pub fn get_longest_prefix<T>(
         None => return,
     };
     curr_key.extend(node.key.iter());
-    let split_index = node.key
+    let split_index = node
+        .key
         .iter()
         .zip(key[index..].iter())
         .position(|pair| pair.0 != pair.1);

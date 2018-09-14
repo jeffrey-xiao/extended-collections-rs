@@ -19,12 +19,13 @@ use std::mem;
 /// When an entry is deleted, a tombstone is inserted to indicate that the entry is deleted.
 ///
 /// # Examples
+///
 /// ```
 /// # use extended_collections::lsm_tree::Result;
 /// # fn foo() -> Result<()> {
 /// # use std::fs;
-/// use extended_collections::lsm_tree::LsmMap;
 /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+/// use extended_collections::lsm_tree::LsmMap;
 ///
 /// let sts = SizeTieredStrategy::new("example_lsm_map", 10000, 4, 50000, 0.5, 1.5)?;
 /// let mut map = LsmMap::new(sts);
@@ -63,12 +64,13 @@ where
     /// Constructs a new `LsmMap<T, U>` with a specific `CompactionStrategy<T, U>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_new", 10000, 4, 50000, 0.5, 1.5)?;
     /// let map: LsmMap<u32, u32, _> = LsmMap::new(sts);
@@ -103,12 +105,13 @@ where
     /// compact the SSTables if necessary.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_insert", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -151,12 +154,13 @@ where
     /// SSTable and then compact the SSTables if necessary.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_remove", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -197,12 +201,13 @@ where
     /// Checks if a key exists in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_contains_key", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -227,12 +232,13 @@ where
     /// not exist in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_get", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -266,12 +272,13 @@ where
     /// `len`.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_len_hint", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -292,12 +299,13 @@ where
     /// length, see `len_hint`.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_len", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -318,12 +326,13 @@ where
     /// all entries is performed to determine if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_is_empty", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -344,12 +353,13 @@ where
     /// thread to terminate before removing all SSTables.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_clear", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -371,12 +381,13 @@ where
     /// Returns the minimum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_min", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -390,7 +401,8 @@ where
     /// # foo().unwrap();
     /// ```
     pub fn min(&mut self) -> Result<Option<T>> {
-        let in_memory_min = self.in_memory_tree
+        let in_memory_min = self
+            .in_memory_tree
             .iter()
             .skip_while(|entry| entry.1.data.is_none())
             .next()
@@ -409,12 +421,13 @@ where
     /// Returns the maximum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_max", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -443,12 +456,13 @@ where
     /// before being dropped or the contents of the in-memory tree will be lost.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_flush", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);
@@ -473,12 +487,13 @@ where
     /// perform any compactions if there are any undropped iterators.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
-    /// use extended_collections::lsm_tree::LsmMap;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
+    /// use extended_collections::lsm_tree::LsmMap;
     ///
     /// let sts = SizeTieredStrategy::new("example_lsm_map_iter", 10000, 4, 50000, 0.5, 1.5)?;
     /// let mut map = LsmMap::new(sts);

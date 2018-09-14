@@ -81,6 +81,7 @@ impl<T> Node<T> {
 /// the list to get, remove, and insert at an arbitrary index in `O(log N)` time.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::skiplist::SkipList;
 ///
@@ -107,6 +108,7 @@ impl<T> SkipList<T> {
     /// Constructs a new, empty `SkipList<T>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -128,6 +130,7 @@ impl<T> SkipList<T> {
     /// right if needed.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -162,7 +165,10 @@ impl<T> SkipList<T> {
                 if curr_height <= new_height {
                     *(*new_node).get_pointer_mut(curr_height) = mem::replace(
                         &mut next_link,
-                        Link { next: new_node, distance: 1 },
+                        Link {
+                            next: new_node,
+                            distance: 1,
+                        },
                     );
                 }
 
@@ -188,6 +194,7 @@ impl<T> SkipList<T> {
     /// Removes a value at a particular index from the list. Returns the value at the index.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -234,6 +241,7 @@ impl<T> SkipList<T> {
     /// Inserts a value at the front of the list.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -249,6 +257,7 @@ impl<T> SkipList<T> {
     /// Inserts a value at the back of the list.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -265,9 +274,11 @@ impl<T> SkipList<T> {
     /// Removes a value at the front of the list.
     ///
     /// # Panics
+    ///
     /// Panics if list is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -283,9 +294,11 @@ impl<T> SkipList<T> {
     /// Removes a value at the back of the list.
     ///
     /// # Panics
+    ///
     /// Panics if list is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -303,6 +316,7 @@ impl<T> SkipList<T> {
     /// index is out of bounds.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -320,10 +334,8 @@ impl<T> SkipList<T> {
                 let mut next_link = (**curr_node).get_pointer(curr_height);
                 while !next_link.next.is_null() && next_link.distance <= index {
                     index -= next_link.distance;
-                    curr_node = &mem::replace(
-                        &mut next_link,
-                        (*next_link.next).get_pointer(curr_height),
-                    ).next;
+                    let next_next_link = (*next_link.next).get_pointer(curr_height);
+                    curr_node = &mem::replace(&mut next_link, next_next_link).next;
                 }
 
                 if !next_link.next.is_null() && next_link.distance == index + 1 {
@@ -344,6 +356,7 @@ impl<T> SkipList<T> {
     /// index is out of bounds.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -384,6 +397,7 @@ impl<T> SkipList<T> {
     /// Returns the number of elements in the list.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -398,6 +412,7 @@ impl<T> SkipList<T> {
     /// Returns `true` if the list is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -411,6 +426,7 @@ impl<T> SkipList<T> {
     /// Clears the list, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -437,6 +453,7 @@ impl<T> SkipList<T> {
     /// Returns an iterator over the list.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -460,6 +477,7 @@ impl<T> SkipList<T> {
     /// Returns a mutable iterator over the list.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipList;
     ///
@@ -503,8 +521,8 @@ impl<T> Drop for SkipList<T> {
 }
 
 impl<T> IntoIterator for SkipList<T> {
-    type Item = T;
     type IntoIter = SkipListIntoIter<T>;
+    type Item = T;
 
     fn into_iter(self) -> Self::IntoIter {
         unsafe {
@@ -521,8 +539,8 @@ impl<'a, T> IntoIterator for &'a SkipList<T>
 where
     T: 'a,
 {
-    type Item = &'a T;
     type IntoIter = SkipListIter<'a, T>;
+    type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -533,8 +551,8 @@ impl<'a, T> IntoIterator for &'a mut SkipList<T>
 where
     T: 'a,
 {
-    type Item = &'a mut T;
     type IntoIter = SkipListIterMut<'a, T>;
+    type Item = &'a mut T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -674,7 +692,8 @@ impl<T> Add for SkipList<T> {
                     (**curr_node).get_pointer_mut(i),
                     (*other.head).get_pointer_mut(i),
                 );
-                (**curr_node).get_pointer_mut(i).distance += (*other.head).get_pointer_mut(i).distance;
+                let next_distance = (*other.head).get_pointer_mut(i).distance;
+                (**curr_node).get_pointer_mut(i).distance += next_distance;
             }
         }
         self
@@ -683,6 +702,7 @@ impl<T> Add for SkipList<T> {
 
 impl<T> Index<usize> for SkipList<T> {
     type Output = T;
+
     fn index(&self, index: usize) -> &Self::Output {
         self.get(index).expect("Index out of bounds.")
     }
@@ -709,10 +729,8 @@ mod tests {
             while !curr_node.is_null() {
                 actual.push(&(**curr_node).value);
                 let mut next_link = (**curr_node).get_pointer_mut(0);
-                curr_node = &mut mem::replace(
-                    &mut next_link,
-                    (*next_link.next).get_pointer_mut(0),
-                ).next;
+                let next_next_link = (*next_link.next).get_pointer_mut(0);
+                curr_node = &mut mem::replace(&mut next_link, next_next_link).next;
             }
 
             for i in 1..=super::MAX_HEIGHT {
@@ -720,18 +738,16 @@ mod tests {
                 while !curr_node.is_null() {
                     let x = &(**curr_node).value;
                     let mut next_link = (**curr_node).get_pointer_mut(i);
-                    let dist = next_link.distance;
-                    curr_node = &mut mem::replace(
-                        &mut next_link,
-                        (*next_link.next).get_pointer_mut(0),
-                    ).next;
+                    let next_link_distance = next_link.distance;
+                    let next_next_link = (*next_link.next).get_pointer_mut(0);
+
+                    curr_node = &mut mem::replace(&mut next_link, next_next_link).next;
                     if !curr_node.is_null() {
                         let y = &(**curr_node).value;
+                        let x_index = actual.iter().position(|&n| n == x).unwrap();
+                        let y_index = actual.iter().position(|&n| n == y).unwrap();
 
-                        assert_eq!(
-                            dist,
-                            actual.iter().position(|&n| n == y).unwrap() - actual.iter().position(|&n| n == x).unwrap(),
-                        );
+                        assert_eq!(next_link_distance, y_index - x_index);
                     }
                 }
             }
@@ -852,10 +868,7 @@ mod tests {
         list.insert(1, 3);
 
         check_valid(&mut list);
-        assert_eq!(
-            list.into_iter().collect::<Vec<u32>>(),
-            vec![2, 3, 1],
-        );
+        assert_eq!(list.into_iter().collect::<Vec<u32>>(), vec![2, 3, 1]);
     }
 
     #[test]
@@ -866,10 +879,7 @@ mod tests {
         list.insert(1, 3);
 
         check_valid(&mut list);
-        assert_eq!(
-            list.iter().collect::<Vec<&u32>>(),
-            vec![&2, &3, &1],
-        );
+        assert_eq!(list.iter().collect::<Vec<&u32>>(), vec![&2, &3, &1]);
     }
 
     #[test]
@@ -884,9 +894,6 @@ mod tests {
         }
 
         check_valid(&mut list);
-        assert_eq!(
-            list.iter().collect::<Vec<&u32>>(),
-            vec![&3, &4, &2],
-        );
+        assert_eq!(list.iter().collect::<Vec<&u32>>(), vec![&3, &4, &2]);
     }
 }

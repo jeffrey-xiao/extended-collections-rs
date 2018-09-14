@@ -88,7 +88,11 @@ impl<T> Node<T> {
     }
 
     pub fn push_all_children(&self, curr_key: Vec<u8>, keys: &mut Vec<Vec<u8>>) {
-        fn push_all_children_inner<T>(tree: &Tree<T>, mut curr_key: Vec<u8>, keys: &mut Vec<Vec<u8>>) {
+        fn push_all_children_inner<T>(
+            tree: &Tree<T>,
+            mut curr_key: Vec<u8>,
+            keys: &mut Vec<Vec<u8>>,
+        ) {
             if let Some(ref node) = tree {
                 let len = curr_key.len();
 

@@ -78,7 +78,7 @@ where
         None => {
             *tree = Some(Box::new(new_node));
             return None;
-        }
+        },
     };
 
     balance(tree);
@@ -91,27 +91,31 @@ where
     V: Ord + ?Sized,
 {
     let ret = match tree.take() {
-        Some(mut node) => match key.cmp(node.entry.key.borrow()) {
-            Ordering::Less => {
-                let ret = remove(&mut node.left, key);
-                *tree = Some(node);
-                ret
-            },
-            Ordering::Greater => {
-                let ret = remove(&mut node.right, key);
-                *tree = Some(node);
-                ret
-            },
-            Ordering::Equal => {
-                let unboxed_node = *node;
-                let Node { entry, left, right, .. } = unboxed_node;
-                match (left, right) {
-                    (None, right) => *tree = right,
-                    (left, None) => *tree = left,
-                    (left, right) => *tree = combine_subtrees(left, right),
-                }
-                Some(entry)
-            },
+        Some(mut node) => {
+            match key.cmp(node.entry.key.borrow()) {
+                Ordering::Less => {
+                    let ret = remove(&mut node.left, key);
+                    *tree = Some(node);
+                    ret
+                },
+                Ordering::Greater => {
+                    let ret = remove(&mut node.right, key);
+                    *tree = Some(node);
+                    ret
+                },
+                Ordering::Equal => {
+                    let unboxed_node = *node;
+                    let Node {
+                        entry, left, right, ..
+                    } = unboxed_node;
+                    match (left, right) {
+                        (None, right) => *tree = right,
+                        (left, None) => *tree = left,
+                        (left, right) => *tree = combine_subtrees(left, right),
+                    }
+                    Some(entry)
+                },
+            }
         },
         None => return None,
     };

@@ -1,6 +1,6 @@
 use skiplist::map::{SkipMap, SkipMapIntoIter, SkipMapIter};
-use std::ops::{Add, Sub};
 use std::borrow::Borrow;
+use std::ops::{Add, Sub};
 
 /// An ordered set implemented using a skiplist.
 ///
@@ -12,6 +12,7 @@ use std::borrow::Borrow;
 /// approximately logarithm time.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::skiplist::SkipSet;
 ///
@@ -35,6 +36,7 @@ impl<T> SkipSet<T> {
     /// Constructs a new, empty `SkipSet<T>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -50,6 +52,7 @@ impl<T> SkipSet<T> {
     /// replace the key.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -69,6 +72,7 @@ impl<T> SkipSet<T> {
     /// key. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -88,6 +92,7 @@ impl<T> SkipSet<T> {
     /// Checks if a key exists in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -107,6 +112,7 @@ impl<T> SkipSet<T> {
     /// Returns the len of the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -121,6 +127,7 @@ impl<T> SkipSet<T> {
     /// Returns `true` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -134,6 +141,7 @@ impl<T> SkipSet<T> {
     /// Clears the set, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -151,6 +159,7 @@ impl<T> SkipSet<T> {
     /// such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -171,6 +180,7 @@ impl<T> SkipSet<T> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -190,6 +200,7 @@ impl<T> SkipSet<T> {
     /// Returns the minimum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -208,6 +219,7 @@ impl<T> SkipSet<T> {
     /// Returns the maximum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -227,6 +239,7 @@ impl<T> SkipSet<T> {
     /// sets.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -239,10 +252,7 @@ impl<T> SkipSet<T> {
     /// m.insert(3);
     ///
     /// let union = SkipSet::union(n, m);
-    /// assert_eq!(
-    ///     union.iter().collect::<Vec<&u32>>(),
-    ///     vec![&1, &2, &3],
-    /// );
+    /// assert_eq!(union.iter().collect::<Vec<&u32>>(), vec![&1, &2, &3]);
     /// ```
     pub fn union(left: Self, right: Self) -> Self
     where
@@ -256,6 +266,7 @@ impl<T> SkipSet<T> {
     /// Returns the intersection of two sets.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -268,10 +279,7 @@ impl<T> SkipSet<T> {
     /// m.insert(3);
     ///
     /// let intersection = SkipSet::intersection(n, m);
-    /// assert_eq!(
-    ///     intersection.iter().collect::<Vec<&u32>>(),
-    ///     vec![&2],
-    /// );
+    /// assert_eq!(intersection.iter().collect::<Vec<&u32>>(), vec![&2]);
     /// ```
     pub fn intersection(left: Self, right: Self) -> Self
     where
@@ -286,6 +294,7 @@ impl<T> SkipSet<T> {
     /// difference of two sets.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -298,10 +307,7 @@ impl<T> SkipSet<T> {
     /// m.insert(3);
     ///
     /// let difference = SkipSet::difference(n, m);
-    /// assert_eq!(
-    ///     difference.iter().collect::<Vec<&u32>>(),
-    ///     vec![&1],
-    /// );
+    /// assert_eq!(difference.iter().collect::<Vec<&u32>>(), vec![&1]);
     /// ```
     pub fn difference(left: Self, right: Self) -> Self
     where
@@ -316,6 +322,7 @@ impl<T> SkipSet<T> {
     /// keys that exist in one set, but not both sets.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -345,6 +352,7 @@ impl<T> SkipSet<T> {
     /// Returns an iterator over the set. The iterator will yield key in ascending order.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::skiplist::SkipSet;
     ///
@@ -365,8 +373,8 @@ impl<T> SkipSet<T> {
 }
 
 impl<T> IntoIterator for SkipSet<T> {
-    type Item = T;
     type IntoIter = SkipSetIntoIter<T>;
+    type Item = T;
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -379,8 +387,8 @@ impl<'a, T> IntoIterator for &'a SkipSet<T>
 where
     T: 'a,
 {
-    type Item = &'a T;
     type IntoIter = SkipSetIter<'a, T>;
+    type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -561,10 +569,7 @@ mod tests {
 
         let intersection = SkipSet::intersection(n, m);
 
-        assert_eq!(
-            intersection.iter().collect::<Vec<&u32>>(),
-            vec![&3],
-        );
+        assert_eq!(intersection.iter().collect::<Vec<&u32>>(), vec![&3]);
         assert_eq!(intersection.len(), 1);
     }
 
@@ -582,10 +587,7 @@ mod tests {
 
         let difference = n - m;
 
-        assert_eq!(
-            difference.iter().collect::<Vec<&u32>>(),
-            vec![&1, &2],
-        );
+        assert_eq!(difference.iter().collect::<Vec<&u32>>(), vec![&1, &2]);
         assert_eq!(difference.len(), 2);
     }
 
@@ -617,10 +619,7 @@ mod tests {
         set.insert(5);
         set.insert(3);
 
-        assert_eq!(
-            set.into_iter().collect::<Vec<u32>>(),
-            vec![1, 3, 5],
-        );
+        assert_eq!(set.into_iter().collect::<Vec<u32>>(), vec![1, 3, 5]);
     }
 
     #[test]
@@ -630,9 +629,6 @@ mod tests {
         set.insert(5);
         set.insert(3);
 
-        assert_eq!(
-            set.iter().collect::<Vec<&u32>>(),
-            vec![&1, &3, &5],
-        );
+        assert_eq!(set.iter().collect::<Vec<&u32>>(), vec![&1, &3, &5]);
     }
 }

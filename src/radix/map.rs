@@ -13,6 +13,7 @@ use std::ops::{Index, IndexMut};
 /// performance.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::radix::RadixMap;
 ///
@@ -46,6 +47,7 @@ impl<T> RadixMap<T> {
     /// Constructs a new, empty `RadixMap<T>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -62,6 +64,7 @@ impl<T> RadixMap<T> {
     /// and replace the old key-value pair.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -87,6 +90,7 @@ impl<T> RadixMap<T> {
     /// associated key-value pair. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -108,6 +112,7 @@ impl<T> RadixMap<T> {
     /// Checks if a key exists in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -124,6 +129,7 @@ impl<T> RadixMap<T> {
     /// return `None` if the key does not exist in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -140,6 +146,7 @@ impl<T> RadixMap<T> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -155,6 +162,7 @@ impl<T> RadixMap<T> {
     /// Returns the number of elements in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -169,6 +177,7 @@ impl<T> RadixMap<T> {
     /// Returns `true` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -182,6 +191,7 @@ impl<T> RadixMap<T> {
     /// Clears the map, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -199,6 +209,7 @@ impl<T> RadixMap<T> {
     /// Returns all keys that share the longest common prefix with the specified key.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -220,6 +231,7 @@ impl<T> RadixMap<T> {
     /// Returns the minimum lexographic key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -235,6 +247,7 @@ impl<T> RadixMap<T> {
     /// Returns the maximum lexographic key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -251,6 +264,7 @@ impl<T> RadixMap<T> {
     /// order.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -259,8 +273,14 @@ impl<T> RadixMap<T> {
     /// map.insert("foobar".as_bytes(), 2);
     ///
     /// let mut iterator = map.iter();
-    /// assert_eq!(iterator.next(), Some((String::from("foo").into_bytes(), &1)));
-    /// assert_eq!(iterator.next(), Some((String::from("foobar").into_bytes(), &2)));
+    /// assert_eq!(
+    ///     iterator.next(),
+    ///     Some((String::from("foo").into_bytes(), &1)),
+    /// );
+    /// assert_eq!(
+    ///     iterator.next(),
+    ///     Some((String::from("foobar").into_bytes(), &2)),
+    /// );
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter(&self) -> RadixMapIter<T> {
@@ -275,6 +295,7 @@ impl<T> RadixMap<T> {
     /// lexographic order.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixMap;
     ///
@@ -287,8 +308,14 @@ impl<T> RadixMap<T> {
     /// }
     ///
     /// let mut iterator = map.iter_mut();
-    /// assert_eq!(iterator.next(), Some((String::from("foo").into_bytes(), &mut 2)));
-    /// assert_eq!(iterator.next(), Some((String::from("foobar").into_bytes(), &mut 3)));
+    /// assert_eq!(
+    ///     iterator.next(),
+    ///     Some((String::from("foo").into_bytes(), &mut 2)),
+    /// );
+    /// assert_eq!(
+    ///     iterator.next(),
+    ///     Some((String::from("foobar").into_bytes(), &mut 3)),
+    /// );
     /// assert_eq!(iterator.next(), None);
     /// ```
     pub fn iter_mut(&mut self) -> RadixMapIterMut<T> {
@@ -301,8 +328,8 @@ impl<T> RadixMap<T> {
 }
 
 impl<T> IntoIterator for RadixMap<T> {
-    type Item = (Vec<u8>, T);
     type IntoIter = RadixMapIntoIter<T>;
+    type Item = (Vec<u8>, T);
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -317,8 +344,8 @@ impl<'a, T> IntoIterator for &'a RadixMap<T>
 where
     T: 'a,
 {
-    type Item = (Vec<u8>, &'a T);
     type IntoIter = RadixMapIter<'a, T>;
+    type Item = (Vec<u8>, &'a T);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -329,8 +356,8 @@ impl<'a, T> IntoIterator for &'a mut RadixMap<T>
 where
     T: 'a,
 {
-    type Item = (Vec<u8>, &'a mut T);
     type IntoIter = RadixMapIterMut<'a, T>;
+    type Item = (Vec<u8>, &'a mut T);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -353,7 +380,12 @@ impl<T> Iterator for RadixMapIntoIter<T> {
         loop {
             while let Some(node) = self.current.take() {
                 let unboxed_node = *node;
-                let Node { mut key, value, next, mut child } = unboxed_node;
+                let Node {
+                    mut key,
+                    value,
+                    next,
+                    mut child,
+                } = unboxed_node;
                 let key_len = key.len();
                 self.prefix.append(&mut key);
                 self.current = child.take();
@@ -396,7 +428,12 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             while let Some(ref node) = self.current {
-                let Node { ref key, ref value, ref next, ref child } = **node;
+                let Node {
+                    ref key,
+                    ref value,
+                    ref next,
+                    ref child,
+                } = **node;
                 let key_len = key.len();
                 self.prefix.extend_from_slice(key.as_slice());
                 self.current = child;
@@ -439,7 +476,12 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             while let Some(node) = self.current.take() {
-                let Node { ref key, ref mut value, ref mut next, ref mut child } = node;
+                let Node {
+                    ref key,
+                    ref mut value,
+                    ref mut next,
+                    ref mut child,
+                } = node;
                 let key_len = key.len();
 
                 self.prefix.extend_from_slice(key.as_slice());
@@ -469,6 +511,7 @@ impl<T> Default for RadixMap<T> {
 
 impl<'a, T> Index<&'a [u8]> for RadixMap<T> {
     type Output = T;
+
     fn index(&self, key: &[u8]) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
     }
@@ -536,10 +579,7 @@ mod tests {
     fn test_insert_replace() {
         let mut map = RadixMap::new();
         assert_eq!(map.insert("a".as_bytes(), 0), None);
-        assert_eq!(
-            map.insert("a".as_bytes(), 1),
-            Some((get_bytes_vec("a"), 0)),
-        );
+        assert_eq!(map.insert("a".as_bytes(), 1), Some((get_bytes_vec("a"), 0)));
         assert_eq!(map.get("a".as_bytes()), Some(&1));
     }
 
@@ -549,28 +589,52 @@ mod tests {
         map.insert("aaaa".as_bytes(), 0);
         map.insert("aabb".as_bytes(), 1);
 
-        map.insert("bb".as_bytes(), 2);
+        map.insert("bbb".as_bytes(), 2);
         map.insert("bbbb".as_bytes(), 4);
         map.insert("bbaa".as_bytes(), 3);
 
         map.insert("cccc".as_bytes(), 6);
         map.insert("ccdd".as_bytes(), 7);
-        map.insert("cc".as_bytes(), 5);
+        map.insert("ccc".as_bytes(), 5);
 
-        assert_eq!(map.remove("a".as_bytes()), None);
+        assert_eq!(map.remove("non-existent".as_bytes()), None);
 
-        assert_eq!(map.remove("aaaa".as_bytes()), Some((get_bytes_vec("aaaa"), 0)));
-        assert_eq!(map.remove("aabb".as_bytes()), Some((get_bytes_vec("aabb"), 1)));
+        assert_eq!(
+            map.remove("aaaa".as_bytes()),
+            Some((get_bytes_vec("aaaa"), 0)),
+        );
+        assert_eq!(
+            map.remove("aabb".as_bytes()),
+            Some((get_bytes_vec("aabb"), 1)),
+        );
 
-        assert_eq!(map.remove("bb".as_bytes()), Some((get_bytes_vec("bb"), 2)));
-        assert_eq!(map.remove("bbbb".as_bytes()), Some((get_bytes_vec("bbbb"), 4)));
-        assert_eq!(map.remove("bbaa".as_bytes()), Some((get_bytes_vec("bbaa"), 3)));
+        assert_eq!(
+            map.remove("bbb".as_bytes()),
+            Some((get_bytes_vec("bbb"), 2))
+        );
+        assert_eq!(
+            map.remove("bbbb".as_bytes()),
+            Some((get_bytes_vec("bbbb"), 4)),
+        );
+        assert_eq!(
+            map.remove("bbaa".as_bytes()),
+            Some((get_bytes_vec("bbaa"), 3)),
+        );
 
-        assert_eq!(map.remove("cccc".as_bytes()), Some((get_bytes_vec("cccc"), 6)));
-        assert_eq!(map.remove("ccdd".as_bytes()), Some((get_bytes_vec("ccdd"), 7)));
-        assert_eq!(map.remove("cc".as_bytes()), Some((get_bytes_vec("cc"), 5)));
+        assert_eq!(
+            map.remove("cccc".as_bytes()),
+            Some((get_bytes_vec("cccc"), 6)),
+        );
+        assert_eq!(
+            map.remove("ccdd".as_bytes()),
+            Some((get_bytes_vec("ccdd"), 7)),
+        );
+        assert_eq!(
+            map.remove("ccc".as_bytes()),
+            Some((get_bytes_vec("ccc"), 5))
+        );
 
-        assert_eq!(map.remove("a".as_bytes()), None);
+        assert_eq!(map.remove("non-existent".as_bytes()), None);
     }
 
     #[test]

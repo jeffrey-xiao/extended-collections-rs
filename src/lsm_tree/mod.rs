@@ -1,12 +1,12 @@
 //! Hybrid tree comprised of disk-resident sorted runs of data and memory-resident tree.
 
+pub mod compaction;
 mod map;
 mod sstable;
-pub mod compaction;
 
 pub use self::map::LsmMap;
-use bincode;
 use self::sstable::{SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
+use bincode;
 use std::error;
 use std::fmt;
 use std::io;

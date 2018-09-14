@@ -13,6 +13,7 @@ struct Node<T> {
 /// "compare-and-swap" concurrency primitive.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::sync::Stack;
 ///
@@ -35,6 +36,7 @@ impl<T> Stack<T> {
     /// Constructs a new, empty `Stack<T>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::sync::Stack;
     ///
@@ -50,6 +52,7 @@ impl<T> Stack<T> {
     /// Pushes an item onto the stack.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::sync::Stack;
     ///
@@ -66,7 +69,10 @@ impl<T> Stack<T> {
         loop {
             let head_shared = self.head.load(Ordering::Relaxed, guard);
             new_node.next.store(head_shared, Ordering::Relaxed);
-            match self.head.compare_and_set(head_shared, new_node, Ordering::Release, guard) {
+            match self
+                .head
+                .compare_and_set(head_shared, new_node, Ordering::Release, guard)
+            {
                 Ok(_) => {
                     self.len.fetch_add(1, Ordering::Release);
                     break;
@@ -80,6 +86,7 @@ impl<T> Stack<T> {
     /// top element.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::sync::Stack;
     ///
@@ -97,7 +104,11 @@ impl<T> Stack<T> {
             match unsafe { head_shared.as_ref() } {
                 Some(head) => {
                     let next = head.next.load(Ordering::Relaxed, guard);
-                    if self.head.compare_and_set(head_shared, next, Ordering::Release, guard).is_ok() {
+                    if self
+                        .head
+                        .compare_and_set(head_shared, next, Ordering::Release, guard)
+                        .is_ok()
+                    {
                         unsafe {
                             self.len.fetch_sub(1, Ordering::Release);
                             guard.defer(move || head_shared.into_owned());
@@ -113,6 +124,7 @@ impl<T> Stack<T> {
     /// Returns the approximate number of elements in the stack.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::sync::Stack;
     ///
@@ -129,6 +141,7 @@ impl<T> Stack<T> {
     /// Returns `true` if the approximate number of elements in the stack is zero.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::sync::Stack;
     ///

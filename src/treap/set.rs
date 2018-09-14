@@ -11,6 +11,7 @@ use treap::map::{TreapMap, TreapMapIntoIter, TreapMapIter};
 /// expected height of the tree is proportional to the logarithm of the number of keys.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::treap::TreapSet;
 ///
@@ -34,6 +35,7 @@ impl<T> TreapSet<T> {
     /// Constructs a new, empty `TreapSet<T>`
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -49,6 +51,7 @@ impl<T> TreapSet<T> {
     /// replace the key.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -68,6 +71,7 @@ impl<T> TreapSet<T> {
     /// key. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -86,6 +90,7 @@ impl<T> TreapSet<T> {
     /// Checks if a key exists in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -105,6 +110,7 @@ impl<T> TreapSet<T> {
     /// Returns the number of elements in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -119,6 +125,7 @@ impl<T> TreapSet<T> {
     /// Returns `true` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -132,6 +139,7 @@ impl<T> TreapSet<T> {
     /// Clears the set, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -149,6 +157,7 @@ impl<T> TreapSet<T> {
     /// such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -169,6 +178,7 @@ impl<T> TreapSet<T> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -188,6 +198,7 @@ impl<T> TreapSet<T> {
     /// Returns the minimum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -206,6 +217,7 @@ impl<T> TreapSet<T> {
     /// Returns the maximum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -226,6 +238,7 @@ impl<T> TreapSet<T> {
     /// the key if it exists.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -252,6 +265,7 @@ impl<T> TreapSet<T> {
     /// sets.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -264,10 +278,7 @@ impl<T> TreapSet<T> {
     /// m.insert(3);
     ///
     /// let union = TreapSet::union(n, m);
-    /// assert_eq!(
-    ///     union.iter().collect::<Vec<&u32>>(),
-    ///     vec![&1, &2, &3],
-    /// );
+    /// assert_eq!(union.iter().collect::<Vec<&u32>>(), vec![&1, &2, &3]);
     /// ```
     pub fn union(left: Self, right: Self) -> Self
     where
@@ -281,6 +292,7 @@ impl<T> TreapSet<T> {
     /// Returns the intersection of two sets.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -293,10 +305,7 @@ impl<T> TreapSet<T> {
     /// m.insert(3);
     ///
     /// let intersection = TreapSet::intersection(n, m);
-    /// assert_eq!(
-    ///     intersection.iter().collect::<Vec<&u32>>(),
-    ///     vec![&2],
-    /// );
+    /// assert_eq!(intersection.iter().collect::<Vec<&u32>>(), vec![&2]);
     /// ```
     pub fn intersection(left: Self, right: Self) -> Self
     where
@@ -311,6 +320,7 @@ impl<T> TreapSet<T> {
     /// difference of two sets.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -323,10 +333,7 @@ impl<T> TreapSet<T> {
     /// m.insert(3);
     ///
     /// let difference = TreapSet::difference(n, m);
-    /// assert_eq!(
-    ///     difference.iter().collect::<Vec<&u32>>(),
-    ///     vec![&1],
-    /// );
+    /// assert_eq!(difference.iter().collect::<Vec<&u32>>(), vec![&1]);
     /// ```
     pub fn difference(left: Self, right: Self) -> Self
     where
@@ -341,6 +348,7 @@ impl<T> TreapSet<T> {
     /// keys that exist in one set, but not both sets.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -370,6 +378,7 @@ impl<T> TreapSet<T> {
     /// Returns an iterator over the set. The iterator will yield keys using in-order traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapSet;
     ///
@@ -390,8 +399,8 @@ impl<T> TreapSet<T> {
 }
 
 impl<T> IntoIterator for TreapSet<T> {
-    type Item = T;
     type IntoIter = TreapSetIntoIter<T>;
+    type Item = T;
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -404,8 +413,8 @@ impl<'a, T> IntoIterator for &'a TreapSet<T>
 where
     T: 'a,
 {
-    type Item = &'a T;
     type IntoIter = TreapSetIter<'a, T>;
+    type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -558,14 +567,8 @@ mod tests {
         set.insert(3);
 
         let split = set.split_off(&2, true);
-        assert_eq!(
-            set.iter().collect::<Vec<&u32>>(),
-            vec![&1, &2],
-        );
-        assert_eq!(
-            split.iter().collect::<Vec<&u32>>(),
-            vec![&3],
-        );
+        assert_eq!(set.iter().collect::<Vec<&u32>>(), vec![&1, &2]);
+        assert_eq!(split.iter().collect::<Vec<&u32>>(), vec![&3]);
     }
 
     #[test]
@@ -576,14 +579,8 @@ mod tests {
         set.insert(3);
 
         let split = set.split_off(&2, false);
-        assert_eq!(
-            set.iter().collect::<Vec<&u32>>(),
-            vec![&1],
-        );
-        assert_eq!(
-            split.iter().collect::<Vec<&u32>>(),
-            vec![&2, &3],
-        );
+        assert_eq!(set.iter().collect::<Vec<&u32>>(), vec![&1]);
+        assert_eq!(split.iter().collect::<Vec<&u32>>(), vec![&2, &3]);
     }
 
     #[test]
@@ -621,10 +618,7 @@ mod tests {
 
         let intersection = TreapSet::intersection(n, m);
 
-        assert_eq!(
-            intersection.iter().collect::<Vec<&u32>>(),
-            vec![&3],
-        );
+        assert_eq!(intersection.iter().collect::<Vec<&u32>>(), vec![&3]);
         assert_eq!(intersection.len(), 1);
     }
 
@@ -642,10 +636,7 @@ mod tests {
 
         let difference = n - m;
 
-        assert_eq!(
-            difference.iter().collect::<Vec<&u32>>(),
-            vec![&1, &2],
-        );
+        assert_eq!(difference.iter().collect::<Vec<&u32>>(), vec![&1, &2]);
         assert_eq!(difference.len(), 2);
     }
 
@@ -677,10 +668,7 @@ mod tests {
         set.insert(5);
         set.insert(3);
 
-        assert_eq!(
-            set.into_iter().collect::<Vec<u32>>(),
-            vec![1, 3, 5],
-        );
+        assert_eq!(set.into_iter().collect::<Vec<u32>>(), vec![1, 3, 5]);
     }
 
     #[test]
@@ -690,9 +678,6 @@ mod tests {
         set.insert(5);
         set.insert(3);
 
-        assert_eq!(
-            set.iter().collect::<Vec<&u32>>(),
-            vec![&1, &3, &5],
-        );
+        assert_eq!(set.iter().collect::<Vec<&u32>>(), vec![&1, &3, &5]);
     }
 }

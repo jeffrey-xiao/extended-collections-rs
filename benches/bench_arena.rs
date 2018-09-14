@@ -21,11 +21,13 @@ fn bench_arena(b: &mut Bencher) {
         let mut arena = TypedArena::new(CHUNK_SIZE);
         let mut curr = arena.allocate(Test { val: 0, next: None });
         for _ in 0..NUM_OF_ALLOCATIONS {
-            curr = arena.allocate(Test { val: 0, next: Some(curr) });
+            curr = arena.allocate(Test {
+                val: 0,
+                next: Some(curr),
+            });
         }
     });
 }
-
 
 #[bench]
 fn bench_box(b: &mut Bencher) {
@@ -37,7 +39,10 @@ fn bench_box(b: &mut Bencher) {
     b.iter(|| {
         let mut curr = Box::new(Test { val: 0, next: None });
         for _ in 0..NUM_OF_ALLOCATIONS {
-            curr = Box::new(Test { val: 0, next: Some(curr) });
+            curr = Box::new(Test {
+                val: 0,
+                next: Some(curr),
+            });
         }
     })
 }

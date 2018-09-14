@@ -25,6 +25,7 @@ enum Block<T> {
 /// allocate another chunk of objects so no memory is reallocated.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::arena::TypedArena;
 ///
@@ -48,12 +49,14 @@ pub struct TypedArena<T> {
 
 impl<T> TypedArena<T> {
     fn is_valid_entry(&self, entry: &Entry) -> bool {
-        entry.chunk_index < self.chunks.len() && entry.block_index < self.chunks[entry.chunk_index].len()
+        entry.chunk_index < self.chunks.len()
+            && entry.block_index < self.chunks[entry.chunk_index].len()
     }
 
     /// Constructs a new, empty `TypedArena<T>` with a specific number of objects per chunk.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::arena::TypedArena;
     ///
@@ -74,6 +77,7 @@ impl<T> TypedArena<T> {
     /// index retrieve mutable and immutable references to the object, and dellocate the object.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::arena::TypedArena;
     ///
@@ -118,9 +122,11 @@ impl<T> TypedArena<T> {
     /// Deallocates an object in the typed arena and returns the object.
     ///
     /// # Panics
+    ///
     /// Panics if entry corresponds to an invalid or vacant value.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::arena::TypedArena;
     ///
@@ -153,6 +159,7 @@ impl<T> TypedArena<T> {
     /// does not correspond to a valid object.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::arena::TypedArena;
     ///
@@ -174,6 +181,7 @@ impl<T> TypedArena<T> {
     /// does not correspond to a valid object.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::arena::TypedArena;
     ///
@@ -194,6 +202,7 @@ impl<T> TypedArena<T> {
 
 impl<T> Index<Entry> for TypedArena<T> {
     type Output = T;
+
     fn index(&self, entry: Entry) -> &Self::Output {
         self.get(&entry).expect("Entry out of bounds.")
     }
@@ -214,7 +223,10 @@ mod tests {
     #[should_panic]
     fn test_free_invalid_block() {
         let mut arena: TypedArena<u32> = TypedArena::new(1024);
-        arena.free(&Entry { chunk_index: 0, block_index: 0 });
+        arena.free(&Entry {
+            chunk_index: 0,
+            block_index: 0,
+        });
     }
 
     #[test]
@@ -222,30 +234,75 @@ mod tests {
     fn test_free_vacant_block() {
         let mut arena = TypedArena::new(1024);
         arena.allocate(0);
-        arena.free(&Entry { chunk_index: 0, block_index: 1 });
+        arena.free(&Entry {
+            chunk_index: 0,
+            block_index: 1,
+        });
     }
 
     #[test]
     fn test_insert() {
         let mut pool = TypedArena::new(1024);
-        assert_eq!(pool.allocate(0), Entry { chunk_index: 0, block_index: 0 });
-        assert_eq!(pool.allocate(0), Entry { chunk_index: 0, block_index: 1 });
-        assert_eq!(pool.allocate(0), Entry { chunk_index: 0, block_index: 2 });
+        assert_eq!(
+            pool.allocate(0),
+            Entry {
+                chunk_index: 0,
+                block_index: 0
+            },
+        );
+        assert_eq!(
+            pool.allocate(0),
+            Entry {
+                chunk_index: 0,
+                block_index: 1
+            },
+        );
+        assert_eq!(
+            pool.allocate(0),
+            Entry {
+                chunk_index: 0,
+                block_index: 2
+            },
+        );
     }
 
     #[test]
     fn test_insert_multiple_chunks() {
         let mut pool = TypedArena::new(2);
-        assert_eq!(pool.allocate(0), Entry { chunk_index: 0, block_index: 0 });
-        assert_eq!(pool.allocate(0), Entry { chunk_index: 0, block_index: 1 });
-        assert_eq!(pool.allocate(0), Entry { chunk_index: 1, block_index: 0 });
+        assert_eq!(
+            pool.allocate(0),
+            Entry {
+                chunk_index: 0,
+                block_index: 0
+            },
+        );
+        assert_eq!(
+            pool.allocate(0),
+            Entry {
+                chunk_index: 0,
+                block_index: 1
+            },
+        );
+        assert_eq!(
+            pool.allocate(0),
+            Entry {
+                chunk_index: 1,
+                block_index: 0
+            },
+        );
     }
 
     #[test]
     fn test_free() {
         let mut pool = TypedArena::new(1024);
         let entry = pool.allocate(0);
-        assert_eq!(entry, Entry { chunk_index: 0, block_index: 0 });
+        assert_eq!(
+            entry,
+            Entry {
+                chunk_index: 0,
+                block_index: 0
+            },
+        );
         assert_eq!(pool.free(&entry), 0);
         assert_eq!(pool.allocate(0), entry);
     }
@@ -260,14 +317,26 @@ mod tests {
     #[test]
     fn test_get_invalid_block() {
         let pool: TypedArena<u32> = TypedArena::new(1024);
-        assert_eq!(pool.get(&Entry { chunk_index: 0, block_index: 0 }), None);
+        assert_eq!(
+            pool.get(&Entry {
+                chunk_index: 0,
+                block_index: 0
+            }),
+            None,
+        );
     }
 
     #[test]
     fn test_get_vacant_block() {
         let mut pool = TypedArena::new(1024);
         pool.allocate(0);
-        assert_eq!(pool.get(&Entry { chunk_index: 0, block_index: 1 }), None);
+        assert_eq!(
+            pool.get(&Entry {
+                chunk_index: 0,
+                block_index: 1
+            }),
+            None,
+        );
     }
 
     #[test]
@@ -281,13 +350,25 @@ mod tests {
     #[test]
     fn test_get_mut_invalid_block() {
         let mut pool: TypedArena<u32> = TypedArena::new(1024);
-        assert_eq!(pool.get_mut(&Entry { chunk_index: 0, block_index: 0 }), None);
+        assert_eq!(
+            pool.get_mut(&Entry {
+                chunk_index: 0,
+                block_index: 0
+            }),
+            None,
+        );
     }
 
     #[test]
     fn test_get_mut_vacant_block() {
         let mut pool = TypedArena::new(1024);
         pool.allocate(0);
-        assert_eq!(pool.get_mut(&Entry { chunk_index: 0, block_index: 1 }), None);
+        assert_eq!(
+            pool.get_mut(&Entry {
+                chunk_index: 0,
+                block_index: 1
+            }),
+            None,
+        );
     }
 }

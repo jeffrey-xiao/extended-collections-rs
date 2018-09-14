@@ -15,6 +15,7 @@ use treap::tree;
 /// expected height of the tree is proportional to the logarithm of the number of keys.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::treap::TreapMap;
 ///
@@ -42,6 +43,7 @@ impl<T, U> TreapMap<T, U> {
     /// Constructs a new, empty `TreapMap<T, U>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -58,6 +60,7 @@ impl<T, U> TreapMap<T, U> {
     /// and replace the old key-value pair.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -71,7 +74,10 @@ impl<T, U> TreapMap<T, U> {
     where
         T: Ord,
     {
-        let TreapMap { ref mut tree, ref mut rng } = self;
+        let TreapMap {
+            ref mut tree,
+            ref mut rng,
+        } = self;
         let new_node = Node::new(key, value, rng.next_u32());
         tree::insert(tree, new_node).and_then(|entry| {
             let Entry { key, value } = entry;
@@ -83,6 +89,7 @@ impl<T, U> TreapMap<T, U> {
     /// associated key-value pair. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -106,6 +113,7 @@ impl<T, U> TreapMap<T, U> {
     /// Checks if a key exists in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -126,6 +134,7 @@ impl<T, U> TreapMap<T, U> {
     /// return `None` if the key does not exist in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -146,6 +155,7 @@ impl<T, U> TreapMap<T, U> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -165,6 +175,7 @@ impl<T, U> TreapMap<T, U> {
     /// Returns the number of elements in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -182,6 +193,7 @@ impl<T, U> TreapMap<T, U> {
     /// Returns `true` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -195,6 +207,7 @@ impl<T, U> TreapMap<T, U> {
     /// Clears the map, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -212,6 +225,7 @@ impl<T, U> TreapMap<T, U> {
     /// such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -232,6 +246,7 @@ impl<T, U> TreapMap<T, U> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -251,6 +266,7 @@ impl<T, U> TreapMap<T, U> {
     /// Returns the minimum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -269,6 +285,7 @@ impl<T, U> TreapMap<T, U> {
     /// Returns the maximum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -289,6 +306,7 @@ impl<T, U> TreapMap<T, U> {
     /// the key if it exists.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -311,10 +329,16 @@ impl<T, U> TreapMap<T, U> {
         let (mut split_node, ret) = tree::split(tree, key);
         if inclusive {
             tree::merge(tree, split_node);
-            TreapMap { tree: ret, rng: XorShiftRng::new_unseeded() }
+            TreapMap {
+                tree: ret,
+                rng: XorShiftRng::new_unseeded(),
+            }
         } else {
             tree::merge(&mut split_node, ret);
-            TreapMap { tree: split_node, rng: XorShiftRng::new_unseeded() }
+            TreapMap {
+                tree: split_node,
+                rng: XorShiftRng::new_unseeded(),
+            }
         }
     }
 
@@ -323,6 +347,7 @@ impl<T, U> TreapMap<T, U> {
     /// operator is implemented to take the union of two maps.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -344,15 +369,24 @@ impl<T, U> TreapMap<T, U> {
     where
         T: Ord,
     {
-        let TreapMap { tree: left_tree, rng } = left;
-        let TreapMap { tree: right_tree, .. } = right;
-        TreapMap { tree: tree::union(left_tree, right_tree, false), rng }
+        let TreapMap {
+            tree: left_tree,
+            rng,
+        } = left;
+        let TreapMap {
+            tree: right_tree, ..
+        } = right;
+        TreapMap {
+            tree: tree::union(left_tree, right_tree, false),
+            rng,
+        }
     }
 
     /// Returns the intersection of two maps. If there is a key that is found in both `left` and
     /// `right`, the intersection will contain the value associated with the key in `left`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -374,8 +408,14 @@ impl<T, U> TreapMap<T, U> {
     where
         T: Ord,
     {
-        let TreapMap { tree: left_tree, rng } = left;
-        TreapMap { tree: tree::intersection(left_tree, right.tree, false), rng }
+        let TreapMap {
+            tree: left_tree,
+            rng,
+        } = left;
+        TreapMap {
+            tree: tree::intersection(left_tree, right.tree, false),
+            rng,
+        }
     }
 
     /// Returns the difference of `left` and `right`. The returned map will contain all entries
@@ -383,6 +423,7 @@ impl<T, U> TreapMap<T, U> {
     /// of two maps.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -404,14 +445,21 @@ impl<T, U> TreapMap<T, U> {
     where
         T: Ord,
     {
-        let TreapMap { tree: left_tree, rng } = left;
-        TreapMap { tree: tree::difference(left_tree, right.tree, false, false), rng }
+        let TreapMap {
+            tree: left_tree,
+            rng,
+        } = left;
+        TreapMap {
+            tree: tree::difference(left_tree, right.tree, false, false),
+            rng,
+        }
     }
 
     /// Returns the symmetric difference of `left` and `right`. The returned map will contain all
     /// entries that exist in one map, but not both maps.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -429,19 +477,28 @@ impl<T, U> TreapMap<T, U> {
     ///     vec![(&1, &1), (&3, &3)],
     /// );
     /// ```
-    pub fn symmetric_difference(left: Self, right:Self) -> Self
+    pub fn symmetric_difference(left: Self, right: Self) -> Self
     where
         T: Ord,
     {
-        let TreapMap { tree: left_tree, rng } = left;
-        let TreapMap { tree: right_tree, .. } = right;
-        TreapMap { tree: tree::difference(left_tree, right_tree, false, true), rng }
+        let TreapMap {
+            tree: left_tree,
+            rng,
+        } = left;
+        let TreapMap {
+            tree: right_tree, ..
+        } = right;
+        TreapMap {
+            tree: tree::difference(left_tree, right_tree, false, true),
+            rng,
+        }
     }
 
     /// Returns an iterator over the map. The iterator will yield key-value pairs using in-order
     /// traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -465,6 +522,7 @@ impl<T, U> TreapMap<T, U> {
     /// in-order traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapMap;
     ///
@@ -490,8 +548,8 @@ impl<T, U> TreapMap<T, U> {
 }
 
 impl<T, U> IntoIterator for TreapMap<T, U> {
-    type Item = (T, U);
     type IntoIter = TreapMapIntoIter<T, U>;
+    type Item = (T, U);
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -506,8 +564,8 @@ where
     T: 'a,
     U: 'a,
 {
-    type Item = (&'a T, &'a U);
     type IntoIter = TreapMapIter<'a, T, U>;
+    type Item = (&'a T, &'a U);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -519,8 +577,8 @@ where
     T: 'a,
     U: 'a,
 {
-    type Item = (&'a T, &'a mut U);
     type IntoIter = TreapMapIterMut<'a, T, U>;
+    type Item = (&'a T, &'a mut U);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -614,7 +672,10 @@ where
     type Item = (&'a T, &'a mut U);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let TreapMapIterMut { ref mut current, ref mut stack } = self;
+        let TreapMapIterMut {
+            ref mut current,
+            ref mut stack,
+        } = self;
         while current.is_some() {
             stack.push(current.take().map(|node| {
                 *current = node.left.as_mut().map(|node| &mut **node);
@@ -625,7 +686,10 @@ where
             match pair_opt {
                 Some(pair) => {
                     let (entry, right) = pair;
-                    let Entry { ref key, ref mut value } = entry;
+                    let Entry {
+                        ref key,
+                        ref mut value,
+                    } = entry;
                     *current = right;
                     Some((key, value))
                 },
@@ -669,6 +733,7 @@ where
     V: Ord + ?Sized,
 {
     type Output = U;
+
     fn index(&self, key: &V) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
     }
@@ -715,7 +780,8 @@ mod tests {
         assert_eq!(map.get(&1), Some(&1));
     }
 
-    #[test] fn test_insert_replace() {
+    #[test]
+    fn test_insert_replace() {
         let mut map = TreapMap::new();
         assert_eq!(map.insert(1, 1), None);
         assert_eq!(map.insert(1, 3), Some((1, 1)));
@@ -782,10 +848,7 @@ mod tests {
             map.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&1, &1), (&2, &2)],
         );
-        assert_eq!(
-            split.iter().collect::<Vec<(&u32, &u32)>>(),
-            vec![(&3, &3)],
-        );
+        assert_eq!(split.iter().collect::<Vec<(&u32, &u32)>>(), vec![(&3, &3)]);
     }
 
     #[test]
@@ -796,10 +859,7 @@ mod tests {
         map.insert(3, 3);
 
         let split = map.split_off(&2, false);
-        assert_eq!(
-            map.iter().collect::<Vec<(&u32, &u32)>>(),
-            vec![(&1, &1)],
-        );
+        assert_eq!(map.iter().collect::<Vec<(&u32, &u32)>>(), vec![(&1, &1)]);
         assert_eq!(
             split.iter().collect::<Vec<(&u32, &u32)>>(),
             vec![(&2, &2), (&3, &3)],

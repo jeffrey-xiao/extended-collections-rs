@@ -22,7 +22,12 @@ impl<T, U> Node<T, U> {
     }
 
     pub fn update(&mut self) {
-        let Node { ref mut height, ref left, ref right, .. } = self;
+        let Node {
+            ref mut height,
+            ref left,
+            ref right,
+            ..
+        } = self;
         *height = cmp::max(tree::height(left), tree::height(right)) + 1;
     }
 
@@ -31,7 +36,10 @@ impl<T, U> Node<T, U> {
     }
 
     pub fn rotate_left(&mut self) {
-        let mut child = self.right.take().expect("Expected right child node to be `Some`.");
+        let mut child = self
+            .right
+            .take()
+            .expect("Expected right child node to be `Some`.");
         self.right = child.left.take();
         mem::swap(&mut *child, self);
         child.update();
@@ -40,7 +48,10 @@ impl<T, U> Node<T, U> {
     }
 
     pub fn rotate_right(&mut self) {
-        let mut child = self.left.take().expect("Expected left child node to be `Some`.");
+        let mut child = self
+            .left
+            .take()
+            .expect("Expected left child node to be `Some`.");
         self.left = child.right.take();
         mem::swap(&mut *child, self);
         child.update();

@@ -10,6 +10,7 @@ use std::ops::{Index, IndexMut};
 /// heights of two child subtrees of any node differ by at most one.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::avl_tree::AvlMap;
 ///
@@ -37,22 +38,21 @@ impl<T, U> AvlMap<T, U> {
     /// Constructs a new, empty `AvlMap<T, U>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
     /// let map: AvlMap<u32, u32> = AvlMap::new();
     /// ```
     pub fn new() -> Self {
-        AvlMap {
-            tree: None,
-            len: 0,
-        }
+        AvlMap { tree: None, len: 0 }
     }
 
     /// Inserts a key-value pair into the map. If the key already exists in the map, it will return
     /// and replace the old key-value pair.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -66,7 +66,10 @@ impl<T, U> AvlMap<T, U> {
     where
         T: Ord,
     {
-        let AvlMap { ref mut tree, ref mut len } = self;
+        let AvlMap {
+            ref mut tree,
+            ref mut len,
+        } = self;
         let new_node = Node::new(key, value);
         *len += 1;
         tree::insert(tree, new_node).and_then(|entry| {
@@ -80,6 +83,7 @@ impl<T, U> AvlMap<T, U> {
     /// associated key-value pair. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -93,7 +97,10 @@ impl<T, U> AvlMap<T, U> {
         T: Borrow<V>,
         V: Ord + ?Sized,
     {
-        let AvlMap { ref mut tree, ref mut len } = self;
+        let AvlMap {
+            ref mut tree,
+            ref mut len,
+        } = self;
         tree::remove(tree, &key).and_then(|entry| {
             let Entry { key, value } = entry;
             *len -= 1;
@@ -104,6 +111,7 @@ impl<T, U> AvlMap<T, U> {
     /// Checks if a key exists in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -124,6 +132,7 @@ impl<T, U> AvlMap<T, U> {
     /// return `None` if the key does not exist in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -144,6 +153,7 @@ impl<T, U> AvlMap<T, U> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -163,6 +173,7 @@ impl<T, U> AvlMap<T, U> {
     /// Returns the number of elements in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -177,6 +188,7 @@ impl<T, U> AvlMap<T, U> {
     /// Returns `true` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -190,6 +202,7 @@ impl<T, U> AvlMap<T, U> {
     /// Clears the map, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -208,6 +221,7 @@ impl<T, U> AvlMap<T, U> {
     /// such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -228,6 +242,7 @@ impl<T, U> AvlMap<T, U> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -247,6 +262,7 @@ impl<T, U> AvlMap<T, U> {
     /// Returns the minimum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -265,6 +281,7 @@ impl<T, U> AvlMap<T, U> {
     /// Returns the maximum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -284,6 +301,7 @@ impl<T, U> AvlMap<T, U> {
     /// traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -307,6 +325,7 @@ impl<T, U> AvlMap<T, U> {
     /// in-order traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlMap;
     ///
@@ -332,8 +351,8 @@ impl<T, U> AvlMap<T, U> {
 }
 
 impl<T, U> IntoIterator for AvlMap<T, U> {
-    type Item = (T, U);
     type IntoIter = AvlMapIntoIter<T, U>;
+    type Item = (T, U);
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -348,8 +367,8 @@ where
     T: 'a,
     U: 'a,
 {
-    type Item = (&'a T, &'a U);
     type IntoIter = AvlMapIter<'a, T, U>;
+    type Item = (&'a T, &'a U);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -361,8 +380,8 @@ where
     T: 'a,
     U: 'a,
 {
-    type Item = (&'a T, &'a mut U);
     type IntoIter = AvlMapIterMut<'a, T, U>;
+    type Item = (&'a T, &'a mut U);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -456,7 +475,10 @@ where
     type Item = (&'a T, &'a mut U);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let AvlMapIterMut { ref mut current, ref mut stack } = self;
+        let AvlMapIterMut {
+            ref mut current,
+            ref mut stack,
+        } = self;
         while current.is_some() {
             stack.push(current.take().map(|node| {
                 *current = node.left.as_mut().map(|node| &mut **node);
@@ -467,7 +489,10 @@ where
             match pair_opt {
                 Some(pair) => {
                     let (entry, right) = pair;
-                    let Entry { ref key, ref mut value } = entry;
+                    let Entry {
+                        ref key,
+                        ref mut value,
+                    } = entry;
                     *current = right;
                     Some((key, value))
                 },
@@ -483,13 +508,13 @@ impl<T, U> Default for AvlMap<T, U> {
     }
 }
 
-
 impl<'a, T, U, V> Index<&'a V> for AvlMap<T, U>
 where
     T: Borrow<V>,
     V: Ord + ?Sized,
 {
     type Output = U;
+
     fn index(&self, key: &V) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
     }
@@ -635,4 +660,3 @@ mod tests {
         );
     }
 }
-

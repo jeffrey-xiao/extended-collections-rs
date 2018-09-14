@@ -41,8 +41,7 @@ pub trait CompactionStrategy<T, U> {
     fn get<V>(&mut self, key: &V) -> Result<Option<SSTableValue<U>>>
     where
         T: Borrow<V>,
-        V: Ord + Hash + ?Sized,
-    ;
+        V: Ord + Hash + ?Sized;
 
     /// Returns the approximate number of items in the disk-resident data.
     fn len_hint(&mut self) -> Result<usize>;

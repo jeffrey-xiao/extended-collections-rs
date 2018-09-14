@@ -93,9 +93,7 @@ impl<T, U> SizeTieredMetadata<T, U> {
         U: DeserializeOwned + Serialize,
         P: AsRef<Path>,
     {
-        let old_sstables: Vec<_> = self.sstables
-            .drain(range.0..range.1)
-            .collect();
+        let old_sstables: Vec<_> = self.sstables.drain(range.0..range.1).collect();
 
         let sstable_max_logical_time_range = old_sstables
             .iter()
@@ -113,10 +111,7 @@ impl<T, U> SizeTieredMetadata<T, U> {
             let is_older_range = sstable_max_logical_time_range < curr_logical_time_range;
             let key_intersecting = match &sstable_key_range {
                 Some(ref sstable_key_range) => {
-                    sstable::is_intersecting(
-                        &sstable_key_range,
-                        &sstable.summary.key_range,
-                    )
+                    sstable::is_intersecting(&sstable_key_range, &sstable.summary.key_range)
                 },
                 None => false,
             };
@@ -125,7 +120,10 @@ impl<T, U> SizeTieredMetadata<T, U> {
 
         let mut sstable_builder = SSTableBuilder::new(
             path.as_ref(),
-            old_sstables.iter().map(|sstable| sstable.summary.entry_count).sum(),
+            old_sstables
+                .iter()
+                .map(|sstable| sstable.summary.entry_count)
+                .sum(),
         )?;
 
         let old_sstable_data_iters = old_sstables
@@ -156,6 +154,7 @@ impl<T, U> SizeTieredMetadata<T, U> {
 /// when they become too full.
 ///
 /// # Configuration Parameters
+///
 ///  - `max_in_memory_size`: The maximum size of the in-memory tree before it must be flushed onto
 ///  disk as a SSTable.
 ///  - `max_sstable_count`: The minimum number of SSTables in a bucket before a compaction is
@@ -182,13 +181,15 @@ impl<T, U> SizeTieredStrategy<T, U> {
     /// Constructs a new `SizeTieredStrategy<T, U>` with specific configuration parameters.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::lsm_tree::compaction::SizeTieredStrategy;
     ///
-    /// let sts: SizeTieredStrategy<u32, u32> = SizeTieredStrategy::new("size_tiered_strategy_new", 10000, 4, 50000, 0.5, 1.5)?;
+    /// let sts: SizeTieredStrategy<u32, u32> =
+    ///     SizeTieredStrategy::new("size_tiered_strategy_new", 10000, 4, 50000, 0.5, 1.5)?;
     /// # fs::remove_dir_all("size_tiered_strategy_new")?;
     /// # Ok(())
     /// # }
@@ -249,6 +250,7 @@ impl<T, U> SizeTieredStrategy<T, U> {
     /// Opens an existing `SizeTieredStrategy<T, U>` from a folder.
     ///
     /// # Examples
+    ///
     /// ```no_run
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -317,8 +319,7 @@ impl<T, U> SizeTieredStrategy<T, U> {
         &mut self,
         metadata_snapshot: SizeTieredMetadata<T, U>,
         range: (usize, usize),
-    )
-    where
+    ) where
         T: 'static + Clone + DeserializeOwned + Hash + Ord + Send + Serialize + Sync,
         U: 'static + DeserializeOwned + Send + Serialize + Sync,
     {
@@ -364,11 +365,9 @@ impl<T, U> SizeTieredStrategy<T, U> {
                     .filter(|sstable| Some(sstable.summary.logical_time_range.1) > logical_time_opt)
                     .map(|sstable| Arc::clone(sstable)),
             );
-            let new_sstable_paths: HashSet<&PathBuf> = HashSet::from_iter(
-                curr_metadata.sstables
-                    .iter()
-                    .map(|sstable| &sstable.path),
-            );
+
+            let new_sstable_iter = curr_metadata.sstables.iter().map(|sstable| &sstable.path);
+            let new_sstable_paths: HashSet<&PathBuf> = HashSet::from_iter(new_sstable_iter);
 
             for old_sstable in old_sstables {
                 if !new_sstable_paths.contains(&old_sstable.path) {
@@ -399,7 +398,8 @@ where
         let ret = self.curr_logical_time;
         self.curr_logical_time += 1;
         self.logical_time_file.seek(SeekFrom::Start(0))?;
-        self.logical_time_file.write_u64::<BigEndian>(self.curr_logical_time)?;
+        self.logical_time_file
+            .write_u64::<BigEndian>(self.curr_logical_time)?;
         Ok(ret)
     }
 
@@ -615,7 +615,10 @@ where
         while let Some(cmp::Reverse((key, value, index))) = self.entries.pop() {
             if let Some(entry) = self.sstable_data_iters[index].next() {
                 match entry {
-                    Ok(entry) => self.entries.push(cmp::Reverse((entry.key, entry.value, index))),
+                    Ok(entry) => {
+                        self.entries
+                            .push(cmp::Reverse((entry.key, entry.value, index)))
+                    },
                     Err(error) => return Some(Err(error)),
                 }
             }

@@ -96,6 +96,7 @@ where
 /// are in the same level. As smaller levels fill up, SSTables are merged into larger levels.
 ///
 /// # Configuration Parameters
+///
 ///  - `max_in_memory_size`: The maximum size of the in-memory tree before it must be flushed onto
 ///  disk as a SSTable.
 ///  - `max_sstable_count`: The maximum number of overlapping SSTables before they must be merged
@@ -126,13 +127,15 @@ where
     /// Constructs a new `LeveledStrategy<T, U>` with specific configuration parameters.
     ///
     /// # Examples
+    ///
     /// ```
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
     /// # use std::fs;
     /// use extended_collections::lsm_tree::compaction::LeveledStrategy;
     ///
-    /// let sts: LeveledStrategy<u32, u32> = LeveledStrategy::new("leveled_strategy_new", 10000, 4, 50000, 10, 10)?;
+    /// let sts: LeveledStrategy<u32, u32> =
+    ///     LeveledStrategy::new("leveled_strategy_new", 10000, 4, 50000, 10, 10)?;
     /// # fs::remove_dir_all("leveled_strategy_new")?;
     /// # Ok(())
     /// # }
@@ -193,6 +196,7 @@ where
     /// Opens an existing `LeveledStrategy<T, U>` from a folder.
     ///
     /// # Examples
+    ///
     /// ```no_run
     /// # use extended_collections::lsm_tree::Result;
     /// # fn foo() -> Result<()> {
@@ -250,8 +254,7 @@ where
                         .iter()
                         .map(|level_entry| level_entry.1.summary.logical_time_range.1)
                         .max()
-                })
-                .max()
+                }).max()
                 .and_then(|max_opt| max_opt);
             let old_sstables = mem::replace(&mut curr_metadata.sstables, next_metadata.sstables);
             let old_levels = mem::replace(&mut curr_metadata.levels, next_metadata.levels);
@@ -311,8 +314,7 @@ where
             .map(|sstable| {
                 entry_count_hint += sstable.summary.entry_count;
                 sstable.data_iter()
-            })
-            .collect();
+            }).collect();
         for sstable in metadata_snapshot.levels[0].values() {
             entry_count_hint = cmp::max(entry_count_hint, sstable.summary.entry_count);
         }
@@ -323,11 +325,7 @@ where
 
         let mut sstable_builder = SSTableBuilder::new(path.as_ref(), entry_count_hint)?;
 
-        let compaction_iter = LeveledIter::new(
-            None,
-            sstable_data_iters,
-            vec![level_data_iter],
-        )?;
+        let compaction_iter = LeveledIter::new(None, sstable_data_iters, vec![level_data_iter])?;
 
         for entry in compaction_iter {
             let (key, value) = entry?;
@@ -368,8 +366,7 @@ where
                         .max_by(|x, y| {
                             (x.1.summary.tombstone_count * y.1.summary.entry_count)
                                 .cmp(&(y.1.summary.tombstone_count * x.1.summary.entry_count))
-                        })
-                        .map(|level_entry| level_entry.1.summary.key_range.1.clone())
+                        }).map(|level_entry| level_entry.1.summary.key_range.1.clone())
                         .expect("Expected non-empty level to remove from.");
                     metadata_snapshot.levels[index]
                         .remove(&sstable_key)
@@ -384,13 +381,9 @@ where
                 }
 
                 let sstable_data_iter = sstable.data_iter();
-                let level = mem::replace(
-                    &mut metadata_snapshot.levels[index + 1],
-                    BTreeMap::new(),
-                );
-                let (old_level, new_level): (BTreeMap<_, _>, BTreeMap<_, _>) = level
-                    .into_iter()
-                    .partition(|level_entry| {
+                let level = mem::replace(&mut metadata_snapshot.levels[index + 1], BTreeMap::new());
+                let (old_level, new_level): (BTreeMap<_, _>, BTreeMap<_, _>) =
+                    level.into_iter().partition(|level_entry| {
                         sstable::is_intersecting(
                             &sstable.summary.key_range,
                             &level_entry.1.summary.key_range,
@@ -449,12 +442,8 @@ where
         let is_compacting = self.is_compacting.clone();
         self.is_compacting.store(true, Ordering::Release);
         self.compaction_thread_join_handle = Some(thread::spawn(move || {
-            let compaction_result = LeveledStrategy::compact(
-                path,
-                &is_compacting,
-                metadata_snapshot,
-                &next_metadata,
-            );
+            let compaction_result =
+                LeveledStrategy::compact(path, &is_compacting, metadata_snapshot, &next_metadata);
 
             match compaction_result {
                 Ok(_) => println!("Compaction terminated successfully."),
@@ -484,7 +473,8 @@ where
         let ret = self.curr_logical_time;
         self.curr_logical_time += 1;
         self.logical_time_file.seek(SeekFrom::Start(0))?;
-        self.logical_time_file.write_u64::<BigEndian>(self.curr_logical_time)?;
+        self.logical_time_file
+            .write_u64::<BigEndian>(self.curr_logical_time)?;
         Ok(ret)
     }
 
@@ -578,20 +568,21 @@ where
             self.metadata_file.write_all(&serialize(&*curr_metadata)?)?;
         }
 
-        let sstables_len_hint: usize = curr_metadata.sstables
+        let sstables_len_hint: usize = curr_metadata
+            .sstables
             .iter()
             .map(|sstable| sstable.summary.entry_count - sstable.summary.tombstone_count)
             .sum();
 
-        let levels_len_hint: usize = curr_metadata.levels
+        let levels_len_hint: usize = curr_metadata
+            .levels
             .iter()
             .map(|level| -> usize {
                 level
                     .iter()
                     .map(|entry| entry.1.summary.entry_count - entry.1.summary.tombstone_count)
                     .sum()
-            })
-            .sum();
+            }).sum();
 
         Ok(sstables_len_hint + levels_len_hint)
     }
@@ -667,8 +658,7 @@ where
                     .iter()
                     .map(|level_entry| level_entry.1.data_iter())
                     .collect()
-            })
-            .collect();
+            }).collect();
         let metadata_lock_count = Rc::clone(&self.metadata_lock_count);
         let compaction_iter = LeveledIter::new(
             Some(metadata_lock_count),
@@ -709,7 +699,9 @@ where
     T: Hash + DeserializeOwned + Ord + Serialize,
     U: DeserializeOwned + Serialize,
 {
-    fn get_next_level_entry(level_data_iter: &mut VecDeque<SSTableDataIter<T, U>>) -> Option<<SSTableDataIter<T, U> as Iterator>::Item> {
+    fn get_next_level_entry(
+        level_data_iter: &mut VecDeque<SSTableDataIter<T, U>>,
+    ) -> Option<<SSTableDataIter<T, U> as Iterator>::Item> {
         loop {
             let entry_opt = match level_data_iter.front_mut() {
                 Some(data_iter) => data_iter.next(),
@@ -737,14 +729,22 @@ where
         for (index, sstable_data_iter) in sstable_data_iters.iter_mut().enumerate() {
             if let Some(entry) = sstable_data_iter.next() {
                 let Entry { key, value } = entry?;
-                entries.push(cmp::Reverse((key, value, LeveledIterEntryIndex::SSTableIndex(index))));
+                entries.push(cmp::Reverse((
+                    key,
+                    value,
+                    LeveledIterEntryIndex::SSTableIndex(index),
+                )));
             }
         }
 
         for (index, level_data_iter) in level_data_iters.iter_mut().enumerate() {
             if let Some(entry) = Self::get_next_level_entry(level_data_iter) {
                 let Entry { key, value } = entry?;
-                entries.push(cmp::Reverse((key, value, LeveledIterEntryIndex::LevelIndex(index))));
+                entries.push(cmp::Reverse((
+                    key,
+                    value,
+                    LeveledIterEntryIndex::LevelIndex(index),
+                )));
             }
         }
 
@@ -771,14 +771,15 @@ where
                 LeveledIterEntryIndex::LevelIndex(index) => {
                     Self::get_next_level_entry(&mut self.level_data_iters[index])
                 },
-                LeveledIterEntryIndex::SSTableIndex(index) => {
-                    self.sstable_data_iters[index].next()
-                },
+                LeveledIterEntryIndex::SSTableIndex(index) => self.sstable_data_iters[index].next(),
             };
 
             if let Some(entry) = entry_opt {
                 match entry {
-                    Ok(entry) => self.entries.push(cmp::Reverse((entry.key, entry.value, index))),
+                    Ok(entry) => {
+                        self.entries
+                            .push(cmp::Reverse((entry.key, entry.value, index)))
+                    },
                     Err(error) => return Some(Err(error)),
                 }
             }

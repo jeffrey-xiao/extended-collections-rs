@@ -8,6 +8,7 @@ use std::borrow::Borrow;
 /// to the root of the tree.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::splay_tree::SplaySet;
 ///
@@ -31,6 +32,7 @@ impl<T> SplaySet<T> {
     /// Constructs a new, empty `SplaySet<T>`
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -46,6 +48,7 @@ impl<T> SplaySet<T> {
     /// replace the key.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -65,6 +68,7 @@ impl<T> SplaySet<T> {
     /// key. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -83,6 +87,7 @@ impl<T> SplaySet<T> {
     /// Checks if a key exists in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -102,6 +107,7 @@ impl<T> SplaySet<T> {
     /// Returns the number of elements in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -116,6 +122,7 @@ impl<T> SplaySet<T> {
     /// Returns `true` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -129,6 +136,7 @@ impl<T> SplaySet<T> {
     /// Clears the set, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -146,6 +154,7 @@ impl<T> SplaySet<T> {
     /// such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -166,6 +175,7 @@ impl<T> SplaySet<T> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -185,6 +195,7 @@ impl<T> SplaySet<T> {
     /// Returns the minimum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -203,6 +214,7 @@ impl<T> SplaySet<T> {
     /// Returns the maximum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -221,6 +233,7 @@ impl<T> SplaySet<T> {
     /// Returns an iterator over the set. The iterator will yield keys using in-order traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplaySet;
     ///
@@ -241,8 +254,8 @@ impl<T> SplaySet<T> {
 }
 
 impl<T> IntoIterator for SplaySet<T> {
-    type Item = T;
     type IntoIter = SplaySetIntoIter<T>;
+    type Item = T;
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -255,8 +268,8 @@ impl<'a, T> IntoIterator for &'a SplaySet<T>
 where
     T: 'a,
 {
-    type Item = &'a T;
     type IntoIter = SplaySetIter<'a, T>;
+    type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -386,10 +399,7 @@ mod tests {
         set.insert(5);
         set.insert(3);
 
-        assert_eq!(
-            set.into_iter().collect::<Vec<u32>>(),
-            vec![1, 3, 5],
-        );
+        assert_eq!(set.into_iter().collect::<Vec<u32>>(), vec![1, 3, 5]);
     }
 
     #[test]
@@ -399,9 +409,6 @@ mod tests {
         set.insert(5);
         set.insert(3);
 
-        assert_eq!(
-            set.iter().collect::<Vec<&u32>>(),
-            vec![&1, &3, &5],
-        );
+        assert_eq!(set.iter().collect::<Vec<&u32>>(), vec![&1, &3, &5]);
     }
 }

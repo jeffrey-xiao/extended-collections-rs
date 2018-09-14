@@ -17,6 +17,7 @@ use treap::node::ImplicitNode;
 /// in `O(log N)` time.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::treap::TreapList;
 ///
@@ -42,6 +43,7 @@ impl<T> TreapList<T> {
     /// Constructs a new, empty `TreapList<T>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -58,6 +60,7 @@ impl<T> TreapList<T> {
     /// right if needed.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -68,13 +71,17 @@ impl<T> TreapList<T> {
     /// assert_eq!(list.get(1), Some(&1));
     /// ```
     pub fn insert(&mut self, index: usize, value: T) {
-        let TreapList { ref mut tree, ref mut rng } = self;
+        let TreapList {
+            ref mut tree,
+            ref mut rng,
+        } = self;
         implicit_tree::insert(tree, index + 1, ImplicitNode::new(value, rng.next_u32()));
     }
 
     /// Removes a value at a particular index from the list. Returns the value at the index.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -89,6 +96,7 @@ impl<T> TreapList<T> {
     /// Inserts a value at the front of the list.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -104,6 +112,7 @@ impl<T> TreapList<T> {
     /// Inserts a value at the back of the list.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -120,9 +129,11 @@ impl<T> TreapList<T> {
     /// Removes a value at the front of the list.
     ///
     /// # Panics
+    ///
     /// Panics if list is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -138,9 +149,11 @@ impl<T> TreapList<T> {
     /// Removes a value at the back of the list.
     ///
     /// # Panics
+    ///
     /// Panics if list is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -158,6 +171,7 @@ impl<T> TreapList<T> {
     /// index is out of bounds.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -174,6 +188,7 @@ impl<T> TreapList<T> {
     /// index is out of bounds.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -189,6 +204,7 @@ impl<T> TreapList<T> {
     /// Returns the number of elements in the list.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -203,6 +219,7 @@ impl<T> TreapList<T> {
     /// Returns `true` if the list is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -216,6 +233,7 @@ impl<T> TreapList<T> {
     /// Clears the list, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -232,6 +250,7 @@ impl<T> TreapList<T> {
     /// Returns an iterator over the list.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -254,6 +273,7 @@ impl<T> TreapList<T> {
     /// Returns a mutable iterator over the list.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::treap::TreapList;
     ///
@@ -279,8 +299,8 @@ impl<T> TreapList<T> {
 }
 
 impl<T> IntoIterator for TreapList<T> {
-    type Item = T;
     type IntoIter = TreapListIntoIter<T>;
+    type Item = T;
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -294,8 +314,8 @@ impl<'a, T> IntoIterator for &'a TreapList<T>
 where
     T: 'a,
 {
-    type Item = &'a T;
     type IntoIter = TreapListIter<'a, T>;
+    type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -306,8 +326,8 @@ impl<'a, T> IntoIterator for &'a mut TreapList<T>
 where
     T: 'a,
 {
-    type Item = &'a mut T;
     type IntoIter = TreapListIterMut<'a, T>;
+    type Item = &'a mut T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -361,7 +381,11 @@ where
             self.stack.push(node);
         }
         self.stack.pop().map(|node| {
-            let ImplicitNode { ref value, ref right, .. } = node;
+            let ImplicitNode {
+                ref value,
+                ref right,
+                ..
+            } = node;
             self.current = right;
             value
         })
@@ -428,6 +452,7 @@ impl<T> Add for TreapList<T> {
 
 impl<T> Index<usize> for TreapList<T> {
     type Output = T;
+
     fn index(&self, index: usize) -> &Self::Output {
         self.get(index).expect("Index out of bounds.")
     }
@@ -542,10 +567,7 @@ mod tests {
         list.insert(0, 2);
         list.insert(1, 3);
 
-        assert_eq!(
-            list.into_iter().collect::<Vec<u32>>(),
-            vec![2, 3, 1],
-        );
+        assert_eq!(list.into_iter().collect::<Vec<u32>>(), vec![2, 3, 1]);
     }
 
     #[test]
@@ -555,10 +577,7 @@ mod tests {
         list.insert(0, 2);
         list.insert(1, 3);
 
-        assert_eq!(
-            list.iter().collect::<Vec<&u32>>(),
-            vec![&2, &3, &1],
-        );
+        assert_eq!(list.iter().collect::<Vec<&u32>>(), vec![&2, &3, &1]);
     }
 
     #[test]
@@ -572,9 +591,6 @@ mod tests {
             *value += 1;
         }
 
-        assert_eq!(
-            list.iter().collect::<Vec<&u32>>(),
-            vec![&3, &4, &2],
-        );
+        assert_eq!(list.iter().collect::<Vec<&u32>>(), vec![&3, &4, &2]);
     }
 }

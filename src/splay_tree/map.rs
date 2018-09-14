@@ -1,6 +1,6 @@
+use entry::Entry;
 use splay_tree::node::Node;
 use splay_tree::tree;
-use entry::Entry;
 use std::borrow::Borrow;
 use std::ops::{Index, IndexMut};
 
@@ -11,6 +11,7 @@ use std::ops::{Index, IndexMut};
 /// to the root of the tree.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::splay_tree::SplayMap;
 ///
@@ -38,22 +39,21 @@ impl<T, U> SplayMap<T, U> {
     /// Constructs a new, empty `SplayMap<T, U>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
     /// let map: SplayMap<u32, u32> = SplayMap::new();
     /// ```
     pub fn new() -> Self {
-        SplayMap {
-            tree: None,
-            len: 0,
-        }
+        SplayMap { tree: None, len: 0 }
     }
 
     /// Inserts a key-value pair into the map. If the key already exists in the map, it will return
     /// and replace the old key-value pair.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -67,7 +67,10 @@ impl<T, U> SplayMap<T, U> {
     where
         T: Ord,
     {
-        let SplayMap { ref mut tree, ref mut len } = self;
+        let SplayMap {
+            ref mut tree,
+            ref mut len,
+        } = self;
         let new_node = Node::new(key, value);
         *len += 1;
         tree::insert(tree, new_node).and_then(|entry| {
@@ -81,6 +84,7 @@ impl<T, U> SplayMap<T, U> {
     /// associated key-value pair. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -94,7 +98,10 @@ impl<T, U> SplayMap<T, U> {
         T: Borrow<V>,
         V: Ord + ?Sized,
     {
-        let SplayMap { ref mut tree, ref mut len } = self;
+        let SplayMap {
+            ref mut tree,
+            ref mut len,
+        } = self;
         tree::remove(tree, &key).and_then(|entry| {
             let Entry { key, value } = entry;
             *len -= 1;
@@ -106,6 +113,7 @@ impl<T, U> SplayMap<T, U> {
     /// order to use a non-mutable reference.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -127,6 +135,7 @@ impl<T, U> SplayMap<T, U> {
     /// in order to use a non-mutable reference.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -147,6 +156,7 @@ impl<T, U> SplayMap<T, U> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -166,6 +176,7 @@ impl<T, U> SplayMap<T, U> {
     /// Returns the number of elements in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -180,6 +191,7 @@ impl<T, U> SplayMap<T, U> {
     /// Returns `true` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -193,6 +205,7 @@ impl<T, U> SplayMap<T, U> {
     /// Clears the map, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -212,6 +225,7 @@ impl<T, U> SplayMap<T, U> {
     /// non-mutable reference.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -233,6 +247,7 @@ impl<T, U> SplayMap<T, U> {
     /// non-mutable reference.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -253,6 +268,7 @@ impl<T, U> SplayMap<T, U> {
     /// does not splay the tree in order to use a non-mutable reference.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -272,6 +288,7 @@ impl<T, U> SplayMap<T, U> {
     /// does not splay the tree in order to use a non-mutable reference.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -291,6 +308,7 @@ impl<T, U> SplayMap<T, U> {
     /// traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -314,6 +332,7 @@ impl<T, U> SplayMap<T, U> {
     /// in-order traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::splay_tree::SplayMap;
     ///
@@ -339,8 +358,8 @@ impl<T, U> SplayMap<T, U> {
 }
 
 impl<T, U> IntoIterator for SplayMap<T, U> {
-    type Item = (T, U);
     type IntoIter = SplayMapIntoIter<T, U>;
+    type Item = (T, U);
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -355,8 +374,8 @@ where
     T: 'a,
     U: 'a,
 {
-    type Item = (&'a T, &'a U);
     type IntoIter = SplayMapIter<'a, T, U>;
+    type Item = (&'a T, &'a U);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -368,8 +387,8 @@ where
     T: 'a,
     U: 'a,
 {
-    type Item = (&'a T, &'a mut U);
     type IntoIter = SplayMapIterMut<'a, T, U>;
+    type Item = (&'a T, &'a mut U);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -463,7 +482,10 @@ where
     type Item = (&'a T, &'a mut U);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let SplayMapIterMut { ref mut current, ref mut stack } = self;
+        let SplayMapIterMut {
+            ref mut current,
+            ref mut stack,
+        } = self;
         while current.is_some() {
             stack.push(current.take().map(|node| {
                 *current = node.left.as_mut().map(|node| &mut **node);
@@ -474,7 +496,10 @@ where
             match pair_opt {
                 Some(pair) => {
                     let (entry, right) = pair;
-                    let Entry { ref key, ref mut value } = entry;
+                    let Entry {
+                        ref key,
+                        ref mut value,
+                    } = entry;
                     *current = right;
                     Some((key, value))
                 },
@@ -490,13 +515,13 @@ impl<T, U> Default for SplayMap<T, U> {
     }
 }
 
-
 impl<'a, T, U, V> Index<&'a V> for SplayMap<T, U>
 where
     T: Borrow<V>,
     V: Ord + ?Sized,
 {
     type Output = U;
+
     fn index(&self, key: &V) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
     }
@@ -642,4 +667,3 @@ mod tests {
         );
     }
 }
-

@@ -1,5 +1,5 @@
-use red_black_tree::node::{Color, Node};
 use entry::Entry;
+use red_black_tree::node::{Color, Node};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::mem;
@@ -39,7 +39,11 @@ fn remove_min<T, U>(tree: &mut Tree<T, U>) -> Box<Node<T, U>> {
     node
 }
 
-fn combine_subtrees<T, U>(left_tree: Tree<T, U>, mut right_tree: Tree<T, U>, color: Color) -> Tree<T, U> {
+fn combine_subtrees<T, U>(
+    left_tree: Tree<T, U>,
+    mut right_tree: Tree<T, U>,
+    color: Color,
+) -> Tree<T, U> {
     let mut new_root = remove_min(&mut right_tree);
     new_root.left = left_tree;
     new_root.right = right_tree;
@@ -73,7 +77,7 @@ where
         None => {
             *tree = Some(Box::new(new_node));
             return None;
-        }
+        },
     };
 
     let node = tree.as_mut().expect("Expected non-empty tree.");
@@ -145,7 +149,12 @@ where
 
                 if key == node.entry.key.borrow() {
                     let unboxed_node = *node;
-                    let Node { entry, left, right, color } = unboxed_node;
+                    let Node {
+                        entry,
+                        left,
+                        right,
+                        color,
+                    } = unboxed_node;
                     *tree = combine_subtrees(left, right, color);
                     Some(entry)
                 } else {

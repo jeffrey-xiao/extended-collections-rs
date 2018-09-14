@@ -31,12 +31,17 @@ where
                         Some(child) => child,
                         None => break,
                     };
-                    *right= Some(mem::replace(node, child));
-                    right= &mut { right }.as_mut().expect("Expected non-empty left child").left;
+                    *right = Some(mem::replace(node, child));
+                    right = &mut { right }
+                        .as_mut()
+                        .expect("Expected non-empty left child")
+                        .left;
                 },
                 Ordering::Greater => {
                     let should_rotate = match &mut node.right {
-                        Some(ref mut child) => key.cmp(child.entry.key.borrow()) == Ordering::Greater,
+                        Some(ref mut child) => {
+                            key.cmp(child.entry.key.borrow()) == Ordering::Greater
+                        },
                         None => break,
                     };
                     if should_rotate {
@@ -48,7 +53,10 @@ where
                         None => break,
                     };
                     *left = Some(mem::replace(node, child));
-                    left = &mut { left }.as_mut().expect("Expected non-empty right child").right;
+                    left = &mut { left }
+                        .as_mut()
+                        .expect("Expected non-empty right child")
+                        .right;
                 },
                 Ordering::Equal => break,
             }
@@ -74,13 +82,13 @@ where
                     new_node.left = node.left.take();
                     mem::swap(&mut **node, &mut new_node);
                     node.right = Some(Box::new(new_node));
-                    return None;
+                    None
                 },
                 Ordering::Greater => {
                     new_node.right = node.right.take();
                     mem::swap(&mut **node, &mut new_node);
                     node.left = Some(Box::new(new_node));
-                    return None;
+                    None
                 },
                 Ordering::Equal => {
                     let ret = mem::replace(&mut node.entry, new_node.entry);
@@ -90,8 +98,8 @@ where
         },
         None => {
             *tree = Some(Box::new(new_node));
-            return None;
-        }
+            None
+        },
     }
 }
 

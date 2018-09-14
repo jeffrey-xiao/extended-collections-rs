@@ -11,6 +11,7 @@ use radix::map::{RadixMap, RadixMapIntoIter, RadixMapIter};
 /// performance.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::radix::RadixSet;
 ///
@@ -40,6 +41,7 @@ impl RadixSet {
     /// Constructs a new, empty `RadixSet`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -55,6 +57,7 @@ impl RadixSet {
     /// replace the old key.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -74,6 +77,7 @@ impl RadixSet {
     /// key. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -92,6 +96,7 @@ impl RadixSet {
     /// Checks if a key exists in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -107,6 +112,7 @@ impl RadixSet {
     /// Returns the number of elements in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -121,6 +127,7 @@ impl RadixSet {
     /// Returns `true` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -134,6 +141,7 @@ impl RadixSet {
     /// Clears the set, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -150,6 +158,7 @@ impl RadixSet {
     /// Returns all keys that share the longest common prefix with the specified key.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -169,6 +178,7 @@ impl RadixSet {
     /// Returns the minimum lexographic key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -184,6 +194,7 @@ impl RadixSet {
     /// Returns the maximum lexographic key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -199,6 +210,7 @@ impl RadixSet {
     /// Returns an iterator over the set. The iterator will yield keys in lexographic order.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::radix::RadixSet;
     ///
@@ -219,8 +231,8 @@ impl RadixSet {
 }
 
 impl IntoIterator for RadixSet {
-    type Item = Vec<u8>;
     type IntoIter = RadixSetIntoIter;
+    type Item = Vec<u8>;
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -230,8 +242,8 @@ impl IntoIterator for RadixSet {
 }
 
 impl<'a> IntoIterator for &'a RadixSet {
-    type Item = Vec<u8>;
     type IntoIter = RadixSetIter<'a>;
+    type Item = Vec<u8>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -334,10 +346,7 @@ mod tests {
     fn test_insert_replace() {
         let mut set = RadixSet::new();
         assert_eq!(set.insert(get_bytes_slice("a")), None);
-        assert_eq!(
-            set.insert(get_bytes_slice("a")),
-            Some(get_bytes_vec("a")),
-        );
+        assert_eq!(set.insert(get_bytes_slice("a")), Some(get_bytes_vec("a")));
     }
 
     #[test]
@@ -346,28 +355,52 @@ mod tests {
         set.insert(get_bytes_slice("aaaa"));
         set.insert(get_bytes_slice("aabb"));
 
-        set.insert(get_bytes_slice("bb"));
+        set.insert(get_bytes_slice("bbb"));
         set.insert(get_bytes_slice("bbbb"));
         set.insert(get_bytes_slice("bbaa"));
 
         set.insert(get_bytes_slice("cccc"));
         set.insert(get_bytes_slice("ccdd"));
-        set.insert(get_bytes_slice("cc"));
+        set.insert(get_bytes_slice("ccc"));
 
-        assert_eq!(set.remove(get_bytes_slice("a")), None);
+        assert_eq!(set.remove(get_bytes_slice("non-existent")), None);
 
-        assert_eq!(set.remove(get_bytes_slice("aaaa")), Some(get_bytes_vec("aaaa")));
-        assert_eq!(set.remove(get_bytes_slice("aabb")), Some(get_bytes_vec("aabb")));
+        assert_eq!(
+            set.remove(get_bytes_slice("aaaa")),
+            Some(get_bytes_vec("aaaa"))
+        );
+        assert_eq!(
+            set.remove(get_bytes_slice("aabb")),
+            Some(get_bytes_vec("aabb"))
+        );
 
-        assert_eq!(set.remove(get_bytes_slice("bb")), Some(get_bytes_vec("bb")));
-        assert_eq!(set.remove(get_bytes_slice("bbbb")), Some(get_bytes_vec("bbbb")));
-        assert_eq!(set.remove(get_bytes_slice("bbaa")), Some(get_bytes_vec("bbaa")));
+        assert_eq!(
+            set.remove(get_bytes_slice("bbb")),
+            Some(get_bytes_vec("bbb"))
+        );
+        assert_eq!(
+            set.remove(get_bytes_slice("bbbb")),
+            Some(get_bytes_vec("bbbb"))
+        );
+        assert_eq!(
+            set.remove(get_bytes_slice("bbaa")),
+            Some(get_bytes_vec("bbaa"))
+        );
 
-        assert_eq!(set.remove(get_bytes_slice("cccc")), Some(get_bytes_vec("cccc")));
-        assert_eq!(set.remove(get_bytes_slice("ccdd")), Some(get_bytes_vec("ccdd")));
-        assert_eq!(set.remove(get_bytes_slice("cc")), Some(get_bytes_vec("cc")));
+        assert_eq!(
+            set.remove(get_bytes_slice("cccc")),
+            Some(get_bytes_vec("cccc"))
+        );
+        assert_eq!(
+            set.remove(get_bytes_slice("ccdd")),
+            Some(get_bytes_vec("ccdd"))
+        );
+        assert_eq!(
+            set.remove(get_bytes_slice("ccc")),
+            Some(get_bytes_vec("ccc"))
+        );
 
-        assert_eq!(set.remove(get_bytes_slice("a")), None);
+        assert_eq!(set.remove(get_bytes_slice("non-existent")), None);
     }
 
     #[test]

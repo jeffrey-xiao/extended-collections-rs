@@ -1,6 +1,6 @@
+use entry::Entry;
 use red_black_tree::node::{Color, Node};
 use red_black_tree::tree;
-use entry::Entry;
 use std::borrow::Borrow;
 use std::ops::{Index, IndexMut};
 
@@ -11,6 +11,7 @@ use std::ops::{Index, IndexMut};
 /// heights of two child subtrees of any node differ by at most one.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::red_black_tree::RedBlackMap;
 ///
@@ -38,22 +39,21 @@ impl<T, U> RedBlackMap<T, U> {
     /// Constructs a new, empty `RedBlackMap<T, U>`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
     /// let map: RedBlackMap<u32, u32> = RedBlackMap::new();
     /// ```
     pub fn new() -> Self {
-        RedBlackMap {
-            tree: None,
-            len: 0,
-        }
+        RedBlackMap { tree: None, len: 0 }
     }
 
     /// Inserts a key-value pair into the map. If the key already exists in the map, it will return
     /// and replace the old key-value pair.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -67,7 +67,10 @@ impl<T, U> RedBlackMap<T, U> {
     where
         T: Ord,
     {
-        let RedBlackMap { ref mut tree, ref mut len } = self;
+        let RedBlackMap {
+            ref mut tree,
+            ref mut len,
+        } = self;
         let new_node = Node::new(key, value);
         *len += 1;
         let ret = tree::insert(tree, new_node).and_then(|entry| {
@@ -87,6 +90,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// associated key-value pair. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -100,7 +104,10 @@ impl<T, U> RedBlackMap<T, U> {
         T: Borrow<V>,
         V: Ord + ?Sized,
     {
-        let RedBlackMap { ref mut tree, ref mut len } = self;
+        let RedBlackMap {
+            ref mut tree,
+            ref mut len,
+        } = self;
 
         tree::fix_root(tree);
 
@@ -120,6 +127,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// Checks if a key exists in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -140,6 +148,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// return `None` if the key does not exist in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -160,6 +169,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -179,6 +189,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// Returns the number of elements in the map.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -193,6 +204,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// Returns `true` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -206,6 +218,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// Clears the map, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -224,6 +237,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -244,6 +258,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -263,6 +278,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// Returns the minimum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -281,6 +297,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// Returns the maximum key of the map. Returns `None` if the map is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -300,6 +317,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -323,6 +341,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// in-order traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackMap;
     ///
@@ -348,8 +367,8 @@ impl<T, U> RedBlackMap<T, U> {
 }
 
 impl<T, U> IntoIterator for RedBlackMap<T, U> {
-    type Item = (T, U);
     type IntoIter = RedBlackMapIntoIter<T, U>;
+    type Item = (T, U);
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -364,8 +383,8 @@ where
     T: 'a,
     U: 'a,
 {
-    type Item = (&'a T, &'a U);
     type IntoIter = RedBlackMapIter<'a, T, U>;
+    type Item = (&'a T, &'a U);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -377,8 +396,8 @@ where
     T: 'a,
     U: 'a,
 {
-    type Item = (&'a T, &'a mut U);
     type IntoIter = RedBlackMapIterMut<'a, T, U>;
+    type Item = (&'a T, &'a mut U);
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -472,7 +491,10 @@ where
     type Item = (&'a T, &'a mut U);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let RedBlackMapIterMut { ref mut current, ref mut stack } = self;
+        let RedBlackMapIterMut {
+            ref mut current,
+            ref mut stack,
+        } = self;
         while current.is_some() {
             stack.push(current.take().map(|node| {
                 *current = node.left.as_mut().map(|node| &mut **node);
@@ -483,7 +505,10 @@ where
             match pair_opt {
                 Some(pair) => {
                     let (entry, right) = pair;
-                    let Entry { ref key, ref mut value } = entry;
+                    let Entry {
+                        ref key,
+                        ref mut value,
+                    } = entry;
                     *current = right;
                     Some((key, value))
                 },
@@ -499,13 +524,13 @@ impl<T, U> Default for RedBlackMap<T, U> {
     }
 }
 
-
 impl<'a, T, U, V> Index<&'a V> for RedBlackMap<T, U>
 where
     T: Borrow<V>,
     V: Ord + ?Sized,
 {
     type Output = U;
+
     fn index(&self, key: &V) -> &Self::Output {
         self.get(key).expect("Key does not exist.")
     }
@@ -667,4 +692,3 @@ mod tests {
         );
     }
 }
-

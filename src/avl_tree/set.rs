@@ -7,6 +7,7 @@ use std::borrow::Borrow;
 /// heights of two child subtrees of any node differ by at most one.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::avl_tree::AvlSet;
 ///
@@ -30,21 +31,21 @@ impl<T> AvlSet<T> {
     /// Constructs a new, empty `AvlSet<T>`
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
     /// let set: AvlSet<u32> = AvlSet::new();
     /// ```
     pub fn new() -> Self {
-        AvlSet {
-            map: AvlMap::new(),
-        }
+        AvlSet { map: AvlMap::new() }
     }
 
     /// Inserts a key into the set. If the key already exists in the set, it will return and
     /// replace the key.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -64,6 +65,7 @@ impl<T> AvlSet<T> {
     /// key. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -82,6 +84,7 @@ impl<T> AvlSet<T> {
     /// Checks if a key exists in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -101,6 +104,7 @@ impl<T> AvlSet<T> {
     /// Returns the number of elements in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -115,6 +119,7 @@ impl<T> AvlSet<T> {
     /// Returns `true` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -128,6 +133,7 @@ impl<T> AvlSet<T> {
     /// Clears the set, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -145,6 +151,7 @@ impl<T> AvlSet<T> {
     /// such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -165,6 +172,7 @@ impl<T> AvlSet<T> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -184,6 +192,7 @@ impl<T> AvlSet<T> {
     /// Returns the minimum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -202,6 +211,7 @@ impl<T> AvlSet<T> {
     /// Returns the maximum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -220,6 +230,7 @@ impl<T> AvlSet<T> {
     /// Returns an iterator over the set. The iterator will yield keys using in-order traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::avl_tree::AvlSet;
     ///
@@ -240,8 +251,8 @@ impl<T> AvlSet<T> {
 }
 
 impl<T> IntoIterator for AvlSet<T> {
-    type Item = T;
     type IntoIter = AvlSetIntoIter<T>;
+    type Item = T;
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -254,8 +265,8 @@ impl<'a, T> IntoIterator for &'a AvlSet<T>
 where
     T: 'a,
 {
-    type Item = &'a T;
     type IntoIter = AvlSetIter<'a, T>;
+    type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -385,10 +396,7 @@ mod tests {
         set.insert(5);
         set.insert(3);
 
-        assert_eq!(
-            set.into_iter().collect::<Vec<u32>>(),
-            vec![1, 3, 5],
-        );
+        assert_eq!(set.into_iter().collect::<Vec<u32>>(), vec![1, 3, 5]);
     }
 
     #[test]
@@ -398,9 +406,6 @@ mod tests {
         set.insert(5);
         set.insert(3);
 
-        assert_eq!(
-            set.iter().collect::<Vec<&u32>>(),
-            vec![&1, &3, &5],
-        );
+        assert_eq!(set.iter().collect::<Vec<&u32>>(), vec![&1, &3, &5]);
     }
 }

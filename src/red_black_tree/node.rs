@@ -1,5 +1,5 @@
-use red_black_tree::tree;
 use entry::Entry;
+use red_black_tree::tree;
 use std::mem;
 
 /// An enum representing the color of a node in a red black tree.
@@ -10,7 +10,7 @@ pub enum Color {
 }
 
 impl Color {
-    pub fn flip(&self) -> Color {
+    pub fn flip(self) -> Color {
         match self {
             Color::Red => Color::Black,
             Color::Black => Color::Red,
@@ -47,7 +47,10 @@ impl<T, U> Node<T, U> {
     }
 
     pub fn rotate_left(&mut self) {
-        let mut child = self.right.take().expect("Expected right child node to be `Some`.");
+        let mut child = self
+            .right
+            .take()
+            .expect("Expected right child node to be `Some`.");
         self.right = child.left.take();
         mem::swap(&mut *child, self);
         self.color = child.color;
@@ -56,7 +59,10 @@ impl<T, U> Node<T, U> {
     }
 
     pub fn rotate_right(&mut self) {
-        let mut child = self.left.take().expect("Expected left child node to be `Some`.");
+        let mut child = self
+            .left
+            .take()
+            .expect("Expected left child node to be `Some`.");
         self.left = child.right.take();
         mem::swap(&mut *child, self);
         self.color = child.color;

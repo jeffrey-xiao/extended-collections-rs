@@ -1,12 +1,12 @@
 use bincode::{deserialize, serialize};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use entry::Entry;
-use std::borrow::Borrow;
 use lsm_tree::{Error, Result};
 use probabilistic_collections::bloom::BloomFilter;
 use rand::{thread_rng, Rng};
 use serde::de::{self, Deserialize, DeserializeOwned, Deserializer};
 use serde::ser::{Serialize, Serializer};
+use std::borrow::Borrow;
 use std::cmp;
 use std::fmt::{self, Debug};
 use std::fs;
@@ -149,10 +149,9 @@ impl<T, U> SSTableBuilder<T, U> {
         }
         match self.logical_time_range.take() {
             Some((start, end)) => {
-                self.logical_time_range = Some((
-                    cmp::min(start, logical_time),
-                    cmp::max(end, logical_time),
-                ))
+                let start = cmp::min(start, logical_time);
+                let end = cmp::max(end, logical_time);
+                self.logical_time_range = Some((start, end))
             },
             None => self.logical_time_range = Some((logical_time, logical_time)),
         }
@@ -161,17 +160,20 @@ impl<T, U> SSTableBuilder<T, U> {
         self.index_block.push((key.clone(), self.data_offset));
 
         let serialized_entry = serialize(&(key, value))?;
-        self.data_stream.write_u64::<BigEndian>(serialized_entry.len() as u64)?;
+        self.data_stream
+            .write_u64::<BigEndian>(serialized_entry.len() as u64)?;
         self.data_stream.write_all(&serialized_entry)?;
         self.data_offset += 8 + serialized_entry.len() as u64;
         self.size += 8 + serialized_entry.len() as u64;
         self.block_index += 1;
 
         if self.block_index == self.block_size {
-            self.index.push((self.index_block[0].0.clone(), self.index_offset));
+            self.index
+                .push((self.index_block[0].0.clone(), self.index_offset));
 
             let serialized_index_block = serialize(&self.index_block)?;
-            self.index_stream.write_u64::<BigEndian>(serialized_index_block.len() as u64)?;
+            self.index_stream
+                .write_u64::<BigEndian>(serialized_index_block.len() as u64)?;
             self.index_stream.write_all(&serialized_index_block)?;
             self.index_offset += 8 + serialized_index_block.len() as u64;
             self.size += 8 + serialized_index_block.len() as u64;
@@ -187,16 +189,27 @@ impl<T, U> SSTableBuilder<T, U> {
         T: Clone + Serialize,
     {
         if !self.index_block.is_empty() {
-            self.index.push((self.index_block[0].0.clone(), self.index_offset));
+            self.index
+                .push((self.index_block[0].0.clone(), self.index_offset));
 
             let serialized_index_block = serialize(&self.index_block)?;
-            self.index_stream.write_u64::<BigEndian>(serialized_index_block.len() as u64)?;
+            self.index_stream
+                .write_u64::<BigEndian>(serialized_index_block.len() as u64)?;
             self.index_stream.write_all(&serialized_index_block)?;
         }
 
-        let (key_range, logical_time_range) = match (self.key_range.clone(), self.logical_time_range) {
-            (Some(key_range), Some(logical_time_range)) => (key_range, logical_time_range),
-            _ => panic!("Expected non-empty SSTable"),
+        let key_range = {
+            match self.key_range.clone() {
+                Some(key_range) => key_range,
+                _ => panic!("Expected non-empty SSTable."),
+            }
+        };
+
+        let logical_time_range = {
+            match self.logical_time_range {
+                Some(logical_time_range) => logical_time_range,
+                _ => panic!("Expected non-empty SSTable."),
+            }
         };
 
         let serialized_summary = serialize(&SSTableSummary {
@@ -301,9 +314,11 @@ impl<T, U> SSTable<T, U> {
         index_file.read_exact(buffer.as_mut_slice())?;
         let index_block: Vec<(T, u64)> = deserialize(&buffer)?;
 
-        let index = match index_block.binary_search_by_key(&key, |index_entry| index_entry.0.borrow()) {
-            Ok(index) => index,
-            Err(_) => return Ok(None),
+        let index = {
+            match index_block.binary_search_by_key(&key, |index_entry| index_entry.0.borrow()) {
+                Ok(index) => index,
+                Err(_) => return Ok(None),
+            }
         };
 
         let mut data_file = fs::File::open(self.path.join("data.dat"))?;

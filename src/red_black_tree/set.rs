@@ -7,6 +7,7 @@ use std::borrow::Borrow;
 /// heights of two child subtrees of any node differ by at most one.
 ///
 /// # Examples
+///
 /// ```
 /// use extended_collections::red_black_tree::RedBlackSet;
 ///
@@ -30,6 +31,7 @@ impl<T> RedBlackSet<T> {
     /// Constructs a new, empty `RedBlackSet<T>`
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -45,6 +47,7 @@ impl<T> RedBlackSet<T> {
     /// replace the key.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -64,6 +67,7 @@ impl<T> RedBlackSet<T> {
     /// key. Otherwise it will return `None`.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -82,6 +86,7 @@ impl<T> RedBlackSet<T> {
     /// Checks if a key exists in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -101,6 +106,7 @@ impl<T> RedBlackSet<T> {
     /// Returns the number of elements in the set.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -115,6 +121,7 @@ impl<T> RedBlackSet<T> {
     /// Returns `true` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -128,6 +135,7 @@ impl<T> RedBlackSet<T> {
     /// Clears the set, removing all values.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -145,6 +153,7 @@ impl<T> RedBlackSet<T> {
     /// such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -165,6 +174,7 @@ impl<T> RedBlackSet<T> {
     /// if such a key does not exist.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -184,6 +194,7 @@ impl<T> RedBlackSet<T> {
     /// Returns the minimum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -202,6 +213,7 @@ impl<T> RedBlackSet<T> {
     /// Returns the maximum key of the set. Returns `None` if the set is empty.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -220,6 +232,7 @@ impl<T> RedBlackSet<T> {
     /// Returns an iterator over the set. The iterator will yield keys using in-order traversal.
     ///
     /// # Examples
+    ///
     /// ```
     /// use extended_collections::red_black_tree::RedBlackSet;
     ///
@@ -240,8 +253,8 @@ impl<T> RedBlackSet<T> {
 }
 
 impl<T> IntoIterator for RedBlackSet<T> {
-    type Item = T;
     type IntoIter = RedBlackSetIntoIter<T>;
+    type Item = T;
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
@@ -254,8 +267,8 @@ impl<'a, T> IntoIterator for &'a RedBlackSet<T>
 where
     T: 'a,
 {
-    type Item = &'a T;
     type IntoIter = RedBlackSetIter<'a, T>;
+    type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -385,10 +398,7 @@ mod tests {
         set.insert(5);
         set.insert(3);
 
-        assert_eq!(
-            set.into_iter().collect::<Vec<u32>>(),
-            vec![1, 3, 5],
-        );
+        assert_eq!(set.into_iter().collect::<Vec<u32>>(), vec![1, 3, 5]);
     }
 
     #[test]
@@ -398,9 +408,6 @@ mod tests {
         set.insert(5);
         set.insert(3);
 
-        assert_eq!(
-            set.iter().collect::<Vec<&u32>>(),
-            vec![&1, &3, &5],
-        );
+        assert_eq!(set.iter().collect::<Vec<&u32>>(), vec![&1, &3, &5]);
     }
 }
