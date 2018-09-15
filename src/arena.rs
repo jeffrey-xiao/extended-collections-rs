@@ -113,7 +113,7 @@ impl<T> TypedArena<T> {
                         self.head = next_entry;
                         ret
                     },
-                    Block::Occupied(_) => unreachable!(),
+                    Block::Occupied(_) => panic!("Expected an occupied block."),
                 }
             },
         }
@@ -136,14 +136,14 @@ impl<T> TypedArena<T> {
     /// ```
     pub fn free(&mut self, entry: &Entry) -> T {
         if !self.is_valid_entry(entry) {
-            panic!("Attempting to free invalid block.");
+            panic!("Error: attempting to free invalid block.");
         }
         let old_block = mem::replace(
             &mut self.chunks[entry.chunk_index][entry.block_index],
             Block::Vacant(self.head.take()),
         );
         match old_block {
-            Block::Vacant(_) => panic!("Attempting to free vacant block."),
+            Block::Vacant(_) => panic!("Error: attempting to free vacant block."),
             Block::Occupied(value) => {
                 self.size -= 1;
                 self.head = Some(Entry {
@@ -204,13 +204,13 @@ impl<T> Index<Entry> for TypedArena<T> {
     type Output = T;
 
     fn index(&self, entry: Entry) -> &Self::Output {
-        self.get(&entry).expect("Entry out of bounds.")
+        self.get(&entry).expect("Error: entry out of bounds.")
     }
 }
 
 impl<T> IndexMut<Entry> for TypedArena<T> {
     fn index_mut(&mut self, entry: Entry) -> &mut Self::Output {
-        self.get_mut(&entry).expect("Entry out of bounds.")
+        self.get_mut(&entry).expect("Error: entry out of bounds.")
     }
 }
 

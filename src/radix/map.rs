@@ -513,13 +513,13 @@ impl<'a, T> Index<&'a [u8]> for RadixMap<T> {
     type Output = T;
 
     fn index(&self, key: &[u8]) -> &Self::Output {
-        self.get(key).expect("Key does not exist.")
+        self.get(key).expect("Error: key does not exist.")
     }
 }
 
 impl<'a, T> IndexMut<&'a [u8]> for RadixMap<T> {
     fn index_mut(&mut self, key: &[u8]) -> &mut Self::Output {
-        self.get_mut(key).expect("Key does not exist.")
+        self.get_mut(key).expect("Error: key does not exist.")
     }
 }
 

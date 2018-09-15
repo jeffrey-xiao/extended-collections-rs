@@ -252,7 +252,7 @@ impl<T, U> Pager<T, U> {
 
                 match deserialize(buffer.as_slice())? {
                     Node::Free::<T, U>(new_free_page) => self.metadata.free_page = new_free_page,
-                    _ => unreachable!(),
+                    _ => panic!("Expected a free node."),
                 }
                 self.db_file.seek(SeekFrom::Start(0))?;
                 let serialized_metadata = &serialize(&self.metadata)?;

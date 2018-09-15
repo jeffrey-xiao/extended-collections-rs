@@ -225,7 +225,7 @@ impl<T, U> BpMap<T, U> {
                     },
                 }
             },
-            _ => unreachable!(),
+            _ => panic!("Expected a leaf node."),
         }
 
         while let Some((split_key, split_pointer)) = split_node_entry {
@@ -241,7 +241,7 @@ impl<T, U> BpMap<T, U> {
                                 split_node_entry = None
                             }
                         },
-                        _ => unreachable!(),
+                        _ => panic!("Expected an internal node."),
                     }
                     curr_node = parent_node;
                     curr_page = parent_page;
@@ -303,7 +303,7 @@ impl<T, U> BpMap<T, U> {
                         let mut parent_node = {
                             match parent_node {
                                 Node::Internal(node) => node,
-                                _ => unreachable!(),
+                                _ => panic!("Expected an internal node."),
                             }
                         };
                         let sibling_index = {
@@ -317,7 +317,7 @@ impl<T, U> BpMap<T, U> {
                         let mut sibling_leaf_node = {
                             match self.pager.get_page(sibling_page)? {
                                 Node::Leaf(node) => node,
-                                _ => unreachable!(),
+                                _ => panic!("Expected a leaf node."),
                             }
                         };
 
@@ -370,7 +370,7 @@ impl<T, U> BpMap<T, U> {
                         .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
                 }
             },
-            _ => unreachable!(),
+            _ => panic!("Expected a leaf node."),
         }
 
         while let Some((delete_index, curr_page, mut curr_node)) = delete_entry {
@@ -383,7 +383,7 @@ impl<T, U> BpMap<T, U> {
                     let mut parent_node = {
                         match parent_node {
                             Node::Internal(node) => node,
-                            _ => unreachable!(),
+                            _ => panic!("Expected an internal node."),
                         }
                     };
                     let sibling_index = {
@@ -397,7 +397,7 @@ impl<T, U> BpMap<T, U> {
                     let mut sibling_node = {
                         match self.pager.get_page(sibling_page)? {
                             Node::Internal(node) => node,
-                            _ => unreachable!(),
+                            _ => panic!("Expected an internal node."),
                         }
                     };
 
@@ -524,7 +524,7 @@ impl<T, U> BpMap<T, U> {
                     mem::replace(&mut curr_leaf_node.entries[index], None).map(|entry| entry.value)
                 }))
             },
-            _ => unreachable!(),
+            _ => panic!("Expected a leaf node."),
         }
     }
 
@@ -635,7 +635,7 @@ impl<T, U> BpMap<T, U> {
             Node::Leaf(mut curr_leaf_node) => {
                 Ok(mem::replace(&mut curr_leaf_node.entries[0], None).map(|entry| entry.key))
             },
-            _ => unreachable!(),
+            _ => panic!("Expected a leaf node."),
         }
     }
 
@@ -681,7 +681,7 @@ impl<T, U> BpMap<T, U> {
                         .map(|entry| entry.key))
                 }
             },
-            _ => unreachable!(),
+            _ => panic!("Expected a leaf node."),
         }
     }
 
@@ -730,7 +730,7 @@ impl<T, U> BpMap<T, U> {
                     curr_index: 0,
                 })
             },
-            _ => unreachable!(),
+            _ => panic!("Expected a leaf node."),
         }
     }
 }
@@ -777,7 +777,7 @@ where
                             Ok(node) => {
                                 match node {
                                     Node::Leaf(leaf_node) => leaf_node,
-                                    _ => unreachable!(),
+                                    _ => panic!("Expected a leaf node."),
                                 }
                             },
                             Err(error) => return Some(Err(error)),

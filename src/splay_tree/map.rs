@@ -523,7 +523,7 @@ where
     type Output = U;
 
     fn index(&self, key: &V) -> &Self::Output {
-        self.get(key).expect("Key does not exist.")
+        self.get(key).expect("Error: key does not exist.")
     }
 }
 
@@ -533,7 +533,7 @@ where
     V: Ord + ?Sized,
 {
     fn index_mut(&mut self, key: &V) -> &mut Self::Output {
-        self.get_mut(key).expect("Key does not exist.")
+        self.get_mut(key).expect("Error: key does not exist.")
     }
 }
 

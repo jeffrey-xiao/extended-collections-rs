@@ -704,13 +704,13 @@ impl<T> Index<usize> for SkipList<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
-        self.get(index).expect("Index out of bounds.")
+        self.get(index).expect("Error: index out of bounds.")
     }
 }
 
 impl<T> IndexMut<usize> for SkipList<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.get_mut(index).expect("Index out of bounds.")
+        self.get_mut(index).expect("Error: index out of bounds.")
     }
 }
 
