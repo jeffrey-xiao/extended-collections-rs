@@ -3,6 +3,7 @@
 [![extended-collections](http://meritbadge.herokuapp.com/extended-collections)](https://crates.io/crates/extended-collections)
 [![Documentation](https://docs.rs/extended-collections/badge.svg)](https://docs.rs/extended-collections)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Build Status](https://travis-ci.org/jeffrey-xiao/extended-collections-rs.svg?branch=master)](https://travis-ci.org/jeffrey-xiao/extended-collections-rs)
 [![codecov](https://codecov.io/gh/jeffrey-xiao/extended-collections-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/jeffrey-xiao/extended-collections-rs)
 
@@ -31,7 +32,7 @@ extern crate extended_collections;
 
 ## License
 
-`extended-collections-rs` is dual-licensed under the terms of either the MIT license or the Apache
+`extended-collections-rs` is dual-licensed under the terms of either the MIT License or the Apache
 License (Version 2.0).
 
 See [LICENSE-APACHE](LICENSE-APACHE) and [LICENSE-MIT](LICENSE-MIT) for more details.
