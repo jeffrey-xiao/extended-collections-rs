@@ -805,7 +805,7 @@ mod tests {
     use std::panic;
 
     fn teardown(test_name: &str) {
-        fs::remove_file(&format!("{}", test_name)).ok();
+        fs::remove_file(test_name).ok();
     }
 
     fn run_test<T>(test: T, test_name: &str)

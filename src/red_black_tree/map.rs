@@ -588,25 +588,9 @@ mod tests {
     #[test]
     fn test_remove() {
         let mut map = RedBlackMap::new();
-        map.insert(2056, 0);
-        map.insert(2056, 0);
-        map.insert(4196417, 0);
-        map.insert(2056, 0);
-        map.insert(131648, 0);
-        map.insert(18504, 0);
-        map.insert(268456451, 0);
-        map.insert(268572747, 0);
-        map.insert(8423499, 0);
-        map.insert(8421459, 0);
-
-        map.remove(&131648);
-        map.remove(&8423499);
-        map.remove(&268572747);
-        map.remove(&8421459);
-        map.remove(&2056);
-        map.remove(&18504);
-        map.remove(&268456451);
-        map.remove(&4196417);
+        map.insert(1, 1);
+        assert_eq!(map.remove(&1), Some((1, 1)));
+        assert!(!map.contains_key(&1));
     }
 
     #[test]

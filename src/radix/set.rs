@@ -16,20 +16,20 @@ use radix::map::{RadixMap, RadixMapIntoIter, RadixMapIter};
 /// use extended_collections::radix::RadixSet;
 ///
 /// let mut set = RadixSet::new();
-/// set.insert("foo".as_bytes());
-/// set.insert("foobar".as_bytes());
+/// set.insert(b"foo");
+/// set.insert(b"foobar");
 ///
 /// assert_eq!(set.len(), 2);
 ///
 /// assert_eq!(set.min(), Some(String::from("foo").into_bytes()));
 ///
 /// assert_eq!(
-///     set.get_longest_prefix(&"foob".as_bytes()),
+///     set.get_longest_prefix(b"foob"),
 ///     vec![String::from("foobar").into_bytes()],
 /// );
 ///
 /// assert_eq!(
-///     set.remove("foo".as_bytes()),
+///     set.remove(b"foo"),
 ///     Some(String::from("foo").into_bytes()),
 /// );
 /// ```
@@ -62,10 +62,10 @@ impl RadixSet {
     /// use extended_collections::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// assert_eq!(set.insert("foo".as_bytes()), None);
-    /// assert!(set.contains("foo".as_bytes()));
+    /// assert_eq!(set.insert(b"foo"), None);
+    /// assert!(set.contains(b"foo"));
     /// assert_eq!(
-    ///     set.insert("foo".as_bytes()),
+    ///     set.insert(b"foo"),
     ///     Some(String::from("foo").into_bytes()),
     /// );
     /// ```
@@ -82,12 +82,12 @@ impl RadixSet {
     /// use extended_collections::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert("foo".as_bytes());
+    /// set.insert(b"foo");
     /// assert_eq!(
-    ///     set.remove("foo".as_bytes()),
+    ///     set.remove(b"foo"),
     ///     Some(String::from("foo").into_bytes()),
     /// );
-    /// assert_eq!(set.remove("foobar".as_bytes()), None);
+    /// assert_eq!(set.remove(b"foobar"), None);
     /// ```
     pub fn remove(&mut self, key: &[u8]) -> Option<Vec<u8>> {
         self.map.remove(key).map(|pair| pair.0)
@@ -101,9 +101,9 @@ impl RadixSet {
     /// use extended_collections::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert("foo".as_bytes());
-    /// assert!(set.contains("foo".as_bytes()));
-    /// assert!(!set.contains("foobar".as_bytes()));
+    /// set.insert(b"foo");
+    /// assert!(set.contains(b"foo"));
+    /// assert!(!set.contains(b"foobar"));
     /// ```
     pub fn contains(&self, key: &[u8]) -> bool {
         self.map.contains_key(key)
@@ -117,7 +117,7 @@ impl RadixSet {
     /// use extended_collections::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert("foo".as_bytes());
+    /// set.insert(b"foo");
     /// assert_eq!(set.len(), 1);
     /// ```
     pub fn len(&self) -> usize {
@@ -146,8 +146,8 @@ impl RadixSet {
     /// use extended_collections::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert("foo".as_bytes());
-    /// set.insert("foobar".as_bytes());
+    /// set.insert(b"foo");
+    /// set.insert(b"foobar");
     /// set.clear();
     /// assert_eq!(set.is_empty(), true);
     /// ```
@@ -163,11 +163,11 @@ impl RadixSet {
     /// use extended_collections::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert("foo".as_bytes());
-    /// set.insert("foobar".as_bytes());
+    /// set.insert(b"foo");
+    /// set.insert(b"foobar");
     ///
     /// assert_eq!(
-    ///     set.get_longest_prefix(&"foob".as_bytes()),
+    ///     set.get_longest_prefix(b"foob"),
     ///     vec![String::from("foobar").into_bytes()],
     /// );
     /// ```
@@ -183,8 +183,8 @@ impl RadixSet {
     /// use extended_collections::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert("foo".as_bytes());
-    /// set.insert("foobar".as_bytes());
+    /// set.insert(b"foo");
+    /// set.insert(b"foobar");
     /// assert_eq!(set.min(), Some(String::from("foo").into_bytes()));
     /// ```
     pub fn min(&self) -> Option<Vec<u8>> {
@@ -199,8 +199,8 @@ impl RadixSet {
     /// use extended_collections::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert("foo".as_bytes());
-    /// set.insert("foobar".as_bytes());
+    /// set.insert(b"foo");
+    /// set.insert(b"foobar");
     /// assert_eq!(set.max(), Some(String::from("foobar").into_bytes()));
     /// ```
     pub fn max(&self) -> Option<Vec<u8>> {
@@ -215,8 +215,8 @@ impl RadixSet {
     /// use extended_collections::radix::RadixSet;
     ///
     /// let mut set = RadixSet::new();
-    /// set.insert("foo".as_bytes());
-    /// set.insert("foobar".as_bytes());
+    /// set.insert(b"foo");
+    /// set.insert(b"foobar");
     ///
     /// let mut iterator = set.iter();
     /// assert_eq!(iterator.next(), Some(String::from("foo").into_bytes()));

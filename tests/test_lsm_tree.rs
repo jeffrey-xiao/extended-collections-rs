@@ -9,7 +9,7 @@ use std::panic;
 use std::vec::Vec;
 
 fn teardown(test_name: &str) {
-    fs::remove_dir_all(format!("{}", test_name)).ok();
+    fs::remove_dir_all(test_name).ok();
 }
 
 fn run_test<T>(test: T, test_name: &str) -> Result<()>
