@@ -217,10 +217,7 @@ impl<T> RadixMap<T> {
     /// map.insert(b"foo", 0);
     /// map.insert(b"foobar", 1);
     ///
-    /// assert_eq!(
-    ///     map.get_longest_prefix(b"foob"),
-    ///     vec![b"foobar"],
-    /// );
+    /// assert_eq!(map.get_longest_prefix(b"foob"), vec![b"foobar"]);
     /// ```
     pub fn get_longest_prefix(&self, key: &[u8]) -> Vec<Vec<u8>> {
         let mut keys = Vec::new();
@@ -599,40 +596,16 @@ mod tests {
 
         assert_eq!(map.remove(b"non-existent"), None);
 
-        assert_eq!(
-            map.remove(b"aaaa"),
-            Some((get_bytes_vec("aaaa"), 0)),
-        );
-        assert_eq!(
-            map.remove(b"aabb"),
-            Some((get_bytes_vec("aabb"), 1)),
-        );
+        assert_eq!(map.remove(b"aaaa"), Some((get_bytes_vec("aaaa"), 0)));
+        assert_eq!(map.remove(b"aabb"), Some((get_bytes_vec("aabb"), 1)));
 
-        assert_eq!(
-            map.remove(b"bbb"),
-            Some((get_bytes_vec("bbb"), 2))
-        );
-        assert_eq!(
-            map.remove(b"bbbb"),
-            Some((get_bytes_vec("bbbb"), 4)),
-        );
-        assert_eq!(
-            map.remove(b"bbaa"),
-            Some((get_bytes_vec("bbaa"), 3)),
-        );
+        assert_eq!(map.remove(b"bbb"), Some((get_bytes_vec("bbb"), 2)));
+        assert_eq!(map.remove(b"bbbb"), Some((get_bytes_vec("bbbb"), 4)));
+        assert_eq!(map.remove(b"bbaa"), Some((get_bytes_vec("bbaa"), 3)));
 
-        assert_eq!(
-            map.remove(b"cccc"),
-            Some((get_bytes_vec("cccc"), 6)),
-        );
-        assert_eq!(
-            map.remove(b"ccdd"),
-            Some((get_bytes_vec("ccdd"), 7)),
-        );
-        assert_eq!(
-            map.remove(b"ccc"),
-            Some((get_bytes_vec("ccc"), 5))
-        );
+        assert_eq!(map.remove(b"cccc"), Some((get_bytes_vec("cccc"), 6)));
+        assert_eq!(map.remove(b"ccdd"), Some((get_bytes_vec("ccdd"), 7)));
+        assert_eq!(map.remove(b"ccc"), Some((get_bytes_vec("ccc"), 5)));
 
         assert_eq!(map.remove(b"non-existent"), None);
     }
@@ -670,10 +643,7 @@ mod tests {
     fn test_get_longest_prefix() {
         let mut map = RadixMap::new();
         map.insert(b"aaaa", 0);
-        assert_eq!(
-            map.get_longest_prefix(b"aaa"),
-            vec![get_bytes_vec("aaaa")],
-        );
+        assert_eq!(map.get_longest_prefix(b"aaa"), vec![get_bytes_vec("aaaa")]);
 
         let mut map = RadixMap::new();
         map.insert(b"aaaa", 0);
@@ -698,10 +668,7 @@ mod tests {
 
         let mut map = RadixMap::new();
         map.insert(b"aa", 0);
-        assert_eq!(
-            map.get_longest_prefix(b"aaa"),
-            vec![get_bytes_vec("aa")],
-        );
+        assert_eq!(map.get_longest_prefix(b"aaa"), vec![get_bytes_vec("aa")]);
 
         let mut map = RadixMap::new();
         map.insert(b"aaba", 0);

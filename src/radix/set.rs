@@ -28,10 +28,7 @@ use radix::map::{RadixMap, RadixMapIntoIter, RadixMapIter};
 ///     vec![String::from("foobar").into_bytes()],
 /// );
 ///
-/// assert_eq!(
-///     set.remove(b"foo"),
-///     Some(String::from("foo").into_bytes()),
-/// );
+/// assert_eq!(set.remove(b"foo"), Some(String::from("foo").into_bytes()),);
 /// ```
 pub struct RadixSet {
     map: RadixMap<()>,
@@ -64,10 +61,7 @@ impl RadixSet {
     /// let mut set = RadixSet::new();
     /// assert_eq!(set.insert(b"foo"), None);
     /// assert!(set.contains(b"foo"));
-    /// assert_eq!(
-    ///     set.insert(b"foo"),
-    ///     Some(String::from("foo").into_bytes()),
-    /// );
+    /// assert_eq!(set.insert(b"foo"), Some(String::from("foo").into_bytes()),);
     /// ```
     pub fn insert(&mut self, key: &[u8]) -> Option<Vec<u8>> {
         self.map.insert(key, ()).map(|pair| pair.0)
@@ -83,10 +77,7 @@ impl RadixSet {
     ///
     /// let mut set = RadixSet::new();
     /// set.insert(b"foo");
-    /// assert_eq!(
-    ///     set.remove(b"foo"),
-    ///     Some(String::from("foo").into_bytes()),
-    /// );
+    /// assert_eq!(set.remove(b"foo"), Some(String::from("foo").into_bytes()),);
     /// assert_eq!(set.remove(b"foobar"), None);
     /// ```
     pub fn remove(&mut self, key: &[u8]) -> Option<Vec<u8>> {
