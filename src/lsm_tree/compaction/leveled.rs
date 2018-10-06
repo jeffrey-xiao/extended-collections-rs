@@ -254,7 +254,8 @@ where
                         .iter()
                         .map(|level_entry| level_entry.1.summary.logical_time_range.1)
                         .max()
-                }).max()
+                })
+                .max()
                 .and_then(|max_opt| max_opt);
             let old_sstables = mem::replace(&mut curr_metadata.sstables, next_metadata.sstables);
             let old_levels = mem::replace(&mut curr_metadata.levels, next_metadata.levels);
@@ -314,7 +315,8 @@ where
             .map(|sstable| {
                 entry_count_hint += sstable.summary.entry_count;
                 sstable.data_iter()
-            }).collect();
+            })
+            .collect();
         for sstable in metadata_snapshot.levels[0].values() {
             entry_count_hint = cmp::max(entry_count_hint, sstable.summary.entry_count);
         }
@@ -366,7 +368,8 @@ where
                         .max_by(|x, y| {
                             (x.1.summary.tombstone_count * y.1.summary.entry_count)
                                 .cmp(&(y.1.summary.tombstone_count * x.1.summary.entry_count))
-                        }).map(|level_entry| level_entry.1.summary.key_range.1.clone())
+                        })
+                        .map(|level_entry| level_entry.1.summary.key_range.1.clone())
                         .expect("Expected non-empty level to remove from.");
                     metadata_snapshot.levels[index]
                         .remove(&sstable_key)
@@ -582,7 +585,8 @@ where
                     .iter()
                     .map(|entry| entry.1.summary.entry_count - entry.1.summary.tombstone_count)
                     .sum()
-            }).sum();
+            })
+            .sum();
 
         Ok(sstables_len_hint + levels_len_hint)
     }
@@ -658,13 +662,15 @@ where
                     .iter()
                     .map(|level_entry| level_entry.1.data_iter())
                     .collect()
-            }).collect();
+            })
+            .collect();
         let metadata_lock_count = Rc::clone(&self.metadata_lock_count);
         let compaction_iter = LeveledIter::new(
             Some(metadata_lock_count),
             sstable_data_iters,
             level_data_iters,
-        )?.filter_map(|entry_result| {
+        )?
+        .filter_map(|entry_result| {
             match entry_result {
                 Ok(entry) => {
                     let (key, value) = entry;

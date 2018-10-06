@@ -158,7 +158,8 @@ impl<T> SkipList<T> {
                     curr_node = &mut mem::replace(
                         &mut next_link,
                         (*next_link.next).get_pointer_mut(curr_height),
-                    ).next;
+                    )
+                    .next;
                 }
                 last_nodes[curr_height].0 = *curr_node;
 
@@ -215,7 +216,8 @@ impl<T> SkipList<T> {
                     curr_node = &mut mem::replace(
                         &mut next_link,
                         (*next_link.next).get_pointer_mut(curr_height),
-                    ).next;
+                    )
+                    .next;
                 }
 
                 if !next_link.next.is_null() {
@@ -377,7 +379,8 @@ impl<T> SkipList<T> {
                     curr_node = &mut mem::replace(
                         &mut next_link,
                         (*next_link.next).get_pointer_mut(curr_height),
-                    ).next;
+                    )
+                    .next;
                 }
 
                 if !next_link.next.is_null() && next_link.distance == index + 1 {

@@ -80,7 +80,8 @@ impl<T, U> BpMap<T, U> {
             value_size,
             leaf_degree,
             internal_degree,
-        ).map(|pager| BpMap { pager })
+        )
+        .map(|pager| BpMap { pager })
     }
 
     /// Constructs a new, empty `BpMap<T, U>` with maximum sizes for keys and values and specific
@@ -120,7 +121,8 @@ impl<T, U> BpMap<T, U> {
             value_size,
             leaf_degree,
             internal_degree,
-        ).map(|pager| BpMap { pager })
+        )
+        .map(|pager| BpMap { pager })
     }
 
     /// Opens an existing `BpMap<T, U>` from a file.
