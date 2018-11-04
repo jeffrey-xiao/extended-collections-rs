@@ -21,6 +21,10 @@ and this to your crate root:
 extern crate extended_collections;
 ```
 
+## Changelog
+
+See [CHANGELOG](CHANGELOG.md) for more details.
+
 ## References
 
  - [Fast set operations using treaps](https://dl.acm.org/citation.cfm?id=277660)
