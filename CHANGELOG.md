@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.0 - 2018-09-11
+## 0.6.0 - 2018-10-06
 
 ### Added
 
@@ -12,7 +12,7 @@
  - Abstract more logic from `radix::tree` to `radix::Node`.
  - Refactor rotate for `avl_tree::tree`, and `splay_tree::tree`.
 
-## 0.5.0 - 2018-09-08
+## 0.5.0 - 2018-10-06
 
 ### Changed
 
