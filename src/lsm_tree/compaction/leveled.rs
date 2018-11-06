@@ -398,12 +398,10 @@ where
                 let mut compaction_iter = LeveledIter::new(
                     None,
                     vec![sstable_data_iter],
-                    vec![
-                        old_level
-                            .into_iter()
-                            .map(|level_entry| level_entry.1.data_iter())
-                            .collect(),
-                    ],
+                    vec![old_level
+                        .into_iter()
+                        .map(|level_entry| level_entry.1.data_iter())
+                        .collect()],
                 )?;
 
                 for entry in compaction_iter {
