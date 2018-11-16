@@ -247,14 +247,10 @@ impl<T, U> SSTable<T, U> {
         T: DeserializeOwned,
         P: AsRef<Path>,
     {
-        let mut buffer = Vec::new();
-        let mut file = fs::File::open(path.as_ref().join("summary.dat"))?;
-        file.read_to_end(&mut buffer)?;
+        let buffer = fs::read(path.as_ref().join("summary.dat"))?;
         let summary = deserialize(&buffer)?;
 
-        let mut buffer = Vec::new();
-        let mut file = fs::File::open(path.as_ref().join("filter.dat"))?;
-        file.read_to_end(&mut buffer)?;
+        let buffer = fs::read(path.as_ref().join("filter.dat"))?;
         let filter = deserialize(&buffer)?;
 
         Ok(SSTable {
