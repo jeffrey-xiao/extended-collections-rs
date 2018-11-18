@@ -220,12 +220,10 @@ impl<T, U> SSTableBuilder<T, U> {
             logical_time_range,
             index: self.index.clone(),
         })?;
-        let mut summary_file = fs::File::create(self.sstable_path.join("summary.dat"))?;
-        summary_file.write_all(&serialized_summary)?;
+        fs::write(self.sstable_path.join("summary.dat"), &serialized_summary)?;
 
         let serialized_filter = serialize(&self.filter)?;
-        let mut filter_file = fs::File::create(self.sstable_path.join("filter.dat"))?;
-        filter_file.write_all(&serialized_filter)?;
+        fs::write(self.sstable_path.join("filter.dat"), &serialized_filter);
 
         self.index_stream.flush()?;
         self.data_stream.flush()?;
