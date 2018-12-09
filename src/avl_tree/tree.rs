@@ -1,5 +1,5 @@
-use avl_tree::node::Node;
-use entry::Entry;
+use crate::avl_tree::node::Node;
+use crate::entry::Entry;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::mem;

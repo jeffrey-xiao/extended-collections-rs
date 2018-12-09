@@ -1,6 +1,6 @@
-use avl_tree::node::Node;
-use avl_tree::tree;
-use entry::Entry;
+use crate::avl_tree::node::Node;
+use crate::avl_tree::tree;
+use crate::entry::Entry;
 use std::borrow::Borrow;
 use std::ops::{Index, IndexMut};
 
@@ -314,7 +314,7 @@ impl<T, U> AvlMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&2, &2)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> AvlMapIter<T, U> {
+    pub fn iter(&self) -> AvlMapIter<'_, T, U> {
         AvlMapIter {
             current: &self.tree,
             stack: Vec::new(),
@@ -342,7 +342,7 @@ impl<T, U> AvlMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&2, &mut 3)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter_mut(&mut self) -> AvlMapIterMut<T, U> {
+    pub fn iter_mut(&mut self) -> AvlMapIterMut<'_, T, U> {
         AvlMapIterMut {
             current: self.tree.as_mut().map(|node| &mut **node),
             stack: Vec::new(),
@@ -419,11 +419,7 @@ impl<T, U> Iterator for AvlMapIntoIter<T, U> {
 /// An iterator for `AvlMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields immutable references.
-pub struct AvlMapIter<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct AvlMapIter<'a, T, U> {
     current: &'a tree::Tree<T, U>,
     stack: Vec<&'a Node<T, U>>,
 }
@@ -458,11 +454,7 @@ type BorrowedTreeMut<'a, T, U> = Option<&'a mut Node<T, U>>;
 /// A mutable iterator for `AvlMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields mutable references.
-pub struct AvlMapIterMut<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct AvlMapIterMut<'a, T, U> {
     current: Option<&'a mut Node<T, U>>,
     stack: Vec<BorrowedIterEntryMut<'a, T, U>>,
 }

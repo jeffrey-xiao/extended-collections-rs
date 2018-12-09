@@ -21,6 +21,10 @@
 //! extern crate extended_collections;
 //! ```
 //!
+//! ## Changelog
+//!
+//! See [CHANGELOG](CHANGELOG.md) for more details.
+//!
 //! ## References
 //!
 //!  - [Fast set operations using treaps](https://dl.acm.org/citation.cfm?id=277660)
@@ -38,15 +42,6 @@
 //! See [LICENSE-APACHE](LICENSE-APACHE) and [LICENSE-MIT](LICENSE-MIT) for more details.
 
 #![warn(missing_docs)]
-
-extern crate bincode;
-extern crate byteorder;
-extern crate crossbeam_epoch as epoch;
-extern crate probabilistic_collections;
-extern crate rand;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
 
 pub mod arena;
 pub mod avl_tree;

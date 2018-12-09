@@ -1,5 +1,5 @@
-use entry::Entry;
-use treap::{implicit_tree, tree};
+use crate::entry::Entry;
+use crate::treap::{implicit_tree, tree};
 
 /// A struct representing an internal node of a treap.
 pub struct Node<T, U> {

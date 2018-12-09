@@ -1,6 +1,6 @@
-use entry::Entry;
-use splay_tree::node::Node;
-use splay_tree::tree;
+use crate::entry::Entry;
+use crate::splay_tree::node::Node;
+use crate::splay_tree::tree;
 use std::borrow::Borrow;
 use std::ops::{Index, IndexMut};
 
@@ -321,7 +321,7 @@ impl<T, U> SplayMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&2, &2)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> SplayMapIter<T, U> {
+    pub fn iter(&self) -> SplayMapIter<'_, T, U> {
         SplayMapIter {
             current: &self.tree,
             stack: Vec::new(),
@@ -349,7 +349,7 @@ impl<T, U> SplayMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&2, &mut 3)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter_mut(&mut self) -> SplayMapIterMut<T, U> {
+    pub fn iter_mut(&mut self) -> SplayMapIterMut<'_, T, U> {
         SplayMapIterMut {
             current: self.tree.as_mut().map(|node| &mut **node),
             stack: Vec::new(),
@@ -426,11 +426,7 @@ impl<T, U> Iterator for SplayMapIntoIter<T, U> {
 /// An iterator for `SplayMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields immutable references.
-pub struct SplayMapIter<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct SplayMapIter<'a, T, U> {
     current: &'a tree::Tree<T, U>,
     stack: Vec<&'a Node<T, U>>,
 }
@@ -465,11 +461,7 @@ type BorrowedTreeMut<'a, T, U> = Option<&'a mut Node<T, U>>;
 /// A mutable iterator for `SplayMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields mutable references.
-pub struct SplayMapIterMut<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct SplayMapIterMut<'a, T, U> {
     current: Option<&'a mut Node<T, U>>,
     stack: Vec<BorrowedIterEntryMut<'a, T, U>>,
 }

@@ -1,4 +1,5 @@
-use entry::Entry;
+use crate::entry::Entry;
+use serde_derive::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::cmp::{self, Ordering};
 use std::marker::PhantomData;
@@ -382,7 +383,7 @@ impl<T, U> Node<T, U> {
 #[cfg(test)]
 mod tests {
     use super::{InsertCases, InternalNode, LeafNode, Node};
-    use entry::Entry;
+    use crate::entry::Entry;
     use std::marker::PhantomData;
 
     #[test]

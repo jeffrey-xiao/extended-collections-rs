@@ -12,6 +12,7 @@ An extension to the collections in the standard library with various data struct
 categories = ["algorithms", "data-structures"]
 keywords = ["collections", "data-structures"]
 include = ["src/**/*", "Cargo.toml"]
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "jeffrey-xiao/extended-collections-rs", branch = "master" }

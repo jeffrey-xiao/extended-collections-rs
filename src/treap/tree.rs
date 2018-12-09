@@ -1,8 +1,8 @@
-use entry::Entry;
+use crate::entry::Entry;
+use crate::treap::node::Node;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::mem;
-use treap::node::Node;
 
 pub type Tree<T, U> = Option<Box<Node<T, U>>>;
 
@@ -32,10 +32,10 @@ where
 {
     match tree.take() {
         Some(mut node) => {
-            let mut ret;
+            let ret;
             match key.cmp(node.entry.key.borrow()) {
                 Ordering::Less => {
-                    let mut res = split(&mut node.left, key);
+                    let res = split(&mut node.left, key);
                     *tree = node.left.take();
                     node.left = res.1;
                     node.update();

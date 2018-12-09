@@ -1,5 +1,5 @@
-use entry::Entry;
-use splay_tree::node::Node;
+use crate::entry::Entry;
+use crate::splay_tree::node::Node;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::mem;

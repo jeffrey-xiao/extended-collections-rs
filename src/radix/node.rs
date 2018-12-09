@@ -1,4 +1,4 @@
-use radix::tree::Tree;
+use crate::radix::tree::Tree;
 use std::mem;
 
 pub struct Node<T> {

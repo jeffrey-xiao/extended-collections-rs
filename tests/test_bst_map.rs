@@ -1,14 +1,11 @@
 const NUM_OF_OPERATIONS: usize = 100_000;
 
 macro_rules! bst_map_tests {
-    ($($module_name:ident: $type_name:ident,)*) => {
+    ($($module_name:ident: $type_name:ident$(,)*)*) => {
         $(
             mod $module_name {
-                extern crate extended_collections;
-                extern crate rand;
-
-                use self::extended_collections::$module_name::$type_name;
-                use self::rand::{thread_rng, Rng};
+                use extended_collections::$module_name::$type_name;
+                use rand::{thread_rng, Rng};
                 use super::NUM_OF_OPERATIONS;
 
                 #[test]

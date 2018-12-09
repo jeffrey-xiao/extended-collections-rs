@@ -1,6 +1,6 @@
-use bp_tree::node::{InsertCases, InternalNode, LeafNode, Node, BLOCK_SIZE};
-use bp_tree::pager::{Pager, Result};
-use entry::Entry;
+use crate::bp_tree::node::{InsertCases, InternalNode, LeafNode, Node, BLOCK_SIZE};
+use crate::bp_tree::pager::{Pager, Result};
+use crate::entry::Entry;
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::borrow::Borrow;
@@ -424,7 +424,7 @@ impl<T, U> BpMap<T, U> {
                                 .write_node(sibling_page, &Node::Internal(sibling_node))?;
                         }
                     } else if sibling_index == curr_index + 1 {
-                        let (mut removed_key, removed_pointer) = sibling_node.remove_at(0, false);
+                        let (removed_key, removed_pointer) = sibling_node.remove_at(0, false);
                         let removed_key =
                             mem::replace(&mut parent_node.keys[curr_index], Some(removed_key))
                                 .expect("Expected some key.");
@@ -437,7 +437,7 @@ impl<T, U> BpMap<T, U> {
                             .write_node(curr_page, &Node::Internal(curr_node))?;
                     } else {
                         let remove_index = sibling_node.len - 1;
-                        let (mut removed_key, removed_pointer) =
+                        let (removed_key, removed_pointer) =
                             sibling_node.remove_at(remove_index, true);
                         let removed_key =
                             mem::replace(&mut parent_node.keys[sibling_index], Some(removed_key))
@@ -711,7 +711,7 @@ impl<T, U> BpMap<T, U> {
     /// # }
     /// # foo().unwrap();
     /// ```
-    pub fn iter_mut(&mut self) -> Result<BpMapIterMut<T, U>>
+    pub fn iter_mut(&mut self) -> Result<BpMapIterMut<'_, T, U>>
     where
         T: DeserializeOwned,
         U: DeserializeOwned,
@@ -753,11 +753,7 @@ where
 /// A mutable iterator for `BpMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in ascending order and yields owned entries.
-pub struct BpMapIterMut<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct BpMapIterMut<'a, T, U> {
     pager: &'a mut Pager<T, U>,
     curr_node: LeafNode<T, U>,
     curr_index: usize,

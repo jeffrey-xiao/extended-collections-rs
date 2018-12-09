@@ -1,6 +1,6 @@
+use crate::treap::map::{TreapMap, TreapMapIntoIter, TreapMapIter};
 use std::borrow::Borrow;
 use std::ops::{Add, Sub};
-use treap::map::{TreapMap, TreapMapIntoIter, TreapMapIter};
 
 /// An ordered set implemented using a treap.
 ///
@@ -102,7 +102,7 @@ impl<T> TreapSet<T> {
     pub fn contains<V>(&self, key: &V) -> bool
     where
         T: Borrow<V>,
-        V: Ord + ?Sized,
+        V: Ord,
     {
         self.map.contains_key(key)
     }
@@ -169,7 +169,7 @@ impl<T> TreapSet<T> {
     pub fn floor<V>(&self, key: &V) -> Option<&T>
     where
         T: Borrow<V>,
-        V: Ord + ?Sized,
+        V: Ord,
     {
         self.map.floor(key)
     }
@@ -190,7 +190,7 @@ impl<T> TreapSet<T> {
     pub fn ceil<V>(&self, key: &V) -> Option<&T>
     where
         T: Borrow<V>,
-        V: Ord + ?Sized,
+        V: Ord,
     {
         self.map.ceil(key)
     }
@@ -391,7 +391,7 @@ impl<T> TreapSet<T> {
     /// assert_eq!(iterator.next(), Some(&3));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> TreapSetIter<T> {
+    pub fn iter(&self) -> TreapSetIter<'_, T> {
         TreapSetIter {
             map_iter: self.map.iter(),
         }
@@ -439,10 +439,7 @@ impl<T> Iterator for TreapSetIntoIter<T> {
 /// An iterator for `TreapSet<T>`.
 ///
 /// This iterator traverses the elements of the set in-order and yields immutable references.
-pub struct TreapSetIter<'a, T>
-where
-    T: 'a,
-{
+pub struct TreapSetIter<'a, T> {
     map_iter: TreapMapIter<'a, T, ()>,
 }
 

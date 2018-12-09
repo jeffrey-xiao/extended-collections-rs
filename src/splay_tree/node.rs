@@ -1,5 +1,5 @@
-use entry::Entry;
-use splay_tree::tree;
+use crate::entry::Entry;
+use crate::splay_tree::tree;
 use std::mem;
 
 pub struct Node<T, U> {

@@ -1,4 +1,4 @@
-use radix::map::{RadixMap, RadixMapIntoIter, RadixMapIter};
+use crate::radix::map::{RadixMap, RadixMapIntoIter, RadixMapIter};
 
 /// An ordered set implemented using a radix tree.
 ///
@@ -214,7 +214,7 @@ impl RadixSet {
     /// assert_eq!(iterator.next(), Some(String::from("foobar").into_bytes()));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> RadixSetIter {
+    pub fn iter(&self) -> RadixSetIter<'_> {
         RadixSetIter {
             map_iter: self.map.iter(),
         }

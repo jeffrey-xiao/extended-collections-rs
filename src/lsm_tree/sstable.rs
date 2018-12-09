@@ -1,11 +1,12 @@
+use crate::entry::Entry;
+use crate::lsm_tree::{Error, Result};
 use bincode::{deserialize, serialize};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use entry::Entry;
-use lsm_tree::{Error, Result};
 use probabilistic_collections::bloom::BloomFilter;
 use rand::{thread_rng, Rng};
 use serde::de::{self, Deserialize, DeserializeOwned, Deserializer};
 use serde::ser::{Serialize, Serializer};
+use serde_derive::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::cmp;
 use std::fmt::{self, Debug};
@@ -223,7 +224,7 @@ impl<T, U> SSTableBuilder<T, U> {
         fs::write(self.sstable_path.join("summary.dat"), &serialized_summary)?;
 
         let serialized_filter = serialize(&self.filter)?;
-        fs::write(self.sstable_path.join("filter.dat"), &serialized_filter);
+        fs::write(self.sstable_path.join("filter.dat"), &serialized_filter)?;
 
         self.index_stream.flush()?;
         self.data_stream.flush()?;
@@ -405,7 +406,7 @@ where
     T: Debug,
     U: Debug,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "entry count: {:?}", self.summary.entry_count)?;
         writeln!(f, "tombstone count: {:?}", self.summary.tombstone_count)?;
         writeln!(f, "key range: {:?}", self.summary.key_range)

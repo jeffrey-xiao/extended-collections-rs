@@ -1,5 +1,5 @@
-use entry::Entry;
-use red_black_tree::node::{Color, Node};
+use crate::entry::Entry;
+use crate::red_black_tree::node::{Color, Node};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::mem;

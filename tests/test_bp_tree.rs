@@ -1,8 +1,5 @@
-extern crate extended_collections;
-extern crate rand;
-
-use self::rand::{thread_rng, Rng};
 use extended_collections::bp_tree::{BpMap, Result};
+use rand::{thread_rng, Rng};
 use std::fs;
 use std::panic;
 use std::vec::Vec;

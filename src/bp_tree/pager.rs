@@ -1,7 +1,8 @@
+use crate::bp_tree::node::{LeafNode, Node};
 use bincode::{self, deserialize, serialize, serialized_size};
-use bp_tree::node::{LeafNode, Node};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
+use serde_derive::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::error;
 use std::fmt;
@@ -41,7 +42,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match self {
             Error::IOError(ref error) => error.cause(),
             Error::SerdeError(ref error) => error.cause(),
@@ -50,7 +51,7 @@ impl error::Error for Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::IOError(ref error) => write!(f, "{}", error),
             Error::SerdeError(ref error) => write!(f, "{}", error),

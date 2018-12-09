@@ -1,6 +1,6 @@
+use crate::treap::node::ImplicitNode;
 use std::cmp::Ordering;
 use std::mem;
-use treap::node::ImplicitNode;
 
 pub type Tree<T> = Option<Box<ImplicitNode<T>>>;
 
@@ -30,7 +30,7 @@ pub fn split<T>(tree: &mut Tree<T>, index: usize, left_inclusive: bool) -> Tree<
             let cmp = index.cmp(&key);
             let ret;
             if cmp == Ordering::Less || (cmp == Ordering::Equal && left_inclusive) {
-                let mut res = split(&mut node.left, index, left_inclusive);
+                let res = split(&mut node.left, index, left_inclusive);
                 *tree = node.left.take();
                 node.left = res;
                 node.update();

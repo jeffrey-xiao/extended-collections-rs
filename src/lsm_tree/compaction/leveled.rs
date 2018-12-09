@@ -1,10 +1,11 @@
+use crate::entry::Entry;
+use crate::lsm_tree::compaction::{CompactionIter, CompactionStrategy};
+use crate::lsm_tree::{sstable, Result, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
 use bincode::{deserialize, serialize};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use entry::Entry;
-use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
-use lsm_tree::{sstable, Result, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
+use serde_derive::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::cell::Cell;
 use std::cmp;
@@ -79,7 +80,7 @@ where
     T: Debug + Ord,
     U: Debug,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "\nsstables:\n{:#?}", self.sstables)?;
         for (index, level) in self.levels.iter().enumerate() {
             writeln!(f, "level {}:", index)?;
@@ -241,7 +242,7 @@ where
 
     fn try_replace_metadata(
         &self,
-        curr_metadata: &mut MutexGuard<LeveledMetadata<T, U>>,
+        curr_metadata: &mut MutexGuard<'_, LeveledMetadata<T, U>>,
     ) -> Result<bool> {
         let mut next_metadata = self.next_metadata.lock().unwrap();
 
@@ -354,7 +355,7 @@ where
                 break;
             }
 
-            let mut should_merge = |metadata_snapshot: &LeveledMetadata<T, U>, index: usize| {
+            let should_merge = |metadata_snapshot: &LeveledMetadata<T, U>, index: usize| {
                 let curr_len = metadata_snapshot.levels[index].len();
                 let exponent = metadata_snapshot.growth_factor.pow(index as u32) as usize;
                 let max_len = metadata_snapshot.max_initial_level_count * exponent;
@@ -395,7 +396,7 @@ where
 
                 metadata_snapshot.levels[index + 1] = new_level;
 
-                let mut compaction_iter = LeveledIter::new(
+                let compaction_iter = LeveledIter::new(
                     None,
                     vec![sstable_data_iter],
                     vec![old_level

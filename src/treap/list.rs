@@ -1,8 +1,8 @@
+use crate::treap::implicit_tree;
+use crate::treap::node::ImplicitNode;
 use rand::Rng;
 use rand::XorShiftRng;
 use std::ops::{Add, Index, IndexMut};
-use treap::implicit_tree;
-use treap::node::ImplicitNode;
 
 /// A list implemented using an implicit treap.
 ///
@@ -263,7 +263,7 @@ impl<T> TreapList<T> {
     /// assert_eq!(iterator.next(), Some(&2));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> TreapListIter<T> {
+    pub fn iter(&self) -> TreapListIter<'_, T> {
         TreapListIter {
             current: &self.tree,
             stack: Vec::new(),
@@ -290,7 +290,7 @@ impl<T> TreapList<T> {
     /// assert_eq!(iterator.next(), Some(&3));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter_mut(&mut self) -> TreapListIterMut<T> {
+    pub fn iter_mut(&mut self) -> TreapListIterMut<'_, T> {
         TreapListIterMut {
             current: self.tree.as_mut().map(|node| &mut **node),
             stack: Vec::new(),
@@ -361,10 +361,7 @@ impl<T> Iterator for TreapListIntoIter<T> {
 /// An iterator for `TreapList<T>`.
 ///
 /// This iterator traverses the elements of the list in-order and yields immutable references.
-pub struct TreapListIter<'a, T>
-where
-    T: 'a,
-{
+pub struct TreapListIter<'a, T> {
     current: &'a implicit_tree::Tree<T>,
     stack: Vec<&'a ImplicitNode<T>>,
 }
@@ -397,10 +394,7 @@ type BorrowedTreeMut<'a, T> = Option<&'a mut ImplicitNode<T>>;
 /// A mutable iterator for `TreapList<T>`.
 ///
 /// This iterator traverses the elements of the list in-order and yields mutable references.
-pub struct TreapListIterMut<'a, T>
-where
-    T: 'a,
-{
+pub struct TreapListIterMut<'a, T> {
     current: Option<&'a mut ImplicitNode<T>>,
     stack: Vec<Option<(&'a mut T, BorrowedTreeMut<'a, T>)>>,
 }

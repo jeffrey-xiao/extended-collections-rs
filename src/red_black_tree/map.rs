@@ -1,6 +1,6 @@
-use entry::Entry;
-use red_black_tree::node::{Color, Node};
-use red_black_tree::tree;
+use crate::entry::Entry;
+use crate::red_black_tree::node::{Color, Node};
+use crate::red_black_tree::tree;
 use std::borrow::Borrow;
 use std::ops::{Index, IndexMut};
 
@@ -330,7 +330,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&2, &2)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> RedBlackMapIter<T, U> {
+    pub fn iter(&self) -> RedBlackMapIter<'_, T, U> {
         RedBlackMapIter {
             current: &self.tree,
             stack: Vec::new(),
@@ -358,7 +358,7 @@ impl<T, U> RedBlackMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&2, &mut 3)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter_mut(&mut self) -> RedBlackMapIterMut<T, U> {
+    pub fn iter_mut(&mut self) -> RedBlackMapIterMut<'_, T, U> {
         RedBlackMapIterMut {
             current: self.tree.as_mut().map(|node| &mut **node),
             stack: Vec::new(),
@@ -435,11 +435,7 @@ impl<T, U> Iterator for RedBlackMapIntoIter<T, U> {
 /// An iterator for `RedBlackMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields immutable references.
-pub struct RedBlackMapIter<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct RedBlackMapIter<'a, T, U> {
     current: &'a tree::Tree<T, U>,
     stack: Vec<&'a Node<T, U>>,
 }
@@ -474,11 +470,7 @@ type BorrowedTreeMut<'a, T, U> = Option<&'a mut Node<T, U>>;
 /// A mutable iterator for `RedBlackMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields mutable references.
-pub struct RedBlackMapIterMut<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct RedBlackMapIterMut<'a, T, U> {
     current: Option<&'a mut Node<T, U>>,
     stack: Vec<BorrowedIterEntryMut<'a, T, U>>,
 }

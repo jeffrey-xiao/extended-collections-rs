@@ -1,10 +1,10 @@
-use entry::Entry;
+use crate::entry::Entry;
+use crate::treap::node::Node;
+use crate::treap::tree;
 use rand::Rng;
 use rand::XorShiftRng;
 use std::borrow::Borrow;
 use std::ops::{Add, Index, IndexMut, Sub};
-use treap::node::Node;
-use treap::tree;
 
 /// An ordered map implemented using a treap.
 ///
@@ -511,7 +511,7 @@ impl<T, U> TreapMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&2, &2)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> TreapMapIter<T, U> {
+    pub fn iter(&self) -> TreapMapIter<'_, T, U> {
         TreapMapIter {
             current: &self.tree,
             stack: Vec::new(),
@@ -539,7 +539,7 @@ impl<T, U> TreapMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&2, &mut 3)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter_mut(&mut self) -> TreapMapIterMut<T, U> {
+    pub fn iter_mut(&mut self) -> TreapMapIterMut<'_, T, U> {
         TreapMapIterMut {
             current: self.tree.as_mut().map(|node| &mut **node),
             stack: Vec::new(),
@@ -616,11 +616,7 @@ impl<T, U> Iterator for TreapMapIntoIter<T, U> {
 /// An iterator for `TreapMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields immutable references.
-pub struct TreapMapIter<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct TreapMapIter<'a, T, U> {
     current: &'a tree::Tree<T, U>,
     stack: Vec<&'a Node<T, U>>,
 }
@@ -655,11 +651,7 @@ type BorrowedTreeMut<'a, T, U> = Option<&'a mut Node<T, U>>;
 /// A mutable iterator for `TreapMap<T, U>`.
 ///
 /// This iterator traverses the elements of the map in-order and yields mutable references.
-pub struct TreapMapIterMut<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct TreapMapIterMut<'a, T, U> {
     current: Option<&'a mut Node<T, U>>,
     stack: Vec<BorrowedIterEntryMut<'a, T, U>>,
 }

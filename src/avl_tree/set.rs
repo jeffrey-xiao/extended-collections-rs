@@ -1,4 +1,4 @@
-use avl_tree::map::{AvlMap, AvlMapIntoIter, AvlMapIter};
+use crate::avl_tree::map::{AvlMap, AvlMapIntoIter, AvlMapIter};
 use std::borrow::Borrow;
 
 /// An ordered set implemented using a avl_tree.
@@ -243,7 +243,7 @@ impl<T> AvlSet<T> {
     /// assert_eq!(iterator.next(), Some(&3));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> AvlSetIter<T> {
+    pub fn iter(&self) -> AvlSetIter<'_, T> {
         AvlSetIter {
             map_iter: self.map.iter(),
         }
@@ -291,10 +291,7 @@ impl<T> Iterator for AvlSetIntoIter<T> {
 /// An iterator for `AvlSet<T>`.
 ///
 /// This iterator traverses the elements of the set in-order and yields immutable references.
-pub struct AvlSetIter<'a, T>
-where
-    T: 'a,
-{
+pub struct AvlSetIter<'a, T> {
     map_iter: AvlMapIter<'a, T, ()>,
 }
 

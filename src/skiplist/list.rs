@@ -155,11 +155,8 @@ impl<T> SkipList<T> {
                 while !next_link.next.is_null() && next_link.distance <= index {
                     last_nodes[curr_height].1 += next_link.distance;
                     index -= next_link.distance;
-                    curr_node = &mut mem::replace(
-                        &mut next_link,
-                        (*next_link.next).get_pointer_mut(curr_height),
-                    )
-                    .next;
+                    let next_next_link = (*next_link.next).get_pointer_mut(curr_height);
+                    curr_node = &mut mem::replace(&mut next_link, next_next_link).next;
                 }
                 last_nodes[curr_height].0 = *curr_node;
 
@@ -213,11 +210,8 @@ impl<T> SkipList<T> {
                 let mut next_link = (**curr_node).get_pointer_mut(curr_height);
                 while !next_link.next.is_null() && next_link.distance <= index {
                     index -= next_link.distance;
-                    curr_node = &mut mem::replace(
-                        &mut next_link,
-                        (*next_link.next).get_pointer_mut(curr_height),
-                    )
-                    .next;
+                    let next_next_link = (*next_link.next).get_pointer_mut(curr_height);
+                    curr_node = &mut mem::replace(&mut next_link, next_next_link).next;
                 }
 
                 if !next_link.next.is_null() {
@@ -226,9 +220,10 @@ impl<T> SkipList<T> {
                         mem::swap(next_link, (*next).get_pointer_mut(curr_height));
                         next_link.distance += distance - 1;
                         if curr_height == 0 {
+                            let ret = ptr::read(&(*next).value);
                             Node::deallocate(next);
                             self.len -= 1;
-                            return ptr::read(&(*next).value);
+                            return ret;
                         }
                     } else {
                         next_link.distance -= 1;
@@ -376,11 +371,8 @@ impl<T> SkipList<T> {
                 let mut next_link = (**curr_node).get_pointer_mut(curr_height);
                 while !next_link.next.is_null() && next_link.distance <= index {
                     index -= next_link.distance;
-                    curr_node = &mut mem::replace(
-                        &mut next_link,
-                        (*next_link.next).get_pointer_mut(curr_height),
-                    )
-                    .next;
+                    let next_next_link = (*next_link.next).get_pointer_mut(curr_height);
+                    curr_node = &mut mem::replace(&mut next_link, next_next_link).next;
                 }
 
                 if !next_link.next.is_null() && next_link.distance == index + 1 {
@@ -444,10 +436,8 @@ impl<T> SkipList<T> {
         unsafe {
             let mut curr_node = (*self.head).get_pointer(0).next;
             while !curr_node.is_null() {
-                Node::free(mem::replace(
-                    &mut curr_node,
-                    (*curr_node).get_pointer(0).next,
-                ));
+                let next_node = (*curr_node).get_pointer(0).next;
+                Node::free(mem::replace(&mut curr_node, next_node));
             }
             ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
         }
@@ -469,7 +459,7 @@ impl<T> SkipList<T> {
     /// assert_eq!(iterator.next(), Some(&2));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> SkipListIter<T> {
+    pub fn iter(&self) -> SkipListIter<'_, T> {
         unsafe {
             SkipListIter {
                 current: &(*self.head).get_pointer(0).next,
@@ -497,7 +487,7 @@ impl<T> SkipList<T> {
     /// assert_eq!(iterator.next(), Some(&3));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter_mut(&mut self) -> SkipListIterMut<T> {
+    pub fn iter_mut(&mut self) -> SkipListIterMut<'_, T> {
         unsafe {
             SkipListIterMut {
                 current: &mut (*self.head).get_pointer_mut(0).next,
@@ -509,15 +499,11 @@ impl<T> SkipList<T> {
 impl<T> Drop for SkipList<T> {
     fn drop(&mut self) {
         unsafe {
-            Node::deallocate(mem::replace(
-                &mut self.head,
-                (*self.head).get_pointer(0).next,
-            ));
+            let next_node = (*self.head).get_pointer(0).next;
+            Node::deallocate(mem::replace(&mut self.head, next_node));
             while !self.head.is_null() {
-                Node::free(mem::replace(
-                    &mut self.head,
-                    (*self.head).get_pointer(0).next,
-                ));
+                let next_node = (*self.head).get_pointer(0).next;
+                Node::free(mem::replace(&mut self.head, next_node));
             }
         }
     }
@@ -578,10 +564,8 @@ impl<T> Iterator for SkipListIntoIter<T> {
         } else {
             unsafe {
                 let ret = ptr::read(&(*self.current).value);
-                Node::deallocate(mem::replace(
-                    &mut self.current,
-                    (*self.current).get_pointer(0).next,
-                ));
+                let next_node = (*self.current).get_pointer(0).next;
+                Node::deallocate(mem::replace(&mut self.current, next_node));
                 Some(ret)
             }
         }
@@ -593,10 +577,8 @@ impl<T> Drop for SkipListIntoIter<T> {
         unsafe {
             while !self.current.is_null() {
                 ptr::drop_in_place(&mut (*self.current).value);
-                Node::free(mem::replace(
-                    &mut self.current,
-                    (*self.current).get_pointer(0).next,
-                ));
+                let next_node = (*self.current).get_pointer(0).next;
+                Node::free(mem::replace(&mut self.current, next_node));
             }
         }
     }
@@ -605,10 +587,7 @@ impl<T> Drop for SkipListIntoIter<T> {
 /// An iterator for `SkipList<T>`.
 ///
 /// This iterator traverses the elements of the list in-order and yields immutable references.
-pub struct SkipListIter<'a, T>
-where
-    T: 'a,
-{
+pub struct SkipListIter<'a, T> {
     current: &'a *mut Node<T>,
 }
 
@@ -624,7 +603,8 @@ where
         } else {
             unsafe {
                 let ret = &(**self.current).value;
-                mem::replace(&mut self.current, &(**self.current).get_pointer(0).next);
+                let next_node = &(**self.current).get_pointer(0).next;
+                mem::replace(&mut self.current, next_node);
                 Some(ret)
             }
         }
@@ -634,10 +614,7 @@ where
 /// A mutable iterator for `SkipList<T>`.
 ///
 /// This iterator traverses the elements of the list in-order and yields mutable references.
-pub struct SkipListIterMut<'a, T>
-where
-    T: 'a,
-{
+pub struct SkipListIterMut<'a, T> {
     current: &'a mut *mut Node<T>,
 }
 
@@ -653,10 +630,8 @@ where
         } else {
             unsafe {
                 let ret = &mut (**self.current).value;
-                mem::replace(
-                    &mut self.current,
-                    &mut (**self.current).get_pointer_mut(0).next,
-                );
+                let next_node = &mut (**self.current).get_pointer_mut(0).next;
+                mem::replace(&mut self.current, next_node);
                 Some(ret)
             }
         }

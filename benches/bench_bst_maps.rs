@@ -1,9 +1,6 @@
 #![feature(test)]
-extern crate extended_collections;
-extern crate rand;
-extern crate test;
 
-use self::rand::Rng;
+use rand::Rng;
 use std::collections::BTreeMap;
 use test::Bencher;
 
@@ -46,12 +43,8 @@ macro_rules! bst_map_benches {
     ($($module_name:ident: $type_name:ident,)*) => {
         $(
             mod $module_name {
-                extern crate extended_collections;
-                extern crate rand;
-                extern crate test;
-
-                use self::extended_collections::$module_name::$type_name;
-                use self::rand::Rng;
+                use crate::extended_collections::$module_name::$type_name;
+                use rand::Rng;
                 use super::NUM_OF_OPERATIONS;
                 use test::Bencher;
 

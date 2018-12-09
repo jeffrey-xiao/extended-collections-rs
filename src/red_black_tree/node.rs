@@ -1,5 +1,5 @@
-use entry::Entry;
-use red_black_tree::tree;
+use crate::entry::Entry;
+use crate::red_black_tree::tree;
 use std::mem;
 
 /// An enum representing the color of a node in a red black tree.

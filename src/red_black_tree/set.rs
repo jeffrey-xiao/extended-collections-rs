@@ -1,4 +1,4 @@
-use red_black_tree::map::{RedBlackMap, RedBlackMapIntoIter, RedBlackMapIter};
+use crate::red_black_tree::map::{RedBlackMap, RedBlackMapIntoIter, RedBlackMapIter};
 use std::borrow::Borrow;
 
 /// An ordered set implemented using a red_black_tree.
@@ -245,7 +245,7 @@ impl<T> RedBlackSet<T> {
     /// assert_eq!(iterator.next(), Some(&3));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> RedBlackSetIter<T> {
+    pub fn iter(&self) -> RedBlackSetIter<'_, T> {
         RedBlackSetIter {
             map_iter: self.map.iter(),
         }
@@ -293,10 +293,7 @@ impl<T> Iterator for RedBlackSetIntoIter<T> {
 /// An iterator for `RedBlackSet<T>`.
 ///
 /// This iterator traverses the elements of the set in-order and yields immutable references.
-pub struct RedBlackSetIter<'a, T>
-where
-    T: 'a,
-{
+pub struct RedBlackSetIter<'a, T> {
     map_iter: RedBlackMapIter<'a, T, ()>,
 }
 

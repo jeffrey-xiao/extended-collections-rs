@@ -1,10 +1,11 @@
+use crate::entry::Entry;
+use crate::lsm_tree::compaction::{CompactionIter, CompactionStrategy};
+use crate::lsm_tree::{sstable, Result, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
 use bincode::{deserialize, serialize};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use entry::Entry;
-use lsm_tree::compaction::{CompactionIter, CompactionStrategy};
-use lsm_tree::{sstable, Result, SSTable, SSTableBuilder, SSTableDataIter, SSTableValue};
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
+use serde_derive::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::cell::Cell;
 use std::cmp;
@@ -348,7 +349,7 @@ impl<T, U> SizeTieredStrategy<T, U> {
 
     fn try_replace_metadata(
         &self,
-        curr_metadata: &mut MutexGuard<SizeTieredMetadata<T, U>>,
+        curr_metadata: &mut MutexGuard<'_, SizeTieredMetadata<T, U>>,
     ) -> Result<bool> {
         let mut next_metadata = self.next_metadata.lock().unwrap();
 

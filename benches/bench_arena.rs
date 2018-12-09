@@ -1,8 +1,5 @@
 #![feature(test)]
 
-extern crate extended_collections;
-extern crate test;
-
 use extended_collections::arena::Entry;
 use extended_collections::arena::TypedArena;
 use test::Bencher;

@@ -6,13 +6,13 @@ mod size_tiered;
 pub use self::leveled::LeveledStrategy;
 pub use self::size_tiered::SizeTieredStrategy;
 
-use lsm_tree::{Result, SSTable, SSTableValue};
+use crate::lsm_tree::{Result, SSTable, SSTableValue};
 use std::borrow::Borrow;
 use std::hash::Hash;
 use std::path::Path;
 
 /// An iterator for the disk-resident data.
-pub type CompactionIter<T, U> = Iterator<Item = Result<(T, U)>>;
+pub type CompactionIter<T, U> = dyn Iterator<Item = Result<(T, U)>>;
 
 /// Trait for types that have compaction logic for disk-resident data.
 ///

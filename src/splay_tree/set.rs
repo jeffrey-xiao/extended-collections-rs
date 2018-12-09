@@ -1,4 +1,4 @@
-use splay_tree::map::{SplayMap, SplayMapIntoIter, SplayMapIter};
+use crate::splay_tree::map::{SplayMap, SplayMapIntoIter, SplayMapIter};
 use std::borrow::Borrow;
 
 /// An ordered map implemented using splay tree.
@@ -246,7 +246,7 @@ impl<T> SplaySet<T> {
     /// assert_eq!(iterator.next(), Some(&3));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> SplaySetIter<T> {
+    pub fn iter(&self) -> SplaySetIter<'_, T> {
         SplaySetIter {
             map_iter: self.map.iter(),
         }
@@ -294,10 +294,7 @@ impl<T> Iterator for SplaySetIntoIter<T> {
 /// An iterator for `SplaySet<T>`.
 ///
 /// This iterator traverses the elements of the set in-order and yields immutable references.
-pub struct SplaySetIter<'a, T>
-where
-    T: 'a,
-{
+pub struct SplaySetIter<'a, T> {
     map_iter: SplayMapIter<'a, T, ()>,
 }
 

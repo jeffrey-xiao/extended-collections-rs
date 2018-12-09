@@ -1,5 +1,5 @@
-use avl_tree::tree;
-use entry::Entry;
+use crate::avl_tree::tree;
+use crate::entry::Entry;
 use std::cmp;
 use std::mem;
 

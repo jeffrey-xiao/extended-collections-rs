@@ -1,4 +1,4 @@
-use skiplist::map::{SkipMap, SkipMapIntoIter, SkipMapIter};
+use crate::skiplist::map::{SkipMap, SkipMapIntoIter, SkipMapIter};
 use std::borrow::Borrow;
 use std::ops::{Add, Sub};
 
@@ -365,7 +365,7 @@ impl<T> SkipSet<T> {
     /// assert_eq!(iterator.next(), Some(&3));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> SkipSetIter<T> {
+    pub fn iter(&self) -> SkipSetIter<'_, T> {
         SkipSetIter {
             map_iter: self.map.iter(),
         }
@@ -414,10 +414,7 @@ impl<T> Iterator for SkipSetIntoIter<T> {
 ///
 /// This iterator traverses the elements of a set in ascending order and yields immutable
 /// references.
-pub struct SkipSetIter<'a, T>
-where
-    T: 'a,
-{
+pub struct SkipSetIter<'a, T> {
     map_iter: SkipMapIter<'a, T, ()>,
 }
 

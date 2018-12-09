@@ -1,5 +1,5 @@
-use radix::node::Node;
-use radix::tree;
+use crate::radix::node::Node;
+use crate::radix::tree;
 use std::ops::{Index, IndexMut};
 
 /// An ordered map implemented using a radix tree.
@@ -280,7 +280,7 @@ impl<T> RadixMap<T> {
     /// );
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> RadixMapIter<T> {
+    pub fn iter(&self) -> RadixMapIter<'_, T> {
         RadixMapIter {
             prefix: Vec::new(),
             current: &self.root,
@@ -315,7 +315,7 @@ impl<T> RadixMap<T> {
     /// );
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter_mut(&mut self) -> RadixMapIterMut<T> {
+    pub fn iter_mut(&mut self) -> RadixMapIterMut<'_, T> {
         RadixMapIterMut {
             prefix: Vec::new(),
             current: self.root.as_mut().map(|node| &mut **node),
@@ -407,10 +407,7 @@ impl<T> Iterator for RadixMapIntoIter<T> {
 ///
 /// This iterator traverse the elements of the map in lexographic order and yields immutable
 /// references.
-pub struct RadixMapIter<'a, T>
-where
-    T: 'a,
-{
+pub struct RadixMapIter<'a, T> {
     prefix: Vec<u8>,
     current: &'a tree::Tree<T>,
     stack: Vec<(&'a tree::Tree<T>, usize)>,
@@ -455,10 +452,7 @@ where
 ///
 /// This iterator traverse the elements of the map in lexographic order and yields mutable
 /// references.
-pub struct RadixMapIterMut<'a, T>
-where
-    T: 'a,
-{
+pub struct RadixMapIterMut<'a, T> {
     prefix: Vec<u8>,
     current: Option<&'a mut Node<T>>,
     stack: Vec<(&'a mut tree::Tree<T>, usize)>,

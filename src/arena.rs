@@ -94,7 +94,7 @@ impl<T> TypedArena<T> {
         match self.head.take() {
             None => {
                 let chunk_count = self.chunks.len();
-                let mut last_chunk = &mut self.chunks[chunk_count - 1];
+                let last_chunk = &mut self.chunks[chunk_count - 1];
                 last_chunk.push(Block::Occupied(value));
                 Entry {
                     chunk_index: chunk_count - 1,

@@ -1,4 +1,4 @@
-use entry::Entry;
+use crate::entry::Entry;
 use rand::Rng;
 use rand::XorShiftRng;
 use std::borrow::Borrow;
@@ -393,7 +393,8 @@ impl<T, U> SkipMap<T, U> {
         unsafe {
             let mut curr_node = *(*self.head).get_pointer(0);
             while !curr_node.is_null() {
-                Node::free(mem::replace(&mut curr_node, *(*curr_node).get_pointer(0)));
+                let next_node = *(*curr_node).get_pointer(0);
+                Node::free(mem::replace(&mut curr_node, next_node));
             }
             ptr::write_bytes((*self.head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
         }
@@ -584,8 +585,10 @@ impl<T, U> SkipMap<T, U> {
         let mut curr_nodes = [ret.head; MAX_HEIGHT + 1];
 
         unsafe {
-            let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
-            let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
+            let next_left_node = *(*left.head).get_pointer(0);
+            let left_head = mem::replace(&mut left.head, next_left_node);
+            let next_right_node = *(*right.head).get_pointer(0);
+            let right_head = mem::replace(&mut right.head, next_right_node);
             ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
             ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
 
@@ -674,8 +677,10 @@ impl<T, U> SkipMap<T, U> {
         let mut curr_nodes = [ret.head; MAX_HEIGHT + 1];
 
         unsafe {
-            let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
-            let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
+            let next_left_node = *(*left.head).get_pointer(0);
+            let left_head = mem::replace(&mut left.head, next_left_node);
+            let next_right_node = *(*right.head).get_pointer(0);
+            let right_head = mem::replace(&mut right.head, next_right_node);
             ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
             ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
 
@@ -747,8 +752,10 @@ impl<T, U> SkipMap<T, U> {
         let mut curr_nodes = [ret.head; MAX_HEIGHT + 1];
 
         unsafe {
-            let left_head = mem::replace(&mut left.head, *(*left.head).get_pointer(0));
-            let right_head = mem::replace(&mut right.head, *(*right.head).get_pointer(0));
+            let next_left_node = *(*left.head).get_pointer(0);
+            let left_head = mem::replace(&mut left.head, next_left_node);
+            let next_right_node = *(*right.head).get_pointer(0);
+            let right_head = mem::replace(&mut right.head, next_right_node);
             ptr::write_bytes((*left_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
             ptr::write_bytes((*right_head).links.get_unchecked_mut(0), 0, MAX_HEIGHT + 1);
 
@@ -891,7 +898,7 @@ impl<T, U> SkipMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&2, &2)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter(&self) -> SkipMapIter<T, U> {
+    pub fn iter(&self) -> SkipMapIter<'_, T, U> {
         unsafe {
             SkipMapIter {
                 current: &*(*self.head).get_pointer(0),
@@ -920,7 +927,7 @@ impl<T, U> SkipMap<T, U> {
     /// assert_eq!(iterator.next(), Some((&2, &mut 3)));
     /// assert_eq!(iterator.next(), None);
     /// ```
-    pub fn iter_mut(&self) -> SkipMapIterMut<T, U> {
+    pub fn iter_mut(&self) -> SkipMapIterMut<'_, T, U> {
         unsafe {
             SkipMapIterMut {
                 current: &mut *(*self.head).get_pointer_mut(0),
@@ -932,9 +939,11 @@ impl<T, U> SkipMap<T, U> {
 impl<T, U> Drop for SkipMap<T, U> {
     fn drop(&mut self) {
         unsafe {
-            Node::deallocate(mem::replace(&mut self.head, *(*self.head).get_pointer(0)));
+            let next_node = *(*self.head).get_pointer(0);
+            Node::deallocate(mem::replace(&mut self.head, next_node));
             while !self.head.is_null() {
-                Node::free(mem::replace(&mut self.head, *(*self.head).get_pointer(0)));
+                let next_node = *(*self.head).get_pointer(0);
+                Node::free(mem::replace(&mut self.head, next_node));
             }
         }
     }
@@ -997,10 +1006,8 @@ impl<T, U> Iterator for SkipMapIntoIter<T, U> {
         } else {
             unsafe {
                 let Entry { key, value } = ptr::read(&(*self.current).entry);
-                Node::deallocate(mem::replace(
-                    &mut self.current,
-                    *(*self.current).get_pointer(0),
-                ));
+                let next_node = *(*self.current).get_pointer(0);
+                Node::deallocate(mem::replace(&mut self.current, next_node));
                 Some((key, value))
             }
         }
@@ -1012,10 +1019,8 @@ impl<T, U> Drop for SkipMapIntoIter<T, U> {
         unsafe {
             while !self.current.is_null() {
                 ptr::drop_in_place(&mut (*self.current).entry);
-                Node::free(mem::replace(
-                    &mut self.current,
-                    *(*self.current).get_pointer(0),
-                ));
+                let next_node = *(*self.current).get_pointer(0);
+                Node::free(mem::replace(&mut self.current, next_node));
             }
         }
     }
@@ -1025,11 +1030,7 @@ impl<T, U> Drop for SkipMapIntoIter<T, U> {
 ///
 /// This iterator traverses the elements of a map in ascending order and yields immutable
 /// references.
-pub struct SkipMapIter<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct SkipMapIter<'a, T, U> {
     current: &'a *mut Node<T, U>,
 }
 
@@ -1046,7 +1047,8 @@ where
         } else {
             unsafe {
                 let Entry { ref key, ref value } = (**self.current).entry;
-                mem::replace(&mut self.current, &*(**self.current).get_pointer(0));
+                let next_node = &*(**self.current).get_pointer(0);
+                mem::replace(&mut self.current, next_node);
                 Some((key, value))
             }
         }
@@ -1056,11 +1058,7 @@ where
 /// A mutable iterator for `SkipMap<T, U>`.
 ///
 /// This iterator traverses the elements of a map in ascending order and yields mutable references.
-pub struct SkipMapIterMut<'a, T, U>
-where
-    T: 'a,
-    U: 'a,
-{
+pub struct SkipMapIterMut<'a, T, U> {
     current: &'a mut *mut Node<T, U>,
 }
 
@@ -1080,7 +1078,8 @@ where
                     ref key,
                     ref mut value,
                 } = (**self.current).entry;
-                mem::replace(&mut self.current, &mut *(**self.current).get_pointer_mut(0));
+                let next_node = &mut *(**self.current).get_pointer_mut(0);
+                mem::replace(&mut self.current, next_node);
                 Some((key, value))
             }
         }

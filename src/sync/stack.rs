@@ -1,4 +1,4 @@
-use epoch::{self, Atomic, Owned};
+use crossbeam_epoch::{self, Atomic, Owned};
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -65,7 +65,7 @@ impl<T> Stack<T> {
             next: Atomic::null(),
         });
 
-        let guard = &epoch::pin();
+        let guard = &crossbeam_epoch::pin();
         loop {
             let head_shared = self.head.load(Ordering::Relaxed, guard);
             new_node.next.store(head_shared, Ordering::Relaxed);
@@ -98,7 +98,7 @@ impl<T> Stack<T> {
     /// assert_eq!(s.try_pop(), None);
     /// ```
     pub fn try_pop(&self) -> Option<T> {
-        let guard = &epoch::pin();
+        let guard = &crossbeam_epoch::pin();
         loop {
             let head_shared = self.head.load(Ordering::Acquire, guard);
             match unsafe { head_shared.as_ref() } {

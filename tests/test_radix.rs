@@ -1,8 +1,5 @@
-extern crate extended_collections;
-extern crate rand;
-
-use self::rand::{thread_rng, Rng};
 use extended_collections::radix::RadixMap;
+use rand::{thread_rng, Rng};
 use std::iter;
 use std::vec::Vec;
 
