@@ -1,14 +1,11 @@
-#![feature(test)]
-
 use rand::Rng;
 use std::collections::BTreeMap;
-use test::Bencher;
+use criterion::{Criterion, criterion_group, criterion_main, black_box};
 
 const NUM_OF_OPERATIONS: usize = 100;
 
-#[bench]
-fn bench_btreemap_insert(b: &mut Bencher) {
-    b.iter(|| {
+fn bench_btreemap_insert(c: &mut Criterion) {
+    c.bench_function("bench btreemap insert", |b| b.iter(|| {
         let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
         let mut map = BTreeMap::new();
         for _ in 0..NUM_OF_OPERATIONS {
@@ -17,11 +14,10 @@ fn bench_btreemap_insert(b: &mut Bencher) {
 
             map.insert(key, val);
         }
-    });
+    }));
 }
 
-#[bench]
-fn bench_btreemap_get(b: &mut Bencher) {
+fn bench_btreemap_get(c: &mut Criterion) {
     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
     let mut map = BTreeMap::new();
     let mut values = Vec::new();
@@ -32,25 +28,25 @@ fn bench_btreemap_get(b: &mut Bencher) {
         map.insert(key, val);
         values.push(key);
     }
-    b.iter(|| {
+
+    c.bench_function("bench btreemap get", move |b| b.iter(|| {
         for key in &values {
-            test::black_box(map.get(key));
+            black_box(map.get(key));
         }
-    });
+    }));
 }
 
 macro_rules! bst_map_benches {
     ($($module_name:ident: $type_name:ident,)*) => {
         $(
             mod $module_name {
-                use crate::extended_collections::$module_name::$type_name;
+                use extended_collections::$module_name::$type_name;
                 use rand::Rng;
                 use super::NUM_OF_OPERATIONS;
-                use test::Bencher;
+                use criterion::{Criterion, black_box};
 
-                #[bench]
-                fn bench_insert(b: &mut Bencher) {
-                    b.iter(|| {
+                pub fn bench_insert(c: &mut Criterion) {
+                    c.bench_function(&format!("bench {} get", stringify!($module_name)), |b| b.iter(|| {
                         let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
                         let mut map = $type_name::new();
                         for _ in 0..NUM_OF_OPERATIONS {
@@ -59,11 +55,10 @@ macro_rules! bst_map_benches {
 
                             map.insert(key, val);
                         }
-                    });
+                    }));
                 }
 
-                #[bench]
-                fn bench_get(b: &mut Bencher) {
+                pub fn bench_get(c: &mut Criterion) {
                     let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
                     let mut map = $type_name::new();
                     let mut values = Vec::new();
@@ -76,14 +71,24 @@ macro_rules! bst_map_benches {
                         values.push(key);
                     }
 
-                    b.iter(|| {
+                    c.bench_function(&format!("bench {} insert", stringify!($module_name)), move |b| b.iter(|| {
                         for key in &values {
-                            super::test::black_box(map.get(key));
+                            black_box(map.get(key));
                         }
-                    });
+                    }));
                 }
             }
         )*
+
+        criterion_group!(
+            benches,
+            bench_btreemap_get,
+            bench_btreemap_insert,
+            $(
+                $module_name::bench_get,
+                $module_name::bench_insert,
+            )*
+        );
     }
 }
 
@@ -94,3 +99,5 @@ bst_map_benches!(
     splay_tree: SplayMap,
     treap: TreapMap,
 );
+
+criterion_main!(benches);
