@@ -35,7 +35,7 @@ script:
   - cargo build --verbose --all-targets
   - cargo +nightly-2018-12-06 fmt --verbose --all -- --verbose --check
   - cargo +nightly-2018-12-06 clippy --verbose --all-targets
-  - cargo test --verbose --all-targets
+  - cargo test --verbose --all
   - cargo bench --verbose --all-targets
 
 after_success:

@@ -1,20 +1,22 @@
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::Rng;
 use std::collections::BTreeMap;
-use criterion::{Criterion, criterion_group, criterion_main, black_box};
 
 const NUM_OF_OPERATIONS: usize = 100;
 
 fn bench_btreemap_insert(c: &mut Criterion) {
-    c.bench_function("bench btreemap insert", |b| b.iter(|| {
-        let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
-        let mut map = BTreeMap::new();
-        for _ in 0..NUM_OF_OPERATIONS {
-            let key = rng.next_u32();
-            let val = rng.next_u32();
+    c.bench_function("bench btreemap insert", |b| {
+        b.iter(|| {
+            let mut rng: rand::XorShiftRng = rand::SeedableRng::from_seed([1, 1, 1, 1]);
+            let mut map = BTreeMap::new();
+            for _ in 0..NUM_OF_OPERATIONS {
+                let key = rng.next_u32();
+                let val = rng.next_u32();
 
-            map.insert(key, val);
-        }
-    }));
+                map.insert(key, val);
+            }
+        })
+    });
 }
 
 fn bench_btreemap_get(c: &mut Criterion) {
@@ -29,11 +31,13 @@ fn bench_btreemap_get(c: &mut Criterion) {
         values.push(key);
     }
 
-    c.bench_function("bench btreemap get", move |b| b.iter(|| {
-        for key in &values {
-            black_box(map.get(key));
-        }
-    }));
+    c.bench_function("bench btreemap get", move |b| {
+        b.iter(|| {
+            for key in &values {
+                black_box(map.get(key));
+            }
+        })
+    });
 }
 
 macro_rules! bst_map_benches {
