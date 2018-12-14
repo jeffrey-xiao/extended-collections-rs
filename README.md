@@ -7,7 +7,8 @@
 [![Build Status](https://travis-ci.org/jeffrey-xiao/extended-collections-rs.svg?branch=master)](https://travis-ci.org/jeffrey-xiao/extended-collections-rs)
 [![codecov](https://codecov.io/gh/jeffrey-xiao/extended-collections-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/jeffrey-xiao/extended-collections-rs)
 
-`extended-collections` contains various implementations of collections that are not found in the standard library.
+`extended-collections` contains various implementations of collections that are not found in the
+standard library.
 
 ## Usage
 
