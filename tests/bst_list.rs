@@ -1,7 +1,7 @@
 const NUM_OF_OPERATIONS: usize = 100_000;
 
 macro_rules! bst_list_tests {
-    ($($module_name:ident: $type_name:ident$(,)*)*) => {
+    ($($module_name:ident: $type_name:ident$(,)?)*) => {
         $(
             mod $module_name {
                 use extended_collections::$module_name::$type_name;

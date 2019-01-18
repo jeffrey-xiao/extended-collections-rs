@@ -41,10 +41,10 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
-            Error::IOError(ref error) => error.cause(),
-            Error::SerdeError(ref error) => error.cause(),
+            Error::IOError(ref error) => error.source(),
+            Error::SerdeError(ref error) => error.source(),
         }
     }
 }
