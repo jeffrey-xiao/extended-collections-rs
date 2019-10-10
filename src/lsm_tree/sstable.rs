@@ -153,7 +153,7 @@ impl<T, U> SSTableBuilder<T, U> {
                 let start = cmp::min(start, logical_time);
                 let end = cmp::max(end, logical_time);
                 self.logical_time_range = Some((start, end))
-            },
+            }
             None => self.logical_time_range = Some((logical_time, logical_time)),
         }
 
@@ -360,11 +360,9 @@ where
 
         let size = match data_file.read_u64::<BigEndian>() {
             Ok(size) => size,
-            Err(error) => {
-                match error.kind() {
-                    ErrorKind::UnexpectedEof => return None,
-                    _ => return Some(Err(Error::from(error))),
-                }
+            Err(error) => match error.kind() {
+                ErrorKind::UnexpectedEof => return None,
+                _ => return Some(Err(Error::from(error))),
             },
         };
 

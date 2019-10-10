@@ -23,23 +23,31 @@ impl<T> Node<T> {
     }
 
     pub fn get(&self, byte: u8) -> &Tree<T> {
-        fn get_inner<T>(tree: &Tree<T>, byte: u8) -> &Tree<T> {
-            match tree {
-                Some(ref node) if node.key[0] != byte => get_inner(&node.next, byte),
-                _ => tree,
-            }
+        let mut curr = &self.child;
+        loop {
+            match curr {
+                Some(ref node) if node.key[0] != byte => curr = &node.next,
+                tree => return tree,
+            };
         }
-        get_inner(&self.child, byte)
     }
 
     pub fn get_mut(&mut self, byte: u8) -> &mut Tree<T> {
-        fn get_mut_inner<T>(tree: &mut Tree<T>, byte: u8) -> &mut Tree<T> {
-            match tree {
-                Some(ref mut node) if node.key[0] != byte => get_mut_inner(&mut node.next, byte),
-                _ => tree,
+        let mut curr = &mut self.child;
+        loop {
+            let matches = match curr {
+                Some(ref mut node) => node.key[0] == byte,
+                None => false,
+            };
+            if matches {
+                return curr;
+            } else {
+                match { curr } {
+                    Some(ref mut node) => curr = &mut node.next,
+                    tree => return tree,
+                }
             }
         }
-        get_mut_inner(&mut self.child, byte)
     }
 
     pub fn split(&mut self, split_index: usize) {
@@ -60,7 +68,7 @@ impl<T> Node<T> {
                     } else {
                         insert_inner(&mut node.next, new_node);
                     }
-                },
+                }
                 None => *tree = Some(new_node),
             }
         }

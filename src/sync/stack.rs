@@ -76,7 +76,7 @@ impl<T> Stack<T> {
                 Ok(_) => {
                     self.len.fetch_add(1, Ordering::Release);
                     break;
-                },
+                }
                 Err(e) => new_node = e.new,
             }
         }
@@ -115,7 +115,7 @@ impl<T> Stack<T> {
                             return Some(ptr::read(&(*head).value));
                         }
                     }
-                },
+                }
                 None => return None,
             }
         }

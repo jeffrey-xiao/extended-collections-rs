@@ -452,7 +452,7 @@ where
                 Err(error) => {
                     is_compacting.store(false, Ordering::Release);
                     println!("Compaction terminated with error: {:?}", error);
-                },
+                }
             }
         }))
     }
@@ -669,14 +669,12 @@ where
             sstable_data_iters,
             level_data_iters,
         )?
-        .filter_map(|entry_result| {
-            match entry_result {
-                Ok(entry) => {
-                    let (key, value) = entry;
-                    value.data.map(|value| Ok((key, value)))
-                },
-                Err(error) => Some(Err(error)),
+        .filter_map(|entry_result| match entry_result {
+            Ok(entry) => {
+                let (key, value) = entry;
+                value.data.map(|value| Ok((key, value)))
             }
+            Err(error) => Some(Err(error)),
         });
 
         Ok(Box::new(compaction_iter))
@@ -775,16 +773,15 @@ where
             let entry_opt = match index {
                 LeveledIterEntryIndex::LevelIndex(index) => {
                     Self::get_next_level_entry(&mut self.level_data_iters[index])
-                },
+                }
                 LeveledIterEntryIndex::SSTableIndex(index) => self.sstable_data_iters[index].next(),
             };
 
             if let Some(entry) = entry_opt {
                 match entry {
-                    Ok(entry) => {
-                        self.entries
-                            .push(cmp::Reverse((entry.key, entry.value, index)))
-                    },
+                    Ok(entry) => self
+                        .entries
+                        .push(cmp::Reverse((entry.key, entry.value, index))),
                     Err(error) => return Some(Err(error)),
                 }
             }

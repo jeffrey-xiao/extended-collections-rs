@@ -204,28 +204,25 @@ impl<T, U> BpMap<T, U> {
 
         let mut split_node_entry = None;
         match curr_node {
-            Node::Leaf(mut curr_leaf_node) => {
-                match curr_leaf_node.insert(Entry { key, value }) {
-                    Some(InsertCases::Split {
-                        split_key,
-                        split_node,
-                    }) => {
-                        let split_node_index = self.pager.allocate_node(&split_node)?;
-                        curr_leaf_node.next_leaf = Some(split_node_index);
-                        split_node_entry = Some((split_key, split_node_index));
-                        self.pager
-                            .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
-                    },
-                    Some(InsertCases::Entry(entry)) => {
-                        self.pager
-                            .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
-                        return Ok(Some((entry.key, entry.value)));
-                    },
-                    None => {
-                        self.pager
-                            .write_node(curr_page, &Node::Leaf(curr_leaf_node))?
-                    },
+            Node::Leaf(mut curr_leaf_node) => match curr_leaf_node.insert(Entry { key, value }) {
+                Some(InsertCases::Split {
+                    split_key,
+                    split_node,
+                }) => {
+                    let split_node_index = self.pager.allocate_node(&split_node)?;
+                    curr_leaf_node.next_leaf = Some(split_node_index);
+                    split_node_entry = Some((split_key, split_node_index));
+                    self.pager
+                        .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
                 }
+                Some(InsertCases::Entry(entry)) => {
+                    self.pager
+                        .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
+                    return Ok(Some((entry.key, entry.value)));
+                }
+                None => self
+                    .pager
+                    .write_node(curr_page, &Node::Leaf(curr_leaf_node))?,
             },
             _ => panic!("Expected a leaf node."),
         }
@@ -242,13 +239,13 @@ impl<T, U> BpMap<T, U> {
                             } else {
                                 split_node_entry = None
                             }
-                        },
+                        }
                         _ => panic!("Expected an internal node."),
                     }
                     curr_node = parent_node;
                     curr_page = parent_page;
                     self.pager.write_node(curr_page, &curr_node)?;
-                },
+                }
                 None => {
                     let mut new_root = InternalNode::new(self.pager.get_internal_degree());
                     new_root.keys[0] = Some(split_key);
@@ -258,7 +255,7 @@ impl<T, U> BpMap<T, U> {
                     let new_root_page = self.pager.allocate_node(&Node::Internal(new_root))?;
                     self.pager.set_root_page(new_root_page)?;
                     split_node_entry = None;
-                },
+                }
             }
         }
         let new_len = self.pager.get_len() + 1;
@@ -371,7 +368,7 @@ impl<T, U> BpMap<T, U> {
                     self.pager
                         .write_node(curr_page, &Node::Leaf(curr_leaf_node))?;
                 }
-            },
+            }
             _ => panic!("Expected a leaf node."),
         }
 
@@ -521,11 +518,9 @@ impl<T, U> BpMap<T, U> {
     {
         let (_, curr_node, _) = self.search_node(key)?;
         match curr_node {
-            Node::Leaf(mut curr_leaf_node) => {
-                Ok(curr_leaf_node.search(key).and_then(|index| {
-                    mem::replace(&mut curr_leaf_node.entries[index], None).map(|entry| entry.value)
-                }))
-            },
+            Node::Leaf(mut curr_leaf_node) => Ok(curr_leaf_node.search(key).and_then(|index| {
+                mem::replace(&mut curr_leaf_node.entries[index], None).map(|entry| entry.value)
+            })),
             _ => panic!("Expected a leaf node."),
         }
     }
@@ -636,7 +631,7 @@ impl<T, U> BpMap<T, U> {
         match curr_node {
             Node::Leaf(mut curr_leaf_node) => {
                 Ok(mem::replace(&mut curr_leaf_node.entries[0], None).map(|entry| entry.key))
-            },
+            }
             _ => panic!("Expected a leaf node."),
         }
     }
@@ -682,7 +677,7 @@ impl<T, U> BpMap<T, U> {
                     Ok(mem::replace(&mut curr_leaf_node.entries[index], None)
                         .map(|entry| entry.key))
                 }
-            },
+            }
             _ => panic!("Expected a leaf node."),
         }
     }
@@ -725,13 +720,11 @@ impl<T, U> BpMap<T, U> {
         }
 
         match curr_node {
-            Node::Leaf(curr_leaf_node) => {
-                Ok(BpMapIterMut {
-                    pager: &mut self.pager,
-                    curr_node: curr_leaf_node,
-                    curr_index: 0,
-                })
-            },
+            Node::Leaf(curr_leaf_node) => Ok(BpMapIterMut {
+                pager: &mut self.pager,
+                curr_node: curr_leaf_node,
+                curr_index: 0,
+            }),
             _ => panic!("Expected a leaf node."),
         }
     }
@@ -772,17 +765,15 @@ where
                 Some(next_page) => {
                     self.curr_node = {
                         match self.pager.get_page(next_page) {
-                            Ok(node) => {
-                                match node {
-                                    Node::Leaf(leaf_node) => leaf_node,
-                                    _ => panic!("Expected a leaf node."),
-                                }
+                            Ok(node) => match node {
+                                Node::Leaf(leaf_node) => leaf_node,
+                                _ => panic!("Expected a leaf node."),
                             },
                             Err(error) => return Some(Err(error)),
                         }
                     };
                     self.curr_index = 0;
-                },
+                }
                 None => return None,
             }
         }

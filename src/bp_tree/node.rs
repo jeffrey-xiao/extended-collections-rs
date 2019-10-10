@@ -156,7 +156,7 @@ impl<T, U> InternalNode<T, U> {
                     } else {
                         hi = mid - 1;
                     }
-                },
+                }
             }
         }
         lo as usize
@@ -335,12 +335,10 @@ impl<T, U> LeafNode<T, U> {
             let mid = lo + ((hi - lo) >> 1);
             match self.entries[mid as usize] {
                 None => hi = mid - 1,
-                Some(ref entry) => {
-                    match entry.key.borrow().cmp(search_key) {
-                        Ordering::Less => lo = mid + 1,
-                        Ordering::Greater => hi = mid - 1,
-                        Ordering::Equal => return Some(mid as usize),
-                    }
+                Some(ref entry) => match entry.key.borrow().cmp(search_key) {
+                    Ordering::Less => lo = mid + 1,
+                    Ordering::Greater => hi = mid - 1,
+                    Ordering::Equal => return Some(mid as usize),
                 },
             }
         }

@@ -239,7 +239,7 @@ impl<T, U> Pager<T, U> {
                 self.db_file.write_all(serialized_metadata)?;
 
                 Ok(self.metadata.pages - 1)
-            },
+            }
             Some(free_page) => {
                 let offset = self.calculate_page_offset(free_page);
                 let mut buffer: Vec<u8> = vec![0; self.get_node_size() as usize];
@@ -260,7 +260,7 @@ impl<T, U> Pager<T, U> {
                 self.db_file.write_all(serialized_metadata)?;
 
                 Ok(free_page)
-            },
+            }
         }
     }
 

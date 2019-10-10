@@ -20,7 +20,7 @@ pub fn merge<T, U>(l_tree: &mut Tree<T, U>, r_tree: Tree<T, U>) {
                 r_node.update();
                 *l_tree = Some(r_node);
             }
-        },
+        }
         (new_tree, None) | (None, new_tree) => *l_tree = new_tree,
     }
 }
@@ -40,21 +40,21 @@ where
                     node.left = res.1;
                     node.update();
                     ret = (res.0, Some(node));
-                },
+                }
                 Ordering::Greater => {
                     ret = split(&mut node.right, key);
                     node.update();
                     *tree = Some(node);
-                },
+                }
                 Ordering::Equal => {
                     *tree = node.left.take();
                     let right = node.right.take();
                     node.update();
                     ret = (Some(node), right);
-                },
+                }
             }
             ret
-        },
+        }
         None => (None, None),
     }
 }
@@ -71,23 +71,23 @@ where
                         let ret = insert(&mut node.left, new_node);
                         node.update();
                         return ret;
-                    },
+                    }
                     Ordering::Greater => {
                         let ret = insert(&mut node.right, new_node);
                         node.update();
                         return ret;
-                    },
+                    }
                     Ordering::Equal => {
                         let Node { ref mut entry, .. } = &mut **node;
                         return Some(mem::replace(entry, new_node.entry));
-                    },
+                    }
                 }
             }
-        },
+        }
         None => {
             *tree = Some(Box::new(new_node));
             return None;
-        },
+        }
     }
     new_node.left = tree.take();
     let (dup_opt, right) = split(&mut new_node.left, &new_node.entry.key);
@@ -104,22 +104,20 @@ where
 {
     let mut new_tree;
     match tree {
-        Some(ref mut node) => {
-            match key.cmp(node.entry.key.borrow()) {
-                Ordering::Less => {
-                    let ret = remove(&mut node.left, key);
-                    node.update();
-                    return ret;
-                },
-                Ordering::Greater => {
-                    let ret = remove(&mut node.right, key);
-                    node.update();
-                    return ret;
-                },
-                Ordering::Equal => {
-                    new_tree = node.left.take();
-                    merge(&mut new_tree, node.right.take());
-                },
+        Some(ref mut node) => match key.cmp(node.entry.key.borrow()) {
+            Ordering::Less => {
+                let ret = remove(&mut node.left, key);
+                node.update();
+                return ret;
+            }
+            Ordering::Greater => {
+                let ret = remove(&mut node.right, key);
+                node.update();
+                return ret;
+            }
+            Ordering::Equal => {
+                new_tree = node.left.take();
+                merge(&mut new_tree, node.right.take());
             }
         },
         None => return None,
@@ -132,13 +130,12 @@ where
     T: Borrow<V>,
     V: Ord + ?Sized,
 {
-    tree.as_ref().and_then(|node| {
-        match key.cmp(node.entry.key.borrow()) {
+    tree.as_ref()
+        .and_then(|node| match key.cmp(node.entry.key.borrow()) {
             Ordering::Less => get(&node.left, key),
             Ordering::Greater => get(&node.right, key),
             Ordering::Equal => Some(&node.entry),
-        }
-    })
+        })
 }
 
 pub fn get_mut<'a, T, U, V>(tree: &'a mut Tree<T, U>, key: &V) -> Option<&'a mut Entry<T, U>>
@@ -146,13 +143,12 @@ where
     T: Borrow<V>,
     V: Ord + ?Sized,
 {
-    tree.as_mut().and_then(|node| {
-        match key.cmp(node.entry.key.borrow()) {
+    tree.as_mut()
+        .and_then(|node| match key.cmp(node.entry.key.borrow()) {
             Ordering::Less => get_mut(&mut node.left, key),
             Ordering::Greater => get_mut(&mut node.right, key),
             Ordering::Equal => Some(&mut node.entry),
-        }
-    })
+        })
 }
 
 pub fn ceil<'a, T, U, V>(tree: &'a Tree<T, U>, key: &V) -> Option<&'a Entry<T, U>>
@@ -160,18 +156,15 @@ where
     T: Borrow<V>,
     V: Ord + ?Sized,
 {
-    tree.as_ref().and_then(|node| {
-        match key.cmp(node.entry.key.borrow()) {
+    tree.as_ref()
+        .and_then(|node| match key.cmp(node.entry.key.borrow()) {
             Ordering::Greater => ceil(&node.right, key),
-            Ordering::Less => {
-                match ceil(&node.left, key) {
-                    None => Some(&node.entry),
-                    res => res,
-                }
+            Ordering::Less => match ceil(&node.left, key) {
+                None => Some(&node.entry),
+                res => res,
             },
             Ordering::Equal => Some(&node.entry),
-        }
-    })
+        })
 }
 
 pub fn floor<'a, T, U, V>(tree: &'a Tree<T, U>, key: &V) -> Option<&'a Entry<T, U>>
@@ -179,18 +172,15 @@ where
     T: Borrow<V>,
     V: Ord + ?Sized,
 {
-    tree.as_ref().and_then(|node| {
-        match key.cmp(node.entry.key.borrow()) {
+    tree.as_ref()
+        .and_then(|node| match key.cmp(node.entry.key.borrow()) {
             Ordering::Less => floor(&node.left, key),
-            Ordering::Greater => {
-                match floor(&node.right, key) {
-                    None => Some(&node.entry),
-                    res => res,
-                }
+            Ordering::Greater => match floor(&node.right, key) {
+                None => Some(&node.entry),
+                res => res,
             },
             Ordering::Equal => Some(&node.entry),
-        }
-    })
+        })
 }
 
 pub fn min<T, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>>
@@ -248,7 +238,7 @@ where
             }
             left_node.update();
             Some(left_node)
-        },
+        }
         (None, right_tree) => right_tree,
         (left_tree, None) => left_tree,
     }
@@ -284,16 +274,16 @@ where
                         if swapped {
                             *entry = dup_node.entry;
                         }
-                    },
+                    }
                     None => {
                         merge(left_subtree, right_subtree.take());
                         return left_subtree.take();
-                    },
+                    }
                 }
             }
             left_node.update();
             Some(left_node)
-        },
+        }
         _ => None,
     }
 }
@@ -337,7 +327,7 @@ where
             }
             left_node.update();
             Some(left_node)
-        },
+        }
         (mut left_tree, right_tree) => {
             if symmetric {
                 merge(&mut left_tree, right_tree);
@@ -347,6 +337,6 @@ where
             } else {
                 left_tree
             }
-        },
+        }
     }
 }

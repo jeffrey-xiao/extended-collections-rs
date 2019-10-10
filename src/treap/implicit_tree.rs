@@ -18,7 +18,7 @@ pub fn merge<T>(l_tree: &mut Tree<T>, r_tree: Tree<T>) {
                 r_node.update();
                 *l_tree = Some(r_node);
             }
-        },
+        }
         (new_tree, None) | (None, new_tree) => *l_tree = new_tree,
     }
 }
@@ -41,7 +41,7 @@ pub fn split<T>(tree: &mut Tree<T>, index: usize, left_inclusive: bool) -> Tree<
                 *tree = Some(node);
             }
             ret
-        },
+        }
         None => None,
     }
 }
@@ -63,12 +63,12 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
                 let ret = remove(&mut node.left, index);
                 node.update();
                 return ret;
-            },
+            }
             Ordering::Greater => {
                 let ret = remove(&mut node.right, index - key);
                 node.update();
                 return ret;
-            },
+            }
             Ordering::Equal => {
                 let ImplicitNode {
                     ref mut left,
@@ -77,7 +77,7 @@ pub fn remove<T>(tree: &mut Tree<T>, index: usize) -> T {
                 } = &mut **node;
                 merge(left, right.take());
                 left.take()
-            },
+            }
         }
     };
 

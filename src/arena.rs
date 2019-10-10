@@ -100,7 +100,7 @@ impl<T> TypedArena<T> {
                     chunk_index: chunk_count - 1,
                     block_index: last_chunk.len() - 1,
                 }
-            },
+            }
             Some(entry) => {
                 let vacant_block = mem::replace(
                     &mut self.chunks[entry.chunk_index][entry.block_index],
@@ -112,10 +112,10 @@ impl<T> TypedArena<T> {
                         let ret = entry;
                         self.head = next_entry;
                         ret
-                    },
+                    }
                     Block::Occupied(_) => panic!("Expected an occupied block."),
                 }
-            },
+            }
         }
     }
 
@@ -151,7 +151,7 @@ impl<T> TypedArena<T> {
                     block_index: entry.block_index,
                 });
                 value
-            },
+            }
         }
     }
 

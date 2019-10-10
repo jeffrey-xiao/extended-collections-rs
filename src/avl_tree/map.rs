@@ -477,19 +477,17 @@ where
                 (&mut node.entry, node.right.as_mut().map(|node| &mut **node))
             }));
         }
-        stack.pop().and_then(|pair_opt| {
-            match pair_opt {
-                Some(pair) => {
-                    let (entry, right) = pair;
-                    let Entry {
-                        ref key,
-                        ref mut value,
-                    } = entry;
-                    *current = right;
-                    Some((key, value))
-                },
-                None => None,
+        stack.pop().and_then(|pair_opt| match pair_opt {
+            Some(pair) => {
+                let (entry, right) = pair;
+                let Entry {
+                    ref key,
+                    ref mut value,
+                } = entry;
+                *current = right;
+                Some((key, value))
             }
+            None => None,
         })
     }
 }

@@ -396,7 +396,7 @@ impl<T> Iterator for RadixMapIntoIter<T> {
                     let new_len = self.prefix.len() - key_len;
                     self.prefix.split_off(new_len);
                     self.current = next_tree;
-                },
+                }
                 None => return None,
             }
         }
@@ -441,7 +441,7 @@ where
                     let new_len = self.prefix.len() - key_len;
                     self.prefix.split_off(new_len);
                     self.current = next_tree;
-                },
+                }
                 None => return None,
             }
         }
@@ -487,7 +487,7 @@ where
                     let new_len = self.prefix.len() - key_len;
                     self.prefix.split_off(new_len);
                     self.current = next_tree.as_mut().map(|node| &mut **node);
-                },
+                }
                 None => return None,
             }
         }

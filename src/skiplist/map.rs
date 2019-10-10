@@ -603,25 +603,25 @@ impl<T, U> SkipMap<T, U> {
                                 let next_right_node = *(*right.head).get_pointer(0);
                                 Node::free(mem::replace(&mut right.head, next_right_node));
                                 continue;
-                            },
+                            }
                             cmp::Ordering::Less => {
                                 let next_left_node = *(*left.head).get_pointer(0);
                                 next_node = mem::replace(&mut left.head, next_left_node);
-                            },
+                            }
                             cmp::Ordering::Greater => {
                                 let next_right_node = *(*right.head).get_pointer(0);
                                 next_node = mem::replace(&mut right.head, next_right_node);
-                            },
+                            }
                         }
-                    },
+                    }
                     (true, false) => {
                         let next_right_node = *(*right.head).get_pointer(0);
                         next_node = mem::replace(&mut right.head, next_right_node);
-                    },
+                    }
                     (false, true) => {
                         let next_left_node = *(*left.head).get_pointer(0);
                         next_node = mem::replace(&mut left.head, next_left_node);
-                    },
+                    }
                 }
                 ret.len += 1;
 
@@ -696,29 +696,29 @@ impl<T, U> SkipMap<T, U> {
                                 let next_right_node = *(*right.head).get_pointer(0);
                                 next_node = mem::replace(&mut left.head, next_left_node);
                                 Node::free(mem::replace(&mut right.head, next_right_node));
-                            },
+                            }
                             cmp::Ordering::Less => {
                                 let next_left_node = *(*left.head).get_pointer(0);
                                 Node::free(mem::replace(&mut left.head, next_left_node));
                                 continue;
-                            },
+                            }
                             cmp::Ordering::Greater => {
                                 let next_right_node = *(*right.head).get_pointer(0);
                                 Node::free(mem::replace(&mut right.head, next_right_node));
                                 continue;
-                            },
+                            }
                         }
-                    },
+                    }
                     (true, false) => {
                         let next_right_node = *(*right.head).get_pointer(0);
                         Node::free(mem::replace(&mut right.head, next_right_node));
                         continue;
-                    },
+                    }
                     (false, true) => {
                         let next_left_node = *(*left.head).get_pointer(0);
                         Node::free(mem::replace(&mut left.head, next_left_node));
                         continue;
-                    },
+                    }
                 }
                 ret.len += 1;
 
@@ -772,11 +772,11 @@ impl<T, U> SkipMap<T, U> {
                                 Node::free(mem::replace(&mut left.head, next_left_node));
                                 Node::free(mem::replace(&mut right.head, next_right_node));
                                 continue;
-                            },
+                            }
                             cmp::Ordering::Less => {
                                 let next_left_node = *(*left.head).get_pointer(0);
                                 next_node = mem::replace(&mut left.head, next_left_node);
-                            },
+                            }
                             cmp::Ordering::Greater => {
                                 let next_right_node = *(*right.head).get_pointer(0);
                                 if symmetric {
@@ -785,9 +785,9 @@ impl<T, U> SkipMap<T, U> {
                                     Node::free(mem::replace(&mut right.head, next_right_node));
                                     continue;
                                 }
-                            },
+                            }
                         }
-                    },
+                    }
                     (true, false) => {
                         let next_right_node = *(*right.head).get_pointer(0);
                         if symmetric {
@@ -796,11 +796,11 @@ impl<T, U> SkipMap<T, U> {
                             Node::free(mem::replace(&mut right.head, next_right_node));
                             continue;
                         }
-                    },
+                    }
                     (false, true) => {
                         let next_right_node = *(*right.head).get_pointer(0);
                         next_node = mem::replace(&mut right.head, next_right_node);
-                    },
+                    }
                 }
                 ret.len += 1;
 

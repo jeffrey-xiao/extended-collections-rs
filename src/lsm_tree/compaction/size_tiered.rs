@@ -113,7 +113,7 @@ impl<T, U> SizeTieredMetadata<T, U> {
             let key_intersecting = match &sstable_key_range {
                 Some(ref sstable_key_range) => {
                     sstable::is_intersecting(&sstable_key_range, &sstable.summary.key_range)
-                },
+                }
                 None => false,
             };
             is_older_range && !key_intersecting
@@ -342,7 +342,7 @@ impl<T, U> SizeTieredStrategy<T, U> {
                 Err(error) => {
                     is_compacting.store(false, Ordering::Release);
                     println!("Compaction terminated with error: {:?}", error);
-                },
+                }
             }
         }));
     }
@@ -551,14 +551,12 @@ where
             .collect();
         let metadata_lock_count = Rc::clone(&self.metadata_lock_count);
         let compaction_iter = SizeTieredIter::new(Some(metadata_lock_count), sstable_data_iters)?
-            .filter_map(|entry_result| {
-                match entry_result {
-                    Ok(entry) => {
-                        let (key, value) = entry;
-                        value.data.map(|value| Ok((key, value)))
-                    },
-                    Err(error) => Some(Err(error)),
+            .filter_map(|entry_result| match entry_result {
+                Ok(entry) => {
+                    let (key, value) = entry;
+                    value.data.map(|value| Ok((key, value)))
                 }
+                Err(error) => Some(Err(error)),
             });
 
         Ok(Box::new(compaction_iter))
@@ -616,10 +614,9 @@ where
         while let Some(cmp::Reverse((key, value, index))) = self.entries.pop() {
             if let Some(entry) = self.sstable_data_iters[index].next() {
                 match entry {
-                    Ok(entry) => {
-                        self.entries
-                            .push(cmp::Reverse((entry.key, entry.value, index)))
-                    },
+                    Ok(entry) => self
+                        .entries
+                        .push(cmp::Reverse((entry.key, entry.value, index))),
                     Err(error) => return Some(Err(error)),
                 }
             }

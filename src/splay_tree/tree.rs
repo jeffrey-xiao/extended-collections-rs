@@ -36,12 +36,12 @@ where
                         .as_mut()
                         .expect("Expected non-empty left child")
                         .left;
-                },
+                }
                 Ordering::Greater => {
                     let should_rotate = match &mut node.right {
                         Some(ref mut child) => {
                             key.cmp(child.entry.key.borrow()) == Ordering::Greater
-                        },
+                        }
                         None => break,
                     };
                     if should_rotate {
@@ -57,7 +57,7 @@ where
                         .as_mut()
                         .expect("Expected non-empty right child")
                         .right;
-                },
+                }
                 Ordering::Equal => break,
             }
         }
@@ -83,23 +83,23 @@ where
                     mem::swap(&mut **node, &mut new_node);
                     node.right = Some(Box::new(new_node));
                     None
-                },
+                }
                 Ordering::Greater => {
                     new_node.right = node.right.take();
                     mem::swap(&mut **node, &mut new_node);
                     node.left = Some(Box::new(new_node));
                     None
-                },
+                }
                 Ordering::Equal => {
                     let ret = mem::replace(&mut node.entry, new_node.entry);
                     Some(ret)
-                },
+                }
             }
-        },
+        }
         None => {
             *tree = Some(Box::new(new_node));
             None
-        },
+        }
     }
 }
 
@@ -114,7 +114,7 @@ where
             if key != node.entry.key.borrow() {
                 return None;
             }
-        },
+        }
         None => return None,
     };
 
@@ -125,7 +125,7 @@ where
             splay(&mut left_child, key);
             left_child.right = right;
             Some(left_child)
-        },
+        }
         None => right,
     };
     Some(entry)
@@ -136,13 +136,12 @@ where
     T: Borrow<V>,
     V: Ord + ?Sized,
 {
-    tree.as_ref().and_then(|node| {
-        match key.cmp(node.entry.key.borrow()) {
+    tree.as_ref()
+        .and_then(|node| match key.cmp(node.entry.key.borrow()) {
             Ordering::Less => get(&node.left, key),
             Ordering::Greater => get(&node.right, key),
             Ordering::Equal => Some(&node.entry),
-        }
-    })
+        })
 }
 
 pub fn get_mut<'a, T, U, V>(tree: &'a mut Tree<T, U>, key: &V) -> Option<&'a mut Entry<T, U>>
@@ -164,18 +163,15 @@ where
     T: Borrow<V>,
     V: Ord + ?Sized,
 {
-    tree.as_ref().and_then(|node| {
-        match key.cmp(node.entry.key.borrow()) {
+    tree.as_ref()
+        .and_then(|node| match key.cmp(node.entry.key.borrow()) {
             Ordering::Greater => ceil(&node.right, key),
-            Ordering::Less => {
-                match ceil(&node.left, key) {
-                    None => Some(&node.entry),
-                    res => res,
-                }
+            Ordering::Less => match ceil(&node.left, key) {
+                None => Some(&node.entry),
+                res => res,
             },
             Ordering::Equal => Some(&node.entry),
-        }
-    })
+        })
 }
 
 pub fn floor<'a, T, U, V>(tree: &'a Tree<T, U>, key: &V) -> Option<&'a Entry<T, U>>
@@ -183,18 +179,15 @@ where
     T: Borrow<V>,
     V: Ord + ?Sized,
 {
-    tree.as_ref().and_then(|node| {
-        match key.cmp(node.entry.key.borrow()) {
+    tree.as_ref()
+        .and_then(|node| match key.cmp(node.entry.key.borrow()) {
             Ordering::Less => floor(&node.left, key),
-            Ordering::Greater => {
-                match floor(&node.right, key) {
-                    None => Some(&node.entry),
-                    res => res,
-                }
+            Ordering::Greater => match floor(&node.right, key) {
+                None => Some(&node.entry),
+                res => res,
             },
             Ordering::Equal => Some(&node.entry),
-        }
-    })
+        })
 }
 
 pub fn min<T, U>(tree: &Tree<T, U>) -> Option<&Entry<T, U>>
