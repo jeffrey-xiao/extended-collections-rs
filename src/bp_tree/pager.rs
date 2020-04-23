@@ -35,13 +35,6 @@ impl From<bincode::Error> for Error {
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
-        match self {
-            Error::IOError(ref error) => error.description(),
-            Error::SerdeError(ref error) => error.description(),
-        }
-    }
-
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
             Error::IOError(ref error) => error.source(),
