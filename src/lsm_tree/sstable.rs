@@ -62,7 +62,7 @@ impl<U> PartialOrd for SSTableValue<U> {
 
 impl<U> Eq for SSTableValue<U> {}
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SSTableSummary<T> {
     pub entry_count: usize,
     pub tombstone_count: usize,
@@ -232,7 +232,6 @@ impl<T, U> SSTableBuilder<T, U> {
     }
 }
 
-#[derive(Clone)]
 pub struct SSTable<T, U> {
     pub path: PathBuf,
     pub summary: SSTableSummary<T>,
