@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["RedBlackMap","An ordered map implemented using an avl tree."],["RedBlackSet","An ordered set implemented using a red_black_tree."]]});

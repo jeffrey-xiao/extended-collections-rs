@@ -1,0 +1,60 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `extended_collections` crate."><meta name="keywords" content="rust, rustlang, rust-lang, extended_collections"><title>extended_collections - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../extended_collections/index.html'><div class='logo-container'><img src='../rust-logo.png' alt='logo'></div></a><p class='location'>Crate extended_collections</p><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all extended_collections's items</p></a><div class="block items"><ul><li><a href="#modules">Modules</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'extended_collections', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/extended_collections/lib.rs.html#1-62' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>extended_collections</a></span></h1><div class='docblock'><h1 id="extended-collections-rs" class="section-header"><a href="#extended-collections-rs">extended-collections-rs</a></h1>
+<p><a href="https://crates.io/crates/extended-collections"><img src="http://meritbadge.herokuapp.com/extended-collections" alt="extended-collections" /></a>
+<a href="https://docs.rs/extended-collections"><img src="https://docs.rs/extended-collections/badge.svg" alt="Documentation" /></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
+<a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0" /></a>
+<a href="https://travis-ci.org/jeffrey-xiao/extended-collections-rs"><img src="https://travis-ci.org/jeffrey-xiao/extended-collections-rs.svg?branch=master" alt="Build Status" /></a>
+<a href="https://codecov.io/gh/jeffrey-xiao/extended-collections-rs"><img src="https://codecov.io/gh/jeffrey-xiao/extended-collections-rs/branch/master/graph/badge.svg" alt="codecov" /></a></p>
+<p><code>extended-collections</code> contains various implementations of collections that are not found in the
+standard library.</p>
+<h2 id="usage" class="section-header"><a href="#usage">Usage</a></h2>
+<p>Add this to your <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[dependencies]
+extended-collections = &quot;*&quot;
+</code></pre>
+<p>and this to your crate root:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered">
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">extended_collections</span>;</pre></div>
+<h2 id="changelog" class="section-header"><a href="#changelog">Changelog</a></h2>
+<p>See <a href="CHANGELOG.md">CHANGELOG</a> for more details.</p>
+<h2 id="references" class="section-header"><a href="#references">References</a></h2>
+<ul>
+<li><a href="https://dl.acm.org/citation.cfm?id=277660">Fast set operations using treaps</a></li>
+</ul>
+<blockquote>
+<p>Blelloch, Guy E., and Margaret Reid-Miller. 1998. “Fast Set Operations Using Treaps.” In <em>Proceedings of the Tenth Annual Acm Symposium on Parallel Algorithms and Architectures</em>, 16–26. SPAA ’98. New York, NY, USA: ACM. doi:<a href="https://doi.org/10.1145/277651.277660">10.1145/277651.277660</a>.</p>
+</blockquote>
+<ul>
+<li><a href="https://dl.acm.org/citation.cfm?id=93711">A Skip List Cookbook.</a></li>
+</ul>
+<blockquote>
+<p>Pugh, William. 1990a. “A Skip List Cookbook.” College Park, MD, USA: University of Maryland at
+College Park.</p>
+</blockquote>
+<ul>
+<li><a href="https://dl.acm.org/citation.cfm?id=78977">Skip Lists: A Probabilistic Alternative to Balanced
+Trees</a></li>
+</ul>
+<blockquote>
+<p>Pugh, William. 1990b. “Skip Lists: A Probabilistic Alternative to Balanced Trees.” <em>Commun. ACM</em> 33 (6). New York, NY, USA: ACM: 668–76. doi:<a href="https://doi.org/10.1145/78973.78977">10.1145/78973.78977</a>.</p>
+</blockquote>
+<h2 id="license" class="section-header"><a href="#license">License</a></h2>
+<p><code>extended-collections-rs</code> is dual-licensed under the terms of either the MIT License or the
+Apache License (Version 2.0).</p>
+<p>See <a href="LICENSE-APACHE">LICENSE-APACHE</a> and <a href="LICENSE-MIT">LICENSE-MIT</a> for more details.</p>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table><tr class='module-item'><td><a class="mod" href="arena/index.html" title='extended_collections::arena mod'>arena</a></td><td class='docblock-short'><p>Fast, but limited allocator.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="avl_tree/index.html" title='extended_collections::avl_tree mod'>avl_tree</a></td><td class='docblock-short'><p>Self-balancing binary search tree where the heights of the two child subtrees of any node
+differ by at most one.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="bp_tree/index.html" title='extended_collections::bp_tree mod'>bp_tree</a></td><td class='docblock-short'><p>Disk-resident N-ary tree.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="lsm_tree/index.html" title='extended_collections::lsm_tree mod'>lsm_tree</a></td><td class='docblock-short'><p>Hybrid tree comprised of disk-resident sorted runs of data and memory-resident tree.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="radix/index.html" title='extended_collections::radix mod'>radix</a></td><td class='docblock-short'><p>Space-optimized trie.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="red_black_tree/index.html" title='extended_collections::red_black_tree mod'>red_black_tree</a></td><td class='docblock-short'><p>Self-balancing binary search tree that uses a color bit to ensure that the tree remains
+approximately balanced during insertions and deletions.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="skiplist/index.html" title='extended_collections::skiplist mod'>skiplist</a></td><td class='docblock-short'><p>Probabilistic linked hierarchy of subsequences.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="splay_tree/index.html" title='extended_collections::splay_tree mod'>splay_tree</a></td><td class='docblock-short'><p>Self-adjusting binary search tree with the additional property that recently accessed elements
+are quick to access again.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="sync/index.html" title='extended_collections::sync mod'>sync</a></td><td class='docblock-short'><p>Lock-free data structures.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="treap/index.html" title='extended_collections::treap mod'>treap</a></td><td class='docblock-short'><p>Probabilistic binary search tree where each node also maintains the heap invariant.</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../";window.currentCrate = "extended_collections";</script><script src="../aliases.js"></script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>

@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Error","Convenience `Error` enum for `lsm_tree`."]],"mod":[["compaction","Strategies for merging disk-resident sorted runs of data."]],"struct":[["LsmMap","An ordered map implemented using a log structured merge-tree."]],"type":[["Result","Convenience `Result` type for `lsm_tree`."]]});

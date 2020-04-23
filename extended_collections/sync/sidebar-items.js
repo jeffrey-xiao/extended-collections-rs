@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Stack","A concurrent and lock-free stack using Treiber's algorithm."]]});

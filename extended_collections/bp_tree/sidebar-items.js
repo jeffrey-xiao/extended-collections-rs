@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Error","Convenience `Error` enum for `bp_tree`."]],"struct":[["BpMap","An ordered map implemented using an on-disk B+ tree."]],"type":[["Result","Convenience `Result` type for `bp_tree`."]]});

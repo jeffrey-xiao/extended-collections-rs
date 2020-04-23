@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["extended_collections"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/marker/trait.StructuralEq.html\" title=\"trait core::marker::StructuralEq\">StructuralEq</a> for <a class=\"struct\" href=\"extended_collections/arena/struct.Entry.html\" title=\"struct extended_collections::arena::Entry\">Entry</a>","synthetic":false,"types":["extended_collections::arena::Entry"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
