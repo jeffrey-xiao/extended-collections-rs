@@ -160,7 +160,7 @@ pub fn get_longest_prefix<T>(
                     Some(_) => get_longest_prefix(next_child, key, index, curr_key, keys),
                     None => {
                         if node.value.is_some() {
-                            keys.push(curr_key.clone())
+                            keys.push(curr_key)
                         }
                     }
                 }

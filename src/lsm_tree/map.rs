@@ -404,8 +404,7 @@ where
         let in_memory_min = self
             .in_memory_tree
             .iter()
-            .skip_while(|entry| entry.1.data.is_none())
-            .next()
+            .find(|entry| entry.1.data.is_some())
             .map(|entry| entry.0.clone());
         let disk_min = self.compaction_strategy.min()?;
 
@@ -445,8 +444,7 @@ where
             self.in_memory_tree
                 .iter()
                 .rev()
-                .skip_while(|entry| entry.1.data.is_none())
-                .next()
+                .find(|entry| entry.1.data.is_some())
                 .map(|entry| entry.0.clone()),
             self.compaction_strategy.max()?,
         ))
